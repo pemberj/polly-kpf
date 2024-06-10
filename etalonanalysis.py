@@ -12,6 +12,9 @@ from dataclasses import dataclass
 from astropy.io import fits
 # from astropy import constants
 
+# Progress bars
+from tqdm import tqdm
+
 import numpy as np
 from numpy.typing import ArrayLike
 
@@ -21,8 +24,8 @@ from scipy.optimize import curve_fit
 from matplotlib import pyplot as plt
 
 try:
-    from etalonanalysis.fit_erf_to_ccf_simplified import conv_gauss_tophat
-    from etalonanalysis.plotStyle import plotStyle
+    from polly.fit_erf_to_ccf_simplified import conv_gauss_tophat
+    from polly.plotStyle import plotStyle
 except ImportError:
     from fit_erf_to_ccf_simplified import conv_gauss_tophat
     from plotStyle import plotStyle
@@ -41,7 +44,6 @@ class Peak:
     distance_from_order_center: float = None
     
     amplitude: float = None
-    fwhm: float = None
     sigma: float = None
     boxhalfwidth: float = None
     offset: float = None
@@ -83,13 +85,14 @@ class Peak:
         
         x0 = np.mean(self.wavelet)
         x = self.wavelet - x0
+        mean_dx = np.mean(np.diff(x))
         y = self.speclet
         
-            # amplitude,    mean,   fwhm
-        p0 = [max(y),       0,      5] # TODO: better FWHM guess? Sampling of KPF?
+            # amplitude,   mean,       fwhm,          offset
+        p0 = [max(y),       0,          mean_dx * 5,    0] # TODO: better FWHM guess? Sampling of KPF?
         bounds = [
-            [0,             min(x), 0],
-            [max(y),        max(x), len(x)/2]
+             [0,           -mean_dx,    0,             -np.inf],
+             [max(y),       mean_dx,    mean_dx * 10,   np.inf]
         ]
         
         try:
@@ -99,24 +102,26 @@ class Peak:
         except ValueError: # zero-size array to reduction operation maximum which has no identity ????
             p = [np.nan] * len(p0)
             
-        amplitude, mean, fwhm = p
+        amplitude, mean, fwhm, offset = p
         
         self.center_wavelength = x0 + mean
         self.amplitude = amplitude
-        self.fwhm = fwhm
+        self.sigma = fwhm / (2 * np.sqrt(2 * np.log(2)))
+        self.offset = offset
             
             
     def _fit_conv_gauss_tophat(self) -> None:
         
         x0 = np.mean(self.wavelet)
         x = self.wavelet - x0
+        mean_dx = abs(np.mean(np.diff(x)))
         y = self.speclet
             
-            # center,   amp,  sigma, boxhalfwidth, offset
-        p0 = [0,        max(y), 0.02,   0.05,   min(y)] # TODO: better guesses?
+            # center,            amp,       sigma,          boxhalfwidth,       offset
+        p0 = [0,                max(y),     2 * mean_dx,        3 * mean_dx,    min(y)] # TODO: better guesses?
         bounds = [
-            [min(x)/2,  0,      0,      0,      0],
-            [max(x)/2,  max(y), 1,      1, max(y)]
+             [-mean_dx * 2,     0,          0,                  0,             -np.inf],
+             [ mean_dx * 2,     max(y),     10 * mean_dx,       6 * mean_dx,    np.inf]
         ]
         try:
             p, cov = curve_fit(f=conv_gauss_tophat, xdata=x, ydata=y, p0=p0, bounds=bounds)
@@ -154,25 +159,36 @@ class Order:
         return np.mean(self.wave)
 
    
-    def locate_peaks(self, window: int = 15) -> Order:
+    def locate_peaks(
+        self,
+        fractional_height: float = 10,
+        distance: float = 10,
+        width: float = 3,
+        window_to_save: int = 15
+        ) -> Order:
+        
+        y = self.spec - np.nanmin(self.spec)
+        y = y[~np.isnan(y)]
         p, _ = find_peaks(
-            self.spec,
-            height = 0.1 * np.max(self.spec),
-            distance = 10,
-            width = 3
+            y,
+            height = fractional_height * np.nanmax(y),
+            # prominence = 0.1 * (np.max(self.spec) - np.min(self.spec)),
+            # wlen = 8, # Window length for prominence calculation
+            distance = distance,
+            width = width,
             )           
         
         self.peaks = [
                 Peak(
                     coarse_wavelength = self.wave[_p],
                     order_i = self.i,
-                    speclet = self.spec[_p - window//2:_p + window//2 + 1],
-                    wavelet = self.wave[_p - window//2:_p + window//2 + 1],
+                    speclet = self.spec[_p - window_to_save//2:_p + window_to_save//2 + 1],
+                    wavelet = self.wave[_p - window_to_save//2:_p + window_to_save//2 + 1],
                     distance_from_order_center = abs(self.wave[_p] - self.mean_wave),
                 )
                 for _p in p
             # ignore peaks that are too close to the edge of the order
-            if _p >= window // 2 and _p <= len(self.spec) - window // 2
+            if _p >= window_to_save // 2 and _p <= len(self.spec) - window_to_save // 2
             ]
         
         return self
@@ -214,6 +230,7 @@ class Spectrum:
                     self.load_spec()
                 if self.wls_file:
                     self.load_wls()
+                print("DONE")
 
         
     def __add__(self, other):
@@ -311,18 +328,31 @@ class Spectrum:
                                     for i, w in enumerate(wave)]
             
             
-    def locate_peaks(self, window: int = 15) -> Spectrum:
+    def locate_peaks(
+        self,
+        fractional_height: float = 10,
+        distance: float = 10,
+        width: float = 3,
+        window_to_save: int = 15
+        ) -> Spectrum:
         print("Locating peaks...")
         for o in self.orders:
-            o.locate_peaks(window=window)
+            o.locate_peaks(
+                fractional_height = fractional_height,
+                distance = distance,
+                width = width,
+                window_to_save=window_to_save,
+                )
+        print("DONE")
         
     
     def fit_peaks(self, type="conv_gauss_tophat") -> Spectrum:
         if self.num_located_peaks is None:
             self.locate_peaks()
         print(f"Fitting peaks with {type} function...")
-        for o in self.orders:
+        for o in tqdm(self.orders, desc="Orders"):
             o.fit_peaks(type=type)
+        print("DONE")
             
         return self
         
@@ -408,9 +438,16 @@ class Spectrum:
 
 
 
-def _gaussian(x, amplitude, mean, fwhm) -> ArrayLike:
+def _gaussian(
+    x: ArrayLike,
+    amplitude: float = 1,
+    mean: float = 0,
+    fwhm: float = 1,
+    offset: float = 0,
+    ) -> ArrayLike:
+    
     stddev = fwhm / (2 * np.sqrt(2 * np.log(2)))
-    return amplitude * np.exp(-((x - mean) / (2 * stddev))**2)
+    return amplitude * np.exp(-((x - mean) / (2 * stddev))**2) + offset
 
 
 def test() -> None:

@@ -2,7 +2,7 @@
 import matplotlib.font_manager as fm
 
 # Import new font for plots
-fm.FontManager.addfont(fm.fontManager, path="/scr/jpember/polly/etalon_analysis/Quicksand-Regular.ttf")
+fm.FontManager.addfont(fm.fontManager, path="/scr/jpember/polly/Quicksand-Regular.ttf")
 
 lw = 1.3
 
