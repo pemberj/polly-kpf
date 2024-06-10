@@ -1,9 +1,8 @@
 # Definition of custom plot style
 import matplotlib.font_manager as fm
-from cycler import cycler
 
 # Import new font for plots
-fm.FontManager.addfont(fm.fontManager, path="./Quicksand-Regular.ttf")
+fm.FontManager.addfont(fm.fontManager, path="/scr/jpember/polly/etalon_analysis/Quicksand-Regular.ttf")
 
 lw = 1.3
 

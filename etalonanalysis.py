@@ -19,13 +19,14 @@ from scipy.signal import find_peaks
 from scipy.optimize import curve_fit
 
 from matplotlib import pyplot as plt
-from plotStyle import plotStyle
-plt.style.use(plotStyle)
 
 try:
-    from etalon_analysis.fit_erf_to_ccf_simplified import conv_gauss_tophat
+    from etalonanalysis.fit_erf_to_ccf_simplified import conv_gauss_tophat
+    from etalonanalysis.plotStyle import plotStyle
 except ImportError:
     from fit_erf_to_ccf_simplified import conv_gauss_tophat
+    from plotStyle import plotStyle
+plt.style.use(plotStyle)
 
 
 @dataclass
@@ -203,7 +204,7 @@ class Spectrum:
         
         if self.orders is None:
             if isinstance(self.spec_file, list) or isinstance(self.wls_file, list):
-                raise NotImplemented
+                raise NotImplementedError("Creating a spectrum from more than one file is not implemented.")
                 # print(f"Loading {self.orderlet} orders from multiple files...")
                 # self.co_added()
             
