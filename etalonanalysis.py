@@ -219,27 +219,19 @@ class Spectrum:
     def __post_init__(self):
         
         if self.orders is None:
-            if isinstance(self.spec_file, list) or isinstance(self.wls_file, list):
-                raise NotImplementedError("Creating a spectrum from more than one file is not implemented.")
-                # print(f"Loading {self.orderlet} orders from multiple files...")
-                # self.co_added()
-            
-            else:
-                print(f"Loading {self.orderlet} orders from a single file...", end="")
-                if self.spec_file:
-                    self.load_spec()
-                if self.wls_file:
-                    self.load_wls()
-                print(" DONE")
+            if self.spec_file:
+                self.load_spec()
+            if self.wls_file:
+                self.load_wls()
 
         
-    # def __add__(self, other):
-    #     if isinstance(other, Spectrum):
-    #         return Spectrum(file = None, orders =\
-    #             [Order(i=o1.i, wave = o1.wave, spec = o1.spec + o2.spec)\
-    #                             for o1, o2 in zip(self.orders, other.orders)])
-    #     else:
-    #         raise TypeError("Can only add two Spectrum objects together")
+    def __add__(self, other):
+        if isinstance(other, Spectrum):
+            return Spectrum(file = None, orders =\
+                [Order(i=o1.i, wave = o1.wave, spec = o1.spec + o2.spec)\
+                                for o1, o2 in zip(self.orders, other.orders)])
+        else:
+            raise TypeError("Can only add two Spectrum objects together")
         
 
     @property
@@ -291,10 +283,47 @@ class Spectrum:
         
     def load_spec(self) -> Spectrum:
         
-        spec_green = fits.getdata(self.spec_file,
-                    f"GREEN_{self.orderlet_name}_FLUX{self.orderlet_index}")
-        spec_red = fits.getdata(self.spec_file,
-                    f"RED_{self.orderlet_name}_FLUX{self.orderlet_index}")
+        if isinstance(self.spec_file, str):
+            print("Loading flux values from a single file...", end="")
+            spec_green = fits.getdata(self.spec_file,
+                        f"GREEN_{self.orderlet_name}_FLUX{self.orderlet_index}")
+            spec_red = fits.getdata(self.spec_file,
+                        f"RED_{self.orderlet_name}_FLUX{self.orderlet_index}")
+            
+            self.sci_obj = fits.getval(self.spec_file, "SCI-OBJ")
+            self.cal_obj = fits.getval(self.spec_file, "CAL-OBJ")
+        
+        elif isinstance(self.spec_file, list):
+            print("Loading flux values from list of files...", end="")
+            spec_green = np.median([fits.getdata(f,
+                    f"GREEN_{self.orderlet_name}_FLUX{self.orderlet_index}")\
+                                               for f in self.spec_file], axis=0)
+            spec_red = np.median([fits.getdata(f,
+                    f"RED_{self.orderlet_name}_FLUX{self.orderlet_index}")\
+                                               for f in self.spec_file], axis=0)
+            
+            try:
+                assert all([fits.getval(f, "SCI-OBJ") ==\
+                    fits.getval(self.spec_file[0], "SCI-OBJ")\
+                        for f in self.spec_file])
+                self.sci_obj = fits.getval(self.spec_file[0], "SCI-OBJ")
+            except AssertionError:
+                print("SCI-OBJ did not match between the input files!")
+                print([f for f in self.spec_file])
+                    
+            try:
+                assert all([fits.getval(f, "CAL-OBJ") ==\
+                    fits.getval(self.spec_file[0], "CAL-OBJ")\
+                        for f in self.spec_file])
+                self.cal_obj = fits.getval(self.spec_file[0], "CAL-OBJ")
+            except AssertionError:
+                print("CAL-OBJ did not match between the input files!")
+                print([f for f in self.spec_file])
+            
+        else: # self.spec_file is something else entirely
+            raise NotImplementedError(
+                "spec_file must be a single filename or list of filenames"
+                )
         
         spec = np.append(spec_green, spec_red, axis=0)
         
@@ -305,13 +334,14 @@ class Spectrum:
             self.orders = [Order(wave = None, spec = s, i = i)\
                                     for i, s in enumerate(spec)]
         
-        self.sci_obj = fits.getval(self.spec_file, "SCI-OBJ")
-        self.cal_obj = fits.getval(self.spec_file, "CAL-OBJ")
-        
+        print(" DONE")
         return self
     
     
     def load_wls(self) -> Spectrum:
+        
+        if isinstance(self.wls_file, list):
+            raise NotImplementedError("wls_file must be a single filename only")
         
         wave_green = fits.getdata(self.wls_file,
                 f"GREEN_{self.orderlet_name}_WAVE{self.orderlet_index}")
@@ -364,7 +394,8 @@ class Spectrum:
         window in angstroms
         """
         
-        print(f"Filtering {self.orderlet} peaks to remove identical peaks appearing in adjacent orders...")
+        print(f"Filtering {self.orderlet} peaks to remove identical peaks"+\
+               "appearing in adjacent orders...", end="")
         
         peaks = self.peaks
         
@@ -378,7 +409,8 @@ class Spectrum:
         for (p1, p2) in zip(peaks[:-1], peaks[1:]):
             if abs(p1.wl - p2.wl) < window:
                 if p2.i == p1.i:
-                    print(f"Double-peaks identified at {p1.wl} / {p2.wl} from the same order: cutoff is too large!")
+                    print(f"Double-peaks identified at {p1.wl} / {p2.wl}"+\
+                           "from the same order: cutoff is too large?")
                     continue
                 try:
                     if p1.d < p2.d:
@@ -421,7 +453,7 @@ class Spectrum:
             xlims = -np.inf, np.inf
 
         # plot the full spectrum
-        Col = plt.get_cmap('Spectral')
+        Col = plt.get_cmap("Spectral")
 
         # plot order by order
         for o in self.orders:
