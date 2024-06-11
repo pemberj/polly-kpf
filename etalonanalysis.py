@@ -204,14 +204,16 @@ class Order:
 
 @dataclass
 class Spectrum:
-    spec_file: str = None
+    spec_file: str | list[str] = None
     wls_file: str  = None
     orderlet: str  = None # SCI1, SCI2, SCI3, CAL, SKY
     
     orders: list[Order] = None
 
-    sci_obj: str = None
-    cal_obj: str = None
+    date: str | list[str] = None
+    sci_obj: str = None # SCI-OBJ in FITS header
+    cal_obj: str = None # CAL-OBJ in FITS header
+    object: str = None # OBJECT in FITS header
 
     filtered_peaks: list[Peak] = None
     
@@ -292,6 +294,7 @@ class Spectrum:
             
             self.sci_obj = fits.getval(self.spec_file, "SCI-OBJ")
             self.cal_obj = fits.getval(self.spec_file, "CAL-OBJ")
+            self.object = fits.getval(self.spec_file, "OBJECT")
         
         elif isinstance(self.spec_file, list):
             print("Loading flux values from list of files...", end="")
@@ -318,6 +321,24 @@ class Spectrum:
                 self.cal_obj = fits.getval(self.spec_file[0], "CAL-OBJ")
             except AssertionError:
                 print("CAL-OBJ did not match between the input files!")
+                print([f for f in self.spec_file])
+                
+            try:
+                assert all([fits.getval(f, "OBJECT") ==\
+                    fits.getval(self.spec_file[0], "OBJECT")\
+                        for f in self.spec_file])
+                self.object = fits.getval(self.spec_file[0], "OBJECT")
+            except AssertionError:
+                print("OBJECT did not match between the input files!")
+                print([f for f in self.spec_file])
+                
+            try:
+                assert all([fits.getval(f, "DATE-OBS") ==\
+                    fits.getval(self.spec_file[0], "DATE-OBS")\
+                        for f in self.spec_file])
+                self.date = "".join(fits.getval(self.spec_file[0], "DATE-OBS").split("-"))
+            except AssertionError:
+                print("DATE-OBS did not match between the input files!")
                 print([f for f in self.spec_file])
             
         else: # self.spec_file is something else entirely
@@ -441,7 +462,12 @@ class Spectrum:
         return self
     
 
-    def plot(self, ax: plt.Axes = None, plot_peaks: bool = True) -> plt.Axes:
+    def plot(
+        self,
+        ax: plt.Axes = None,
+        plot_peaks: bool = True,
+        label: str = None
+        ) -> plt.Axes:
                 
         if not ax:
             fig = plt.figure(figsize = (20, 4))
@@ -462,8 +488,8 @@ class Spectrum:
             bluemask = o.wave / 10. > xlims[0]
             redmask  = o.wave / 10. < xlims[1]
             mask = bluemask & redmask
-            ax.plot(o.wave[mask]/10., o.spec[mask], 'k', lw = 1.5)
-            ax.plot(o.wave[mask]/10., o.spec[mask], lw = 0.5, color = Col(wvl_norm))
+            ax.plot(o.wave[mask]/10., o.spec[mask], color="k", lw=1.5, label=label)
+            ax.plot(o.wave[mask]/10., o.spec[mask], lw=0.5, color=Col(wvl_norm))
 
         if plot_peaks:
             if self.filtered_peaks is not None:
@@ -473,8 +499,19 @@ class Spectrum:
 
         ax.set_xlabel("Wavelength [nm]")
         ax.set_ylabel("Flux")
+        
+        ax.legend()
 
         return ax
+    
+
+    def save_config_file(self):
+        f"""
+        date: {}
+        spec_file: {self.spec_file}
+        wls_file: {self.wls_file}
+        orderlet: {self.orderlet}
+        """
 
 
 def _gaussian(
