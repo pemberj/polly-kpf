@@ -92,12 +92,13 @@ class Peak:
     def _fit_gaussian(self) -> None:
         
         x0 = np.mean(self.wavelet)
-        x = self.wavelet - x0
+        x = self.wavelet - x0 # Centre about zero
         mean_dx = np.mean(np.diff(x))
         y = self.speclet
         
+        # TODO: better FWHM guess? Sampling of KPF?
             # amplitude,   mean,       fwhm,          offset
-        p0 = [max(y),       0,          mean_dx * 5,    0] # TODO: better FWHM guess? Sampling of KPF?
+        p0 = [max(y),       0,          mean_dx * 5,    0]
         bounds = [
              [0,           -mean_dx,    0,             -np.inf],
              [max(y),       mean_dx,    mean_dx * 10,   np.inf]
@@ -105,9 +106,9 @@ class Peak:
         
         try:
             p, cov = curve_fit(f=_gaussian, xdata=x, ydata=y, p0=p0, bounds=bounds)
-        except RuntimeError: # Reached max number of function evaluations
+        except RuntimeError:
             p = [np.nan] * len(p0)
-        except ValueError: # zero-size array to reduction operation maximum which has no identity ????
+        except ValueError:
             p = [np.nan] * len(p0)
             
         amplitude, mean, fwhm, offset = p
@@ -121,21 +122,21 @@ class Peak:
     def _fit_conv_gauss_tophat(self) -> None:
         
         x0 = np.mean(self.wavelet)
-        x = self.wavelet - x0
+        x = self.wavelet - x0 # Centre about zero
         mean_dx = abs(np.mean(np.diff(x)))
         y = self.speclet
-            
-            # center,            amp,       sigma,          boxhalfwidth,       offset
-        p0 = [0,                max(y),     2 * mean_dx,        3 * mean_dx,    min(y)] # TODO: better guesses?
+        # TODO: better guesses?
+            # center,            amp,       sigma,          boxhalfwidth,   offset
+        p0 = [0,                max(y),     2 * mean_dx,    3 * mean_dx,    min(y)]
         bounds = [
-             [-mean_dx * 2,     0,          0,                  0,             -np.inf],
-             [ mean_dx * 2,     max(y),     10 * mean_dx,       6 * mean_dx,    np.inf]
+             [-mean_dx * 2,     0,          0,              0,             -np.inf],
+             [ mean_dx * 2,     max(y),     10 * mean_dx,   6 * mean_dx,    np.inf]
         ]
         try:
             p, cov = curve_fit(f=conv_gauss_tophat, xdata=x, ydata=y, p0=p0, bounds=bounds)
-        except RuntimeError: # Reached max number of function evaluations
+        except RuntimeError:
             p = [np.nan] * len(p0)
-        except ValueError: # zero-size array to reduction operation maximum which has no identity ????
+        except ValueError:
             p = [np.nan] * len(p0)
         
         center, amplitude, sigma, boxhalfwidth, offset = p
@@ -496,8 +497,9 @@ class Spectrum:
             bluemask = o.wave / 10. > xlims[0]
             redmask  = o.wave / 10. < xlims[1]
             mask = bluemask & redmask
-            ax.plot(o.wave[mask]/10., o.spec[mask], color="k", lw=1.5, label=label)
+            ax.plot(o.wave[mask]/10., o.spec[mask], color="k", lw=1.5)
             ax.plot(o.wave[mask]/10., o.spec[mask], lw=0.5, color=Col(wvl_norm))
+        ax.plot(0, 0, color="k", lw=1.5, label=label)
 
         if plot_peaks:
             if self.filtered_peaks is not None:
