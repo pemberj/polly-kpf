@@ -319,7 +319,7 @@ class Spectrum:
                         for f in self.spec_file])
                 self.sci_obj = fits.getval(self.spec_file[0], "SCI-OBJ")
             except AssertionError:
-                print("SCI-OBJ did not match between the input files!")
+                print(f"{WARNING}SCI-OBJ did not match between the input files!{ENDC}")
                 print([f for f in self.spec_file])
                     
             try:
@@ -328,7 +328,7 @@ class Spectrum:
                         for f in self.spec_file])
                 self.cal_obj = fits.getval(self.spec_file[0], "CAL-OBJ")
             except AssertionError:
-                print("CAL-OBJ did not match between the input files!")
+                print(f"{WARNING}CAL-OBJ did not match between the input files!{ENDC}")
                 print([f for f in self.spec_file])
                 
             try:
@@ -337,7 +337,7 @@ class Spectrum:
                         for f in self.spec_file])
                 self.object = fits.getval(self.spec_file[0], "OBJECT")
             except AssertionError:
-                print("OBJECT did not match between the input files!")
+                print(f"{WARNING}OBJECT did not match between the input files!{ENDC}")
                 print([f for f in self.spec_file])
                 
             try:
@@ -346,12 +346,12 @@ class Spectrum:
                         for f in self.spec_file])
                 self.date = "".join(fits.getval(self.spec_file[0], "DATE-OBS").split("-"))
             except AssertionError:
-                print("DATE-OBS did not match between the input files!")
+                print(f"{WARNING}DATE-OBS did not match between the input files!{ENDC}")
                 print([f for f in self.spec_file])
             
         else: # self.spec_file is something else entirely
             raise NotImplementedError(
-                "spec_file must be a single filename or list of filenames"
+                f"{FAIL}spec_file must be a single filename or list of filenames{ENDC}"
                 )
         
         spec = np.append(spec_green, spec_red, axis=0)
@@ -370,7 +370,7 @@ class Spectrum:
     def load_wls(self) -> Spectrum:
         
         if isinstance(self.wls_file, list):
-            raise NotImplementedError("wls_file must be a single filename only")
+            raise NotImplementedError(f"{FAIL}wls_file must be a single filename only{ENDC}")
         
         wave_green = fits.getdata(self.wls_file,
                 f"GREEN_{self.orderlet_name}_WAVE{self.orderlet_index}")
