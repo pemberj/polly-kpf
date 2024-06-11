@@ -32,6 +32,14 @@ except ImportError:
 plt.style.use(plotStyle)
 
 
+HEADER = '\033[95m'
+OKBLUE = '\033[94m'
+OKGREEN = '\033[92m'
+WARNING = '\033[93m'
+FAIL = '\033[91m'
+ENDC = '\033[0m'
+
+
 @dataclass
 class Peak:
     coarse_wavelength: float
@@ -286,7 +294,7 @@ class Spectrum:
     def load_spec(self) -> Spectrum:
         
         if isinstance(self.spec_file, str):
-            print("Loading flux values from a single file...", end="")
+            print(f"Loading flux values from a single file...", end="")
             spec_green = fits.getdata(self.spec_file,
                         f"GREEN_{self.orderlet_name}_FLUX{self.orderlet_index}")
             spec_red = fits.getdata(self.spec_file,
@@ -355,7 +363,7 @@ class Spectrum:
             self.orders = [Order(wave = None, spec = s, i = i)\
                                     for i, s in enumerate(spec)]
         
-        print(" DONE")
+        print(f"{OKGREEN} DONE{ENDC}")
         return self
     
     
@@ -396,7 +404,7 @@ class Spectrum:
                 width = width,
                 window_to_save=window_to_save,
                 )
-        print(" DONE")
+        print(f"{OKGREEN} DONE{ENDC}")
         
     
     def fit_peaks(self, type="conv_gauss_tophat") -> Spectrum:
@@ -405,7 +413,7 @@ class Spectrum:
         print(f"Fitting {self.orderlet} peaks with {type} function...", end="")
         for o in tqdm(self.orders, desc="Orders"):
             o.fit_peaks(type=type)
-        print(" DONE")
+        print(f"{OKGREEN} DONE{ENDC}")
             
         return self
         
@@ -444,7 +452,7 @@ class Spectrum:
                     pass
                     
         self.filtered_peaks = peaks
-        print("DONE")
+        print(f"{OKGREEN} DONE{ENDC}")
                 
         return self
     
@@ -457,7 +465,7 @@ class Spectrum:
         with open(filename, "w") as f:
             for p in self.filtered_peaks:
                 f.write(f"{p.wl}\t1.0\n")        
-        print(" DONE")
+        print(f"{OKGREEN} DONE{ENDC}")
                 
         return self
     
@@ -507,7 +515,7 @@ class Spectrum:
 
     def save_config_file(self):
         f"""
-        date: {}
+        date: {self.date}
         spec_file: {self.spec_file}
         wls_file: {self.wls_file}
         orderlet: {self.orderlet}
