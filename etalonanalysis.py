@@ -225,21 +225,21 @@ class Spectrum:
                 # self.co_added()
             
             else:
-                print(f"Loading {self.orderlet} orders from a single file...")
+                print(f"Loading {self.orderlet} orders from a single file...", end="")
                 if self.spec_file:
                     self.load_spec()
                 if self.wls_file:
                     self.load_wls()
-                print("DONE")
+                print(" DONE")
 
         
-    def __add__(self, other):
-        if isinstance(other, Spectrum):
-            return Spectrum(file = None, orders =\
-                [Order(i=o1.i, wave = o1.wave, spec = o1.spec + o2.spec)\
-                                for o1, o2 in zip(self.orders, other.orders)])
-        else:
-            raise TypeError("Can only add two Spectrum objects together")
+    # def __add__(self, other):
+    #     if isinstance(other, Spectrum):
+    #         return Spectrum(file = None, orders =\
+    #             [Order(i=o1.i, wave = o1.wave, spec = o1.spec + o2.spec)\
+    #                             for o1, o2 in zip(self.orders, other.orders)])
+    #     else:
+    #         raise TypeError("Can only add two Spectrum objects together")
         
 
     @property
@@ -305,8 +305,8 @@ class Spectrum:
             self.orders = [Order(wave = None, spec = s, i = i)\
                                     for i, s in enumerate(spec)]
         
-        self.sci_obj = fits.getval(self.spec_file,"SCI-OBJ")
-        self.cal_obj = fits.getval(self.spec_file,"CAL-OBJ")
+        self.sci_obj = fits.getval(self.spec_file, "SCI-OBJ")
+        self.cal_obj = fits.getval(self.spec_file, "CAL-OBJ")
         
         return self
     
@@ -327,6 +327,8 @@ class Spectrum:
             self.orders = [Order(wave = w, spec = None, i = i)\
                                     for i, w in enumerate(wave)]
             
+        return self
+            
             
     def locate_peaks(
         self,
@@ -335,7 +337,7 @@ class Spectrum:
         width: float = 3,
         window_to_save: int = 15
         ) -> Spectrum:
-        print("Locating peaks...")
+        print(f"Locating {self.orderlet} peaks...", end="")
         for o in self.orders:
             o.locate_peaks(
                 fractional_height = fractional_height,
@@ -343,16 +345,16 @@ class Spectrum:
                 width = width,
                 window_to_save=window_to_save,
                 )
-        print("DONE")
+        print(" DONE")
         
     
     def fit_peaks(self, type="conv_gauss_tophat") -> Spectrum:
         if self.num_located_peaks is None:
             self.locate_peaks()
-        print(f"Fitting peaks with {type} function...")
+        print(f"Fitting {self.orderlet} peaks with {type} function...", end="")
         for o in tqdm(self.orders, desc="Orders"):
             o.fit_peaks(type=type)
-        print("DONE")
+        print(" DONE")
             
         return self
         
@@ -361,6 +363,8 @@ class Spectrum:
         """
         window in angstroms
         """
+        
+        print(f"Filtering {self.orderlet} peaks to remove identical peaks appearing in adjacent orders...")
         
         peaks = self.peaks
         
@@ -387,6 +391,7 @@ class Spectrum:
                     pass
                     
         self.filtered_peaks = peaks
+        print("DONE")
                 
         return self
     
@@ -394,9 +399,12 @@ class Spectrum:
     def save_peak_locations(self, filename: str) -> Spectrum:
         if self.filtered_peaks is None:
             self.filter_peaks()
+        
+        print(f"Saving {self.orderlet} peaks to {filename}...", end="")
         with open(filename, "w") as f:
             for p in self.filtered_peaks:
-                f.write(f"{p.wl}\t1.0\n")
+                f.write(f"{p.wl}\t1.0\n")        
+        print(" DONE")
                 
         return self
     
@@ -435,7 +443,6 @@ class Spectrum:
         ax.set_ylabel("Flux")
 
         return ax
-
 
 
 def _gaussian(
