@@ -1,41 +1,45 @@
 import argparse
-from dataclasses import dataclass
 from glob import glob
-from astropy.io import fits
 import numpy as np
-from operator import attrgetter
 from matplotlib import pyplot as plt
 
 try:
-    from polly.etalonanalysis import Spectrum, Order, Peak
-    from polly.fit_erf_to_ccf_simplified import conv_gauss_tophat
     from polly.plotStyle import plotStyle
 except ImportError:
-    from etalonanalysis import Spectrum, Order, Peak
-    from fit_erf_to_ccf_simplified import conv_gauss_tophat
     from plotStyle import plotStyle
 plt.style.use(plotStyle)
-
-
-
-
 
 from astropy import units as u
 from astropy import constants
 from scipy.interpolate import splrep, BSpline, UnivariateSpline
 
 
-
-
-
 MASKS_DIR: str = "/scr/jpember/polly_outputs"
 
 
 
-def main() -> None:
+def main(reference_mask: str, masks: list[str]) -> None:
+    
+    
+    with open(reference_mask, "r") as f:
+        reference_peaks =\
+            [float(line.strip().split()[0]) for line in f.readlines()[1:]]
 
-    masks: list[str] = glob(f"{MASKS_DIR}/*.csv")
 
+    peaks: dict[str, list[float]] = {}
+    for mask in masks:
+        with open(mask, "r") as f:
+            lines =\
+                [float(line.strip().split()[0]) for line in f.readlines()[1:]]
+            
+        peaks[mask] = lines
+        
+    plt.plot(reference_peaks)
+    for _mask, _peaks in peaks.items():
+        plt.plot(_peaks)
+        
+    plt.savefig("temp.png")
+        
 
 
 
@@ -44,4 +48,7 @@ def main() -> None:
 
 if __name__ == "__main__":
     
-    main()
+    main(
+        reference_mask = glob(f"{MASKS_DIR}/*.csv")[0],
+        masks = glob(f"{MASKS_DIR}/*.csv")[1:]
+        )
