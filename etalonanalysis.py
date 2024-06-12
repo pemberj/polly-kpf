@@ -458,11 +458,12 @@ class Spectrum:
         
         print(f"Filtering {self.orderlet} peaks to remove identical peaks"+\
                "appearing in adjacent orders...", end="")
+        need_new_line = True
         
         peaks = self.peaks
         
         if not peaks:
-            print("No peaks found.")
+            print(f"{WARNING}No peaks found{ENDC}")
             return self
         
         peaks = sorted(peaks, key=attrgetter("wl"))
@@ -471,8 +472,11 @@ class Spectrum:
         for (p1, p2) in zip(peaks[:-1], peaks[1:]):
             if abs(p1.wl - p2.wl) < window:
                 if p2.i == p1.i:
-                    print(f"Double-peaks identified at {p1.wl} / {p2.wl}"+\
-                           "from the same order: cutoff is too large?")
+                    if need_new_line:
+                        print("\n", end="")
+                        need_new_line = False
+                    print(f"{WARNING}Double-peaks identified at {p1.wl} / {p2.wl}"+\
+                          f"from the same order: cutoff is too large?{ENDC}")
                     continue
                 try:
                     if p1.d < p2.d:
