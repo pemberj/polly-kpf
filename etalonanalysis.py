@@ -1,26 +1,17 @@
 """
-Etalon analysis tools
-
-Contains classes Peak, Order, Spectrum
+Etalon analysis tools for KPF data products
 """
 
 from __future__ import annotations
 
-from operator import attrgetter
 from dataclasses import dataclass
-
+from operator import attrgetter
 from astropy.io import fits
-# from astropy import constants
-
-# Progress bars
-from tqdm import tqdm
-
+from tqdm import tqdm # Progress bars
 import numpy as np
 from numpy.typing import ArrayLike
-
 from scipy.signal import find_peaks
 from scipy.optimize import curve_fit
-
 from matplotlib import pyplot as plt
 
 try:
@@ -42,6 +33,22 @@ ENDC = '\033[0m'
 
 @dataclass
 class Peak:
+    
+    """
+    The Peak class contains information about a single identified or fitted
+    etalon peak in the spectrum. By default it is initialised with 
+    `coarse_wavelength` (usually corresponding to the pixel with the highest
+    value), as well as an order index number `order_i`, and short arrays
+    containing the spectrum and wavelength data around this identified peak
+    (`speclet` and `wavelet`, respectively).
+    
+    Peak objects have methods to fit analytic functional forms to the data in
+    order to refine the location of the peak in wavelength space.
+    
+    Peaks don't need to be interacted with directly; all actions can be called
+    from Order and Spectrum objects.
+    """
+    
     coarse_wavelength: float
     order_i: int
     speclet: ArrayLike
@@ -57,6 +64,7 @@ class Peak:
     offset: float = None
     fit_type: str = None
     
+    
     @property
     def wl(self) -> float:
         if self.center_wavelength:
@@ -64,14 +72,24 @@ class Peak:
         else:
             return self.coarse_wavelength
     
+    
     @property
     def i(self) -> int: return self.order_i
+    
     
     @property
     def d(self) -> float: return self.distance_from_order_center
     
     
     def fit(self, type: str = "conv_gauss_tophat") -> Peak:
+        
+        """
+        This method is called to fit a roughly located peak with a given
+        functional form. Presently, the functions implemented are a gaussian
+        (with constant y-offset) and a gaussian convolved with a tophat (using
+        an analytic form buildind the function in two halves from error
+        functions / sigmoids).
+        """
         
         if type.lower() not in ["gaussian", "conv_gauss_tophat"]:
             raise NotImplementedError
@@ -88,7 +106,6 @@ class Peak:
         return self
         
         
-        
     def _fit_gaussian(self) -> None:
         
         x0 = np.mean(self.wavelet)
@@ -97,15 +114,16 @@ class Peak:
         y = self.speclet
         
         # TODO: better FWHM guess? Sampling of KPF?
-            # amplitude,   mean,       fwhm,          offset
-        p0 = [max(y),       0,          mean_dx * 5,    0]
+                   # amplitude,  mean,      fwhm,      offset
+        p0 =        [max(y),     0,       mean_dx * 5,   0]
         bounds = [
-             [0,           -mean_dx,    0,             -np.inf],
-             [max(y),       mean_dx,    mean_dx * 10,   np.inf]
-        ]
+                    [0,         -mean_dx, 0,            -np.inf],
+                    [max(y),     mean_dx, mean_dx * 10,  np.inf]
+                ]
         
         try:
-            p, cov = curve_fit(f=_gaussian, xdata=x, ydata=y, p0=p0, bounds=bounds)
+            p, cov = curve_fit(f=_gaussian, xdata=x, ydata=y,
+                               p0=p0, bounds=bounds)
         except RuntimeError:
             p = [np.nan] * len(p0)
         except ValueError:
@@ -126,14 +144,15 @@ class Peak:
         mean_dx = abs(np.mean(np.diff(x)))
         y = self.speclet
         # TODO: better guesses?
-            # center,            amp,       sigma,          boxhalfwidth,   offset
-        p0 = [0,                max(y),     2 * mean_dx,    3 * mean_dx,    min(y)]
+           # center,          amp,       sigma,   boxhalfwidth,  offset
+        p0 = [0,           max(y),     2 * mean_dx,  3 * mean_dx,  min(y)]
         bounds = [
-             [-mean_dx * 2,     0,          0,              0,             -np.inf],
-             [ mean_dx * 2,     max(y),     10 * mean_dx,   6 * mean_dx,    np.inf]
-        ]
+            [-mean_dx * 2, 0,          0,            0,           -np.inf],
+            [ mean_dx * 2, 2 * max(y), 10 * mean_dx, 6 * mean_dx,  np.inf]
+                ]
         try:
-            p, cov = curve_fit(f=conv_gauss_tophat, xdata=x, ydata=y, p0=p0, bounds=bounds)
+            p, cov = curve_fit(f=conv_gauss_tophat, xdata=x, ydata=y,
+                               p0=p0, bounds=bounds)
         except RuntimeError:
             p = [np.nan] * len(p0)
         except ValueError:
@@ -151,6 +170,20 @@ class Peak:
 
 @dataclass
 class Order:
+    
+    """
+    Order objects contain the L1 data for a single orderlet (CAL, SCI1, SCI2,
+    SCI3, SKY) in their `wave` and `spec` arrays. They also contain a list of
+    Peak objects (once identified).
+    
+    Location of spectral peaks is done at the Order level as this is where the
+    "raw" (L1) spectral data is stored. (See `Order.locate_peaks()`).
+    
+    Order objects do not need to be interacted with directly, instead a Spectrum
+    object (containing many Orders) can initiate all actions for orders to take
+    (in turn taking actions on their contained Peak objects).
+    """
+    
     i: int
     wave: ArrayLike
     spec: ArrayLike
@@ -175,6 +208,17 @@ class Order:
         width: float = 3,
         window_to_save: int = 15
         ) -> Order:
+        
+        """
+        This method uses `scipy.optimize.curve_fit` to locate peaks in the
+        `Order.spec` data down to the pixel-level. The returned values are used
+        to populate a list of Peak objects within the Order.
+        
+        The distance_to_order_center is additionally stored inside each Peak,
+        to be used when directly comparing two Peaks at near-identical
+        wavelengths to determine which of the two should be kept (the closer to
+        order center). 
+        """
         
         y = self.spec - np.nanmin(self.spec)
         y = y[~np.isnan(y)]
@@ -216,6 +260,13 @@ class Order:
 
 @dataclass
 class Spectrum:
+    
+    """
+    Spectrum objects are the main user interface in this code. They contain
+    metadata as well as a list of Order objects (each in turn containing a list
+    of Peak objects).
+    """
+    
     spec_file: str | list[str] = None
     wls_file: str  = None
     orderlet: str  = None # SCI1, SCI2, SCI3, CAL, SKY
@@ -552,6 +603,7 @@ class Spectrum:
     
 
     def save_config_file(self):
+        # TODO: complete this code
         f"""
         date: {self.date}
         spec_file: {self.spec_file}
