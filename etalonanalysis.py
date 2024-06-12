@@ -191,14 +191,17 @@ class Order:
                 Peak(
                     coarse_wavelength = self.wave[_p],
                     order_i = self.i,
-                    speclet = self.spec[_p - window_to_save//2:_p + window_to_save//2 + 1],
-                    wavelet = self.wave[_p - window_to_save//2:_p + window_to_save//2 + 1],
-                    distance_from_order_center = abs(self.wave[_p] - self.mean_wave),
+                    speclet =\
+                self.spec[_p - window_to_save//2:_p + window_to_save//2 + 1],
+                    wavelet =\
+                self.wave[_p - window_to_save//2:_p + window_to_save//2 + 1],
+                    distance_from_order_center =\
+                                        abs(self.wave[_p] - self.mean_wave),
                 )
-                for _p in p
-            # ignore peaks that are too close to the edge of the order
-            if _p >= window_to_save // 2 and _p <= len(self.spec) - window_to_save // 2
-            ]
+            for _p in p
+        # ignore peaks that are too close to the edge of the order
+        if _p >= window_to_save//2 and _p <= len(self.spec) - window_to_save//2
+        ]
         
         return self
     
@@ -217,6 +220,9 @@ class Spectrum:
     wls_file: str  = None
     orderlet: str  = None # SCI1, SCI2, SCI3, CAL, SKY
     
+    reference_mask: str = None
+    reference_peaks: list[float] = None
+    
     orders: list[Order] = None
 
     date: str | list[str] = None
@@ -234,6 +240,9 @@ class Spectrum:
                 self.load_spec()
             if self.wls_file:
                 self.load_wls()
+            if self.orders:
+                if self.reference_mask:
+                    self.parse_reference_mask()
 
         
     def __add__(self, other):
@@ -290,6 +299,17 @@ class Spectrum:
                     count += 1
             
         return count
+    
+    
+    def parse_reference_mask(self) -> Spectrum:
+        
+        with open(self.reference_mask) as f:
+            lines = f.readlines()
+        
+            self.reference_peaks =\
+                [float(l.strip().split(" ")[0]) for l in lines]
+        
+        return self
             
         
     def load_spec(self) -> Spectrum:
@@ -397,18 +417,26 @@ class Spectrum:
         width: float = 3,
         window_to_save: int = 15
         ) -> Spectrum:
-        print(f"Locating {self.orderlet} peaks...", end="")
-        for o in self.orders:
-            o.locate_peaks(
-                fractional_height = fractional_height,
-                distance = distance,
-                width = width,
-                window_to_save=window_to_save,
-                )
-        print(f"{OKGREEN} DONE{ENDC}")
+        
+        if self.reference_mask is None:
+        
+            print(f"Locating {self.orderlet} peaks...", end="")
+            for o in self.orders:
+                o.locate_peaks(
+                    fractional_height = fractional_height,
+                    distance = distance,
+                    width = width,
+                    window_to_save=window_to_save,
+                    )
+            print(f"{OKGREEN} DONE{ENDC}")
+            
+        else:
+            print(f"{OKBLUE}Not locating peaks because a reference mask was passed in.{ENDC}")
+        return self
         
     
     def fit_peaks(self, type="conv_gauss_tophat") -> Spectrum:
+        
         if self.num_located_peaks is None:
             self.locate_peaks()
         print(f"Fitting {self.orderlet} peaks with {type} function...", end="")
