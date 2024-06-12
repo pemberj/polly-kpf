@@ -240,9 +240,13 @@ class Spectrum:
                 self.load_spec()
             if self.wls_file:
                 self.load_wls()
-            if self.orders:
-                if self.reference_mask:
-                    self.parse_reference_mask()
+            if self.reference_mask:
+                self.parse_reference_mask()
+            if self.orders is not None and self.reference_mask is not None:
+                try:
+                    self.apply_reference_mask()
+                except:
+                    ...
 
         
     def __add__(self, other):
