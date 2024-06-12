@@ -37,7 +37,7 @@ class File:
 # Master paths to draw from and save to
 DATAPATH: str = "/data/kpf/L1"
 
-OUTDIR: str = "/scr/jpember/polly_outputs/using_wls_file"
+OUTDIR: str = "/scr/jpember/polly_outputs/using_eve_wls_file"
 
 L1_FILE_LISTS = [
     "/scr/shalverson/SamWorkingDir/etalon_feb_morn.csv",
@@ -60,9 +60,18 @@ def main(DATE: str, TIMEOFDAY: str, ORDERLETS: list[str]) -> None:
                 csvfilename = listname.split("/")[-1]
                 if TIMEOFDAY in csvfilename and date == DATE:
                     FILES.append(path)
+                    
+    try:
+        print(f"{fits.getval(FILES[0], 'WLSFILE') = }")
+    except Exception as e:
+        print(e)
+    try:
+        print(f"{fits.getval(FILES[0], 'WLSFILE2') = }")
+    except Exception as e:
+        print(e)
     
     # WLS_file: str = f"/data/kpf/masters/{DATE}/kpf_{DATE}_master_arclamp_autocal-lfc-all-morn_L1.fits"
-    WLS_file: str = f"/data/kpf/masters/{DATE}/kpf_{DATE}_master_WLS_autocal-lfc-all-morn_L1.fits"
+    WLS_file: str = f"/data/kpf/masters/{DATE}/kpf_{DATE}_master_WLS_autocal-lfc-all-eve_L1.fits"
     try: # Verify the corresponding WLS file exists
         fits.getval(WLS_file, "OBJECT")
     except FileNotFoundError:
