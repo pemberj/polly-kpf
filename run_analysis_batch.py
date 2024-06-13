@@ -77,7 +77,7 @@ TIMESOFDAY = ["morn", "eve", "night"]
 
 def main(DATE: str, TIMEOFDAY: str, ORDERLETS: list[str]) -> None:
     
-    pp = f"[{DATE} {TIMEOFDAY:>5}]" # Print Prefix
+    pp = f"{'[{DATE} {TIMEOFDAY:>5}]':<20}" # Print Prefix
     
     # FILES: list[str] = []
     # # Generate list of files to look at

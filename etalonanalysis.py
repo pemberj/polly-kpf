@@ -552,7 +552,7 @@ class Spectrum:
                                 for o1, o2 in zip(self.orders, other.orders)])
         else:
             raise TypeError(
-                f"{self.pp:<20}Can only add two Spectrum objects together"
+                f"{self.pp}Can only add two Spectrum objects together"
                 )
         
 
@@ -619,7 +619,7 @@ class Spectrum:
         
         if isinstance(self.spec_file, str):
             print(
-                f"{self.pp:<20}Loading flux values from a single file...",
+                f"{self.pp}Loading flux values from a single file...",
                 end=""
                 )
             spec_green = fits.getdata(self.spec_file,
@@ -633,7 +633,7 @@ class Spectrum:
         
         elif isinstance(self.spec_file, list):
             print(
-                f"{self.pp:<20}Loading flux values from list of files...",
+                f"{self.pp}Loading flux values from list of files...",
                 end=""
                 )
             spec_green = np.median([fits.getdata(f,
@@ -649,7 +649,7 @@ class Spectrum:
                         for f in self.spec_file])
                 self.sci_obj = fits.getval(self.spec_file[0], "SCI-OBJ")
             except AssertionError:
-                print(f"{self.pp:<20}{WARNING}SCI-OBJ did not match between "+\
+                print(f"{self.pp}{WARNING}SCI-OBJ did not match between "+\
                       f"the input files!{ENDC}")
                 print([f for f in self.spec_file])
                     
@@ -659,7 +659,7 @@ class Spectrum:
                         for f in self.spec_file])
                 self.cal_obj = fits.getval(self.spec_file[0], "CAL-OBJ")
             except AssertionError:
-                print(f"{self.pp:<20}{WARNING}CAL-OBJ did not match between "+\
+                print(f"{self.pp}{WARNING}CAL-OBJ did not match between "+\
                       f"the input files!{ENDC}")
                 print([f for f in self.spec_file])
                 
@@ -669,7 +669,7 @@ class Spectrum:
                         for f in self.spec_file])
                 self.object = fits.getval(self.spec_file[0], "OBJECT")
             except AssertionError:
-                print(f"{self.pp:<20}{WARNING}OBJECT did not match between "+\
+                print(f"{self.pp}{WARNING}OBJECT did not match between "+\
                       f"the input files!{ENDC}")
                 print([f for f in self.spec_file])
                 
@@ -681,13 +681,13 @@ class Spectrum:
                         fits.getval(self.spec_file[0], "DATE-OBS").split("-")
                         )
             except AssertionError:
-                print(f"{self.pp:<20}{WARNING}DATE-OBS did not match between "+\
+                print(f"{self.pp}{WARNING}DATE-OBS did not match between "+\
                       f"the input files!{ENDC}")
                 print([f for f in self.spec_file])
             
         else: # self.spec_file is something else entirely
             raise NotImplementedError(
-                f"{self.pp:<20}{FAIL}spec_file must be a single filename or "+\
+                f"{self.pp}{FAIL}spec_file must be a single filename or "+\
                 f"list of filenames{ENDC}"
                 )
         
@@ -707,7 +707,7 @@ class Spectrum:
     def load_wls(self) -> Spectrum:
         
         if isinstance(self.wls_file, list):
-            raise NotImplementedError(f"{self.pp:<20}{FAIL}wls_file must be "+\
+            raise NotImplementedError(f"{self.pp}{FAIL}wls_file must be "+\
                                       f"a single filename only{ENDC}")
         
         wave_green = fits.getdata(self.wls_file,
@@ -737,7 +737,7 @@ class Spectrum:
         
         if self.reference_mask is None:
         
-            print(f"{self.pp:<20}Locating {self.orderlet} peaks...", end="")
+            print(f"{self.pp}Locating {self.orderlet} peaks...", end="")
             for o in self.orders:
                 o.locate_peaks(
                     fractional_height = fractional_height,
@@ -748,7 +748,7 @@ class Spectrum:
             print(f"{OKGREEN} DONE{ENDC}")
             
         else:
-            print(f"{self.pp:<20}{OKBLUE}Not locating peaks because a "+\
+            print(f"{self.pp}{OKBLUE}Not locating peaks because a "+\
                   f"reference mask was passed in.{ENDC}")
         return self
         
@@ -757,11 +757,11 @@ class Spectrum:
         
         if self.num_located_peaks is None:
             self.locate_peaks()
-        print(f"{self.pp:<20}Fitting {self.orderlet} peaks with {type}"+\
+        print(f"{self.pp}Fitting {self.orderlet} peaks with {type}"+\
                "function...")
-        for o in tqdm(self.orders, desc=f"{self.pp:<20}Orders"):
+        for o in tqdm(self.orders, desc=f"{self.pp}Orders"):
             o.fit_peaks(type=type)
-        print(f"{'':<20}{OKGREEN}DONE{ENDC}")
+        print(f"{''}{OKGREEN}DONE{ENDC}")
             
         return self
         
@@ -780,14 +780,14 @@ class Spectrum:
         `window` is in wavelength units of Angstroms
         """
         
-        print(f"{self.pp:<20}Filtering {self.orderlet} peaks to remove "+\
+        print(f"{self.pp}Filtering {self.orderlet} peaks to remove "+\
                "identical peaks appearing in adjacent orders...", end="")
         need_new_line = True
         
         peaks = self.peaks
         
         if not peaks:
-            print(f"{self.pp:<20}{WARNING}No peaks found{ENDC}")
+            print(f"{self.pp}{WARNING}No peaks found{ENDC}")
             return self
         
         peaks = sorted(peaks, key=attrgetter("wl"))
@@ -799,7 +799,7 @@ class Spectrum:
                     if need_new_line:
                         print("\n", end="")
                         need_new_line = False
-                    print(f"{self.pp:<20}{WARNING}Double-peaks identified at "+\
+                    print(f"{self.pp}{WARNING}Double-peaks identified at "+\
                           f"{p1.wl} / {p2.wl} "+\
                           f"from the same order: cutoff is too large?{ENDC}")
                     continue
@@ -824,7 +824,7 @@ class Spectrum:
             self.filter_peaks()
         
         print(
-            f"{self.pp:<20}Saving {self.orderlet} peaks to {filename}...",
+            f"{self.pp}Saving {self.orderlet} peaks to {filename}...",
             end=""
             )
         with open(filename, "w") as f:
