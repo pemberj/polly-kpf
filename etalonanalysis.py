@@ -3,7 +3,6 @@ Etalon analysis tools for KPF data products
 """
 
 from __future__ import annotations
-
 from dataclasses import dataclass
 from operator import attrgetter
 from astropy.io import fits
@@ -23,12 +22,12 @@ except ImportError:
 plt.style.use(plotStyle)
 
 
-HEADER = '\033[95m'
-OKBLUE = '\033[94m'
+HEADER  = '\033[95m'
+OKBLUE  = '\033[94m'
 OKGREEN = '\033[92m'
 WARNING = '\033[93m'
-FAIL = '\033[91m'
-ENDC = '\033[0m'
+FAIL    = '\033[91m'
+ENDC    = '\033[0m'
 
 
 @dataclass
@@ -283,6 +282,8 @@ class Spectrum:
 
     filtered_peaks: list[Peak] = None
     
+    pp: str = "" # Print prefix
+    
     
     def __post_init__(self):
         
@@ -306,7 +307,7 @@ class Spectrum:
                 [Order(i=o1.i, wave = o1.wave, spec = o1.spec + o2.spec)\
                                 for o1, o2 in zip(self.orders, other.orders)])
         else:
-            raise TypeError("Can only add two Spectrum objects together")
+            raise TypeError(f"{self.pp:<20}Can only add two Spectrum objects together")
         
 
     @property
@@ -370,7 +371,7 @@ class Spectrum:
     def load_spec(self) -> Spectrum:
         
         if isinstance(self.spec_file, str):
-            print(f"Loading flux values from a single file...", end="")
+            print(f"{self.pp:<20}Loading flux values from a single file...", end="")
             spec_green = fits.getdata(self.spec_file,
                         f"GREEN_{self.orderlet_name}_FLUX{self.orderlet_index}")
             spec_red = fits.getdata(self.spec_file,
@@ -381,7 +382,7 @@ class Spectrum:
             self.object = fits.getval(self.spec_file, "OBJECT")
         
         elif isinstance(self.spec_file, list):
-            print("Loading flux values from list of files...", end="")
+            print(f"{self.pp:<20}Loading flux values from list of files...", end="")
             spec_green = np.median([fits.getdata(f,
                     f"GREEN_{self.orderlet_name}_FLUX{self.orderlet_index}")\
                                                for f in self.spec_file], axis=0)
@@ -395,7 +396,7 @@ class Spectrum:
                         for f in self.spec_file])
                 self.sci_obj = fits.getval(self.spec_file[0], "SCI-OBJ")
             except AssertionError:
-                print(f"{WARNING}SCI-OBJ did not match between the input files!{ENDC}")
+                print(f"{self.pp:<20}{WARNING}SCI-OBJ did not match between the input files!{ENDC}")
                 print([f for f in self.spec_file])
                     
             try:
@@ -404,7 +405,7 @@ class Spectrum:
                         for f in self.spec_file])
                 self.cal_obj = fits.getval(self.spec_file[0], "CAL-OBJ")
             except AssertionError:
-                print(f"{WARNING}CAL-OBJ did not match between the input files!{ENDC}")
+                print(f"{self.pp:<20}{WARNING}CAL-OBJ did not match between the input files!{ENDC}")
                 print([f for f in self.spec_file])
                 
             try:
@@ -413,7 +414,7 @@ class Spectrum:
                         for f in self.spec_file])
                 self.object = fits.getval(self.spec_file[0], "OBJECT")
             except AssertionError:
-                print(f"{WARNING}OBJECT did not match between the input files!{ENDC}")
+                print(f"{self.pp:<20}{WARNING}OBJECT did not match between the input files!{ENDC}")
                 print([f for f in self.spec_file])
                 
             try:
@@ -422,12 +423,12 @@ class Spectrum:
                         for f in self.spec_file])
                 self.date = "".join(fits.getval(self.spec_file[0], "DATE-OBS").split("-"))
             except AssertionError:
-                print(f"{WARNING}DATE-OBS did not match between the input files!{ENDC}")
+                print(f"{self.pp:<20}{WARNING}DATE-OBS did not match between the input files!{ENDC}")
                 print([f for f in self.spec_file])
             
         else: # self.spec_file is something else entirely
             raise NotImplementedError(
-                f"{FAIL}spec_file must be a single filename or list of filenames{ENDC}"
+                f"{self.pp:<20}{FAIL}spec_file must be a single filename or list of filenames{ENDC}"
                 )
         
         spec = np.append(spec_green, spec_red, axis=0)
@@ -446,7 +447,7 @@ class Spectrum:
     def load_wls(self) -> Spectrum:
         
         if isinstance(self.wls_file, list):
-            raise NotImplementedError(f"{FAIL}wls_file must be a single filename only{ENDC}")
+            raise NotImplementedError(f"{self.pp:<20}{FAIL}wls_file must be a single filename only{ENDC}")
         
         wave_green = fits.getdata(self.wls_file,
                 f"GREEN_{self.orderlet_name}_WAVE{self.orderlet_index}")
@@ -475,7 +476,7 @@ class Spectrum:
         
         if self.reference_mask is None:
         
-            print(f"Locating {self.orderlet} peaks...", end="")
+            print(f"{self.pp:<20}Locating {self.orderlet} peaks...", end="")
             for o in self.orders:
                 o.locate_peaks(
                     fractional_height = fractional_height,
@@ -486,7 +487,7 @@ class Spectrum:
             print(f"{OKGREEN} DONE{ENDC}")
             
         else:
-            print(f"{OKBLUE}Not locating peaks because a reference mask was passed in.{ENDC}")
+            print(f"{self.pp:<20}{OKBLUE}Not locating peaks because a reference mask was passed in.{ENDC}")
         return self
         
     
@@ -494,10 +495,10 @@ class Spectrum:
         
         if self.num_located_peaks is None:
             self.locate_peaks()
-        print(f"Fitting {self.orderlet} peaks with {type} function...", end="")
-        for o in tqdm(self.orders, desc="Orders"):
+        print(f"{self.pp:<20}Fitting {self.orderlet} peaks with {type} function...", end="")
+        for o in tqdm(self.orders, desc=f"{self.pp:<20}Orders"):
             o.fit_peaks(type=type)
-        print(f"{OKGREEN} DONE{ENDC}")
+        print(f"{'':<20}{OKGREEN} DONE{ENDC}")
             
         return self
         
@@ -507,14 +508,14 @@ class Spectrum:
         window in angstroms
         """
         
-        print(f"Filtering {self.orderlet} peaks to remove identical peaks"+\
-               "appearing in adjacent orders...", end="")
+        print(f"{self.pp:<20}Filtering {self.orderlet} peaks to remove identical"+\
+               "peaks appearing in adjacent orders...", end="")
         need_new_line = True
         
         peaks = self.peaks
         
         if not peaks:
-            print(f"{WARNING}No peaks found{ENDC}")
+            print(f"{self.pp:<20}{WARNING}No peaks found{ENDC}")
             return self
         
         peaks = sorted(peaks, key=attrgetter("wl"))
@@ -526,7 +527,7 @@ class Spectrum:
                     if need_new_line:
                         print("\n", end="")
                         need_new_line = False
-                    print(f"{WARNING}Double-peaks identified at {p1.wl} / {p2.wl}"+\
+                    print(f"{self.pp:<20}{WARNING}Double-peaks identified at {p1.wl} / {p2.wl}"+\
                           f"from the same order: cutoff is too large?{ENDC}")
                     continue
                 try:
@@ -549,7 +550,7 @@ class Spectrum:
         if self.filtered_peaks is None:
             self.filter_peaks()
         
-        print(f"Saving {self.orderlet} peaks to {filename}...", end="")
+        print(f"{self.pp:<20}Saving {self.orderlet} peaks to {filename}...", end="")
         with open(filename, "w") as f:
             for p in self.filtered_peaks:
                 f.write(f"{p.wl}\t1.0\n")        

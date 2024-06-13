@@ -2,34 +2,33 @@
 
 from __future__ import annotations
 import argparse
-from dataclasses import dataclass
 from glob import glob
-from astropy.io import fits
+from pathlib import Path
+from dataclasses import dataclass
 import numpy as np
-from operator import attrgetter
+from astropy.io import fits
+from astropy import units as u
+from astropy import constants
+from scipy.interpolate import splrep, BSpline, UnivariateSpline
 from matplotlib import pyplot as plt
+# import logging
+# logger = logging.getLogger(__name__)
 
 try:
-    from polly.etalonanalysis import Spectrum, Order, Peak
-    from polly.fit_erf_to_ccf_simplified import conv_gauss_tophat
+    from polly.etalonanalysis import Spectrum
     from polly.plotStyle import plotStyle
 except ImportError:
-    from etalonanalysis import Spectrum, Order, Peak
-    from fit_erf_to_ccf_simplified import conv_gauss_tophat
+    from etalonanalysis import Spectrum
     from plotStyle import plotStyle
 plt.style.use(plotStyle)
 
 
-from astropy import units as u
-from astropy import constants
-from scipy.interpolate import splrep, BSpline, UnivariateSpline
-
-HEADER = '\033[95m'
-OKBLUE = '\033[94m'
+HEADER  = '\033[95m'
+OKBLUE  = '\033[94m'
 OKGREEN = '\033[92m'
 WARNING = '\033[93m'
-FAIL = '\033[91m'
-ENDC = '\033[0m'
+FAIL    = '\033[91m'
+ENDC    = '\033[0m'
 
 
 @dataclass
@@ -37,18 +36,15 @@ class File:
     listname: str
     path: str
     date: str
-    
-    
-# Master paths to draw from and save to
-DATAPATH: str = "/data/kpf/L1"
 
-OUTDIR: str = "/scr/jpember/polly_outputs/"
 
-L1_FILE_LISTS = [
-    "/scr/shalverson/SamWorkingDir/etalon_feb_morn.csv",
-    "/scr/shalverson/SamWorkingDir/etalon_feb_eve.csv",
-    "/scr/shalverson/SamWorkingDir/etalon_feb_night.csv",
-]
+OUTDIR: str = "/scr/jpember/polly_outputs/NEW"
+
+# L1_FILE_LISTS = [
+#     "/scr/shalverson/SamWorkingDir/etalon_feb_morn.csv",
+#     "/scr/shalverson/SamWorkingDir/etalon_feb_eve.csv",
+#     "/scr/shalverson/SamWorkingDir/etalon_feb_night.csv",
+# ]
 
 TIMESOFDAY = ["morn", "eve", "night"]
 
@@ -56,67 +52,57 @@ TIMESOFDAY = ["morn", "eve", "night"]
 
 def main(DATE: str, TIMEOFDAY: str, ORDERLETS: list[str]) -> None:
     
+    pp = f"[{DATE} {TIMEOFDAY:>5}]" # Print Prefix
+    
+    # FILES: list[str] = []
+    # # Generate list of files to look at
+    # for listname in L1_FILE_LISTS:
+    #     with open(listname, "r") as file_list:
+    #         lines = [line.strip() for line in file_list.readlines()[1:]]
+
+    #         for f in lines:
+    #             path, date = f.split(",")
+    #             csvfilename = listname.split("/")[-1]
+    #             if TIMEOFDAY in csvfilename and date == DATE:
+    #                 FILES.append(path)
+                    
+    FILES = find_L1_etalon_files(DATE)[TIMEOFDAY]
+                    
+    if not FILES:
+        print(f"{pp:<20}{FAIL}No files for {DATE} {TIMEOFDAY}{ENDC}")
+        return
+    
     WLS_file = find_WLS_file(DATE=DATE, TIMEOFDAY=TIMEOFDAY)
     
-    FILES: list[str] = []
-    # Generate list of files to look at
-    for listname in L1_FILE_LISTS:
-        with open(listname, "r") as file_list:
-            lines = [line.strip() for line in file_list.readlines()[1:]]
+    if not WLS_file:
+        print(f"{pp:<20}{FAIL}No matching WLS file found{ENDC}")
+        return
 
-            for f in lines:
-                path, date = f.split(",")
-                csvfilename = listname.split("/")[-1]
-                if TIMEOFDAY in csvfilename and date == DATE:
-                    FILES.append(path)
-                    
-    try:
-        print(f"{fits.getval(FILES[0], 'WLSFILE') = }")
-    except Exception as e:
-        print(e)
-    try:
-        print(f"{fits.getval(FILES[0], 'WLSFILE2') = }")
-    except Exception as e:
-        print(e)
-    
-    try: # Verify the corresponding WLS file exists
-        fits.getval(WLS_file, "OBJECT")
-    except FileNotFoundError:
-        ...
-
-    data = {}
     for ORDERLET in ORDERLETS:
-        s = Spectrum(spec_file=FILES, wls_file=WLS_file, orderlet=ORDERLET)
-        data[ORDERLET] = s
+        s = Spectrum(spec_file=FILES, wls_file=WLS_file, orderlet=ORDERLET, pp=pp)
         
-        
-        
-        
-    for ORDERLET in ORDERLETS:
         fig = plt.figure(figsize=(12, 3))
         ax = fig.gca()
         ax.set_title(f"{DATE} {TIMEOFDAY} {ORDERLET}")
         ax.set_xlim(440, 880)
-        data[ORDERLET].plot(ax=ax, plot_peaks=False, label=f"{ORDERLET}")
+        s.plot(ax=ax, plot_peaks=False, label=f"{ORDERLET}")
+        
+        Path(f"{OUTDIR}").mkdir(parents=True, exist_ok=True) # Make OUTDIR
+        
         plt.savefig(f"{OUTDIR}/{DATE}_{TIMEOFDAY}_{ORDERLET}_spectrum.png")
         
-        
-        
-    for ORDERLET in ORDERLETS:
-        data[ORDERLET].locate_peaks(fractional_height=0.01, window_to_save=10)
-        data[ORDERLET].fit_peaks(type="conv_gauss_tophat")
-        data[ORDERLET].filter_peaks(window=0.1)
-        data[ORDERLET].save_peak_locations(
+        s.locate_peaks(fractional_height=0.01, window_to_save=10)
+        s.fit_peaks(type="conv_gauss_tophat")
+        s.filter_peaks(window=0.1)       
+        s.save_peak_locations(
             f"{OUTDIR}/{DATE}_{TIMEOFDAY}_{ORDERLET}_etalon_wavelengths.csv"
             )
 
-
-    # Plot of FSR as a function of wavelength
-    for ORDERLET in ORDERLETS:
+        # Plot of FSR as a function of wavelength
         fig = plt.figure(figsize=(12, 4))
         ax = fig.gca()
 
-        wls = np.array([p.wl for p in data[ORDERLET].filtered_peaks]) * u.angstrom
+        wls = np.array([p.wl for p in s.filtered_peaks]) * u.angstrom
         nanmask = ~np.isnan(wls)
         wls = wls[nanmask]
         
@@ -155,35 +141,66 @@ def main(DATE: str, TIMEOFDAY: str, ORDERLETS: list[str]) -> None:
         plt.savefig(f"{OUTDIR}/{DATE}_{TIMEOFDAY}_{ORDERLET}_etalon_FSR.png")
         
         
-def find_WLS_file(DATE: str, TIMEOFDAY: str):
+def find_L1_etalon_files(DATE: str, ) -> dict[str, list[str]]:
+    
+    pp = f"[{DATE} {'':>5}]"
+    
+    files = glob(f"/data/kpf/L1/{DATE}/*.fits")
+    
+    file_lists = {
+        "morn": [],
+        "eve": [],
+        "night": [],
+    }
+    
+    for f in files:
+        object = fits.getval(f, "object")
+        if "etalon" in object:
+            timeofday = object.split("-")[-1]
+            if timeofday in file_lists.keys():
+                file_lists[timeofday].append(f)
+                
+    return file_lists
+
+
+def find_WLS_file(DATE: str, TIMEOFDAY: str) -> str:
+    
+    pp = f"[{DATE} {TIMEOFDAY:>5}]" # Print Prefix
+    
+    WLS_file = None
+    
     try:
         WLS_file: str = "/data/kpf/masters/"+\
             f"{DATE}/kpf_{DATE}_master_WLS_autocal-lfc-all-{TIMEOFDAY}_L1.fits"
         assert "lfc" in fits.getval(WLS_file, "OBJECT").lower()
     except AssertionError:
-        print(f"{WARNING}'lfc' not found in WLS file 'OBJECT' value!{ENDC}")
+        print(f"{pp:<20}{WARNING}'lfc' not found in {TIMEOFDAY} WLS file 'OBJECT' value!{ENDC}")
         WLS_file = None
     except FileNotFoundError:
-        print(f"{WARNING}WLS file not found{ENDC}")
+        print(f"{pp:<20}{WARNING}{TIMEOFDAY} WLS file not found{ENDC}")
         WLS_file = None
 
-    if not WLS_file:    
+    if not WLS_file:
+        # Find matching WLS file 
         for _TIMEOFDAY in TIMESOFDAY:
             if _TIMEOFDAY == TIMEOFDAY:
                 continue # Already tried this one first
-        try:
-            WLS_file: str = "/data/kpf/masters/"+\
-                f"{DATE}/kpf_{DATE}_master_WLS_autocal-lfc-all-{_TIMEOFDAY}_L1.fits"
-            assert "lfc" in fits.getval(WLS_file, "OBJECT").lower()
-        except AssertionError:
-            print(f"{WARNING}'lfc' not found in WLS file 'OBJECT' value!{ENDC}")
-            del WLS_file
-        except FileNotFoundError:
-            print(f"{WARNING}WLS file not found{ENDC}")
-            del WLS_file
-            
-    if not WLS_file:
-        print(f"{FAIL}No matching WLS file found. Exiting script.{ENDC}")
+            pp = f"[{DATE} {_TIMEOFDAY:>5}]" # Print Prefix
+            try:
+                WLS_file: str = "/data/kpf/masters/"+\
+                    f"{DATE}/kpf_{DATE}_master_WLS_autocal-lfc-all-{_TIMEOFDAY}_L1.fits"
+                assert "lfc" in fits.getval(WLS_file, "OBJECT").lower()
+            except AssertionError:
+                print(f"{pp:<20}{WARNING}'lfc' not found in {_TIMEOFDAY} WLS file 'OBJECT' value!{ENDC}")
+                WLS_file = None
+            except FileNotFoundError:
+                print(f"{pp:<20}{WARNING}{_TIMEOFDAY} WLS file not found{ENDC}")
+                WLS_file = None
+                
+            if WLS_file:
+                print(f"{pp:<20}{OKBLUE}Using WLS file: {WLS_file.split('/')[-1]}{ENDC}")
+                
+                return WLS_file
         
     return WLS_file
 
@@ -205,6 +222,7 @@ parser.add_argument("-v", "--verbose",
 
 if __name__ == "__main__":
     
+    # logging.basicConfig(filename="/scr/jpember/test.log", level=logging.INFO)
     
     # TODO: argparse these values from the command line?
     # DATE: str = "20240215"
@@ -219,9 +237,5 @@ if __name__ == "__main__":
         ]
     
     for DATE in [f"202403{x:02}" for x in range(1, 31)]:
-        print(DATE)
         for TIMEOFDAY in ["morn", "eve", "night"]:
-            try:
-                main(DATE=DATE, TIMEOFDAY=TIMEOFDAY, ORDERLETS=ORDERLETS)
-            except Exception as e:
-                print(e)
+            main(DATE=DATE, TIMEOFDAY=TIMEOFDAY, ORDERLETS=ORDERLETS)
