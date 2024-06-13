@@ -523,12 +523,19 @@ class Spectrum:
 
         
     def __add__(self, other):
+        """
+        I've never used this, but it's here so that two Spectrum objects can be
+        added together and it just adds the contained `spec` values together
+        """
+        
         if isinstance(other, Spectrum):
             return Spectrum(file = None, orders =\
                 [Order(i=o1.i, wave = o1.wave, spec = o1.spec + o2.spec)\
                                 for o1, o2 in zip(self.orders, other.orders)])
         else:
-            raise TypeError(f"{self.pp:<20}Can only add two Spectrum objects together")
+            raise TypeError(
+                f"{self.pp:<20}Can only add two Spectrum objects together"
+                )
         
 
     @property
