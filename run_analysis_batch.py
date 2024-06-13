@@ -1,7 +1,34 @@
 #!/usr/bin/env python
 
+"""
+This script runs the etalon analysis for a single date or range of dates. See
+the section at the bottom for how it's currently set up.
+
+The script wraps around the functionality in `etalonanalysis.py` with an
+additional layer that inspects all files for a given date to identify the ones
+with etalon flux (`find_L1_etalon_files()`), finds the corresponding wavelength
+solution (WLS) file in the masters directory (`find_WLS_file()`), and loads
+these into a Spectrum object.
+
+The `main()` function first scrapes the relevant files, and, once loaded into a
+Spectrum object (where peaks are fitted), creates a spectrum plot, outputs a
+list of the peak wavelengths, and generates a plot of etalon FSR as a function
+of wavelength.
+
+
+TODO:
+ * Run from .cfg file, draw input parameters from that
+ * Transition all print statements to logging (can still output to stdout, but
+   also to a log file)
+ * Requires also implementing argparse to take .cfg filename from command line
+   arguments
+ * Move generation of FSR plot from here into another module (or at least the
+   calculation of FSR as a function of wavelength)
+"""
+
+
 from __future__ import annotations
-import argparse
+# import argparse
 from glob import glob
 from pathlib import Path
 from dataclasses import dataclass
@@ -66,20 +93,23 @@ def main(DATE: str, TIMEOFDAY: str, ORDERLETS: list[str]) -> None:
     #             if TIMEOFDAY in csvfilename and date == DATE:
     #                 FILES.append(path)
                     
-    FILES = find_L1_etalon_files(DATE)[TIMEOFDAY]
+    SPEC_FILES = find_L1_etalon_files(DATE)[TIMEOFDAY]
                     
-    if not FILES:
+    if not SPEC_FILES:
         print(f"{pp:<20}{FAIL}No files for {DATE} {TIMEOFDAY}{ENDC}")
         return
     
-    WLS_file = find_WLS_file(DATE=DATE, TIMEOFDAY=TIMEOFDAY)
+    WLS_FILE = find_WLS_file(DATE=DATE, TIMEOFDAY=TIMEOFDAY)
     
-    if not WLS_file:
+    if not WLS_FILE:
         print(f"{pp:<20}{FAIL}No matching WLS file found{ENDC}")
         return
 
     for ORDERLET in ORDERLETS:
-        s = Spectrum(spec_file=FILES, wls_file=WLS_file, orderlet=ORDERLET, pp=pp)
+        s = Spectrum(
+            spec_file=SPEC_FILES,
+            wls_file=WLS_FILE,
+            orderlet=ORDERLET, pp=pp)
         
         fig = plt.figure(figsize=(12, 3))
         ax = fig.gca()
@@ -129,11 +159,13 @@ def main(DATE: str, TIMEOFDAY: str, ORDERLETS: list[str]) -> None:
         mask = np.where(np.abs(delta_nu_FSR - model(wls[:-1])) <= 0.25) # Remove >= 250MHz outliers from model
         ax.scatter(wls[:-1][mask], delta_nu_FSR[mask], marker=".", alpha=0.2, label=f"Data (n = {len(delta_nu_FSR[mask]):,}/{len(delta_nu_FSR):,})")
 
-        ax.set_xlim(min(wls), max(wls))
-        plotrange = np.mean(delta_nu_FSR[mask]) - 5 * np.std(delta_nu_FSR[mask]), np.mean(delta_nu_FSR[mask]) + 5 * np.std(delta_nu_FSR[mask])
-        ax.set_ylim(plotrange)
+        # ax.set_xlim(min(wls), max(wls))
+        # plotrange = np.mean(delta_nu_FSR[mask]) - 5 * np.std(delta_nu_FSR[mask]), np.mean(delta_nu_FSR[mask]) + 5 * np.std(delta_nu_FSR[mask])
+        # ax.set_ylim(plotrange)
+        ax.set_xlim(440, 880)
+        ax.set_ylim(30.15, 30.35)
+        
         ax.legend()
-
         ax.set_title(f"{DATE} {TIMEOFDAY} {ORDERLET}", size=20)
         ax.set_xlabel("Wavelength [nm]", size=16)
         ax.set_ylabel("Etalon $\Delta\\nu_{FSR}$ [GHz]", size=16)
@@ -163,7 +195,7 @@ def find_L1_etalon_files(DATE: str, ) -> dict[str, list[str]]:
     return file_lists
 
 
-def find_WLS_file(DATE: str, TIMEOFDAY: str) -> str:
+def find_WLS_file(DATE: str, TIMEOFDAY: str, allow_other: bool = False) -> str:
     
     pp = f"[{DATE} {TIMEOFDAY:>5}]" # Print Prefix
     
@@ -179,30 +211,32 @@ def find_WLS_file(DATE: str, TIMEOFDAY: str) -> str:
     except FileNotFoundError:
         print(f"{pp:<20}{WARNING}{TIMEOFDAY} WLS file not found{ENDC}")
         WLS_file = None
-
-    if not WLS_file:
-        # Find matching WLS file 
-        for _TIMEOFDAY in TIMESOFDAY:
-            if _TIMEOFDAY == TIMEOFDAY:
-                continue # Already tried this one first
-            pp = f"[{DATE} {_TIMEOFDAY:>5}]" # Print Prefix
-            try:
-                WLS_file: str = "/data/kpf/masters/"+\
-                    f"{DATE}/kpf_{DATE}_master_WLS_autocal-lfc-all-{_TIMEOFDAY}_L1.fits"
-                assert "lfc" in fits.getval(WLS_file, "OBJECT").lower()
-            except AssertionError:
-                print(f"{pp:<20}{WARNING}'lfc' not found in {_TIMEOFDAY} WLS file 'OBJECT' value!{ENDC}")
-                WLS_file = None
-            except FileNotFoundError:
-                print(f"{pp:<20}{WARNING}{_TIMEOFDAY} WLS file not found{ENDC}")
-                WLS_file = None
-                
-            if WLS_file:
-                print(f"{pp:<20}{OKBLUE}Using WLS file: {WLS_file.split('/')[-1]}{ENDC}")
-                
-                return WLS_file
         
-    return WLS_file
+    if WLS_file:
+        print(f"{pp:<20}{OKBLUE}Using WLS file: {WLS_file.split('/')[-1]}{ENDC}")
+        return WLS_file
+
+    if not allow_other:
+        return None
+    
+    # allow_other is True, so we look at nearby WLS files
+    for _TIMEOFDAY in TIMESOFDAY:
+        if _TIMEOFDAY == TIMEOFDAY: continue # We already know it's missing
+        try:
+            WLS_file: str = "/data/kpf/masters/"+\
+                f"{DATE}/kpf_{DATE}_master_WLS_autocal-lfc-all-{_TIMEOFDAY}_L1.fits"
+            assert "lfc" in fits.getval(WLS_file, "OBJECT").lower()
+        except AssertionError:
+            print(f"{pp:<20}{WARNING}'lfc' not found in {_TIMEOFDAY} WLS file 'OBJECT' value!{ENDC}")
+            WLS_file = None
+        except FileNotFoundError:
+            print(f"{pp:<20}{WARNING}{_TIMEOFDAY} WLS file not found{ENDC}")
+            WLS_file = None
+            
+        if WLS_file:
+            print(f"{pp:<20}{OKBLUE}Using WLS file: {WLS_file.split('/')[-1]}{ENDC}")
+            return WLS_file
+
 
 
 
@@ -236,6 +270,9 @@ if __name__ == "__main__":
         # "SKY"
         ]
     
-    for DATE in [f"202403{x:02}" for x in range(1, 31)]:
+    for DATE in [f"202403{x:02}" for x in range(3, 31)]:
         for TIMEOFDAY in ["morn", "eve", "night"]:
-            main(DATE=DATE, TIMEOFDAY=TIMEOFDAY, ORDERLETS=ORDERLETS)
+            try:
+                main(DATE=DATE, TIMEOFDAY=TIMEOFDAY, ORDERLETS=ORDERLETS)
+            except Exception as e:
+                print(e)
