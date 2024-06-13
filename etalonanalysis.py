@@ -495,10 +495,10 @@ class Spectrum:
         
         if self.num_located_peaks is None:
             self.locate_peaks()
-        print(f"{self.pp:<20}Fitting {self.orderlet} peaks with {type} function...", end="")
+        print(f"{self.pp:<20}Fitting {self.orderlet} peaks with {type} function...")
         for o in tqdm(self.orders, desc=f"{self.pp:<20}Orders"):
             o.fit_peaks(type=type)
-        print(f"{'':<20}{OKGREEN} DONE{ENDC}")
+        print(f"{'':<20}{OKGREEN}DONE{ENDC}")
             
         return self
         
@@ -508,8 +508,8 @@ class Spectrum:
         window in angstroms
         """
         
-        print(f"{self.pp:<20}Filtering {self.orderlet} peaks to remove identical"+\
-               "peaks appearing in adjacent orders...", end="")
+        print(f"{self.pp:<20}Filtering {self.orderlet} peaks to remove "+\
+               "identical peaks appearing in adjacent orders...", end="")
         need_new_line = True
         
         peaks = self.peaks
