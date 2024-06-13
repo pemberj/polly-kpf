@@ -329,32 +329,39 @@ class Spectrum:
     @property
     def peaks(self) -> list[Peak]:
         
-        peaks = []
-        for o in self.orders:
-            for p in o.peaks:
-                peaks.append(p)
+        # peaks = []
+        # for o in self.orders:
+        #     for p in o.peaks:
+        #         peaks.append(p)
+        #
+        # return peaks
+                
+        return [p for o in self.orders for p in o.peaks]
             
-        return peaks
     
 
     @property
     def num_located_peaks(self) -> int:
-        count = 0
-        for o in self.orders:
-            count += len(o.peaks)
+        # count = 0
+        # for o in self.orders:
+        #     count += len(o.peaks)
         
-        return count
+        # return count
+        
+        return sum(len(o.peaks) for o in self.orders)
     
     
     @property
     def num_successfully_fit_peaks(self) -> int:
-        count = 0
-        for o in self.orders:
-            for p in o.peaks:
-                if not np.isnan(p.center_wavelength):
-                    count += 1
+        # count = 0
+        # for o in self.orders:
+        #     for p in o.peaks:
+        #         if not np.isnan(p.center_wavelength):
+        #             count += 1
             
-        return count
+        # return count
+        
+        return sum(1 for o in self.orders for p in o.peaks if not np.isnan(p.center_wavelength))
     
     
     def parse_reference_mask(self) -> Spectrum:
