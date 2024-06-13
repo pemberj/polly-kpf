@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from __future__ import annotations
 import argparse
 from dataclasses import dataclass
 from glob import glob
@@ -19,12 +20,16 @@ except ImportError:
 plt.style.use(plotStyle)
 
 
-
-
-
 from astropy import units as u
 from astropy import constants
 from scipy.interpolate import splrep, BSpline, UnivariateSpline
+
+HEADER = '\033[95m'
+OKBLUE = '\033[94m'
+OKGREEN = '\033[92m'
+WARNING = '\033[93m'
+FAIL = '\033[91m'
+ENDC = '\033[0m'
 
 
 @dataclass
@@ -37,7 +42,7 @@ class File:
 # Master paths to draw from and save to
 DATAPATH: str = "/data/kpf/L1"
 
-OUTDIR: str = "/scr/jpember/polly_outputs/using_eve_wls_file"
+OUTDIR: str = "/scr/jpember/polly_outputs/"
 
 L1_FILE_LISTS = [
     "/scr/shalverson/SamWorkingDir/etalon_feb_morn.csv",
@@ -45,11 +50,15 @@ L1_FILE_LISTS = [
     "/scr/shalverson/SamWorkingDir/etalon_feb_night.csv",
 ]
 
+TIMESOFDAY = ["morn", "eve", "night"]
+
 
 
 def main(DATE: str, TIMEOFDAY: str, ORDERLETS: list[str]) -> None:
     
-    FILES = []
+    WLS_file = find_WLS_file(DATE=DATE, TIMEOFDAY=TIMEOFDAY)
+    
+    FILES: list[str] = []
     # Generate list of files to look at
     for listname in L1_FILE_LISTS:
         with open(listname, "r") as file_list:
@@ -70,8 +79,6 @@ def main(DATE: str, TIMEOFDAY: str, ORDERLETS: list[str]) -> None:
     except Exception as e:
         print(e)
     
-    # WLS_file: str = f"/data/kpf/masters/{DATE}/kpf_{DATE}_master_arclamp_autocal-lfc-all-morn_L1.fits"
-    WLS_file: str = f"/data/kpf/masters/{DATE}/kpf_{DATE}_master_WLS_autocal-lfc-all-eve_L1.fits"
     try: # Verify the corresponding WLS file exists
         fits.getval(WLS_file, "OBJECT")
     except FileNotFoundError:
@@ -99,9 +106,12 @@ def main(DATE: str, TIMEOFDAY: str, ORDERLETS: list[str]) -> None:
         data[ORDERLET].locate_peaks(fractional_height=0.01, window_to_save=10)
         data[ORDERLET].fit_peaks(type="conv_gauss_tophat")
         data[ORDERLET].filter_peaks(window=0.1)
-        data[ORDERLET].save_peak_locations(f"{OUTDIR}/{DATE}_{TIMEOFDAY}_{ORDERLET}_etalon_wavelengths.csv")
+        data[ORDERLET].save_peak_locations(
+            f"{OUTDIR}/{DATE}_{TIMEOFDAY}_{ORDERLET}_etalon_wavelengths.csv"
+            )
 
 
+    # Plot of FSR as a function of wavelength
     for ORDERLET in ORDERLETS:
         fig = plt.figure(figsize=(12, 4))
         ax = fig.gca()
@@ -143,6 +153,39 @@ def main(DATE: str, TIMEOFDAY: str, ORDERLETS: list[str]) -> None:
         ax.set_ylabel("Etalon $\Delta\\nu_{FSR}$ [GHz]", size=16)
         
         plt.savefig(f"{OUTDIR}/{DATE}_{TIMEOFDAY}_{ORDERLET}_etalon_FSR.png")
+        
+        
+def find_WLS_file(DATE: str, TIMEOFDAY: str):
+    try:
+        WLS_file: str = "/data/kpf/masters/"+\
+            f"{DATE}/kpf_{DATE}_master_WLS_autocal-lfc-all-{TIMEOFDAY}_L1.fits"
+        assert "lfc" in fits.getval(WLS_file, "OBJECT").lower()
+    except AssertionError:
+        print(f"{WARNING}'lfc' not found in WLS file 'OBJECT' value!{ENDC}")
+        WLS_file = None
+    except FileNotFoundError:
+        print(f"{WARNING}WLS file not found{ENDC}")
+        WLS_file = None
+
+    if not WLS_file:    
+        for _TIMEOFDAY in TIMESOFDAY:
+            if _TIMEOFDAY == TIMEOFDAY:
+                continue # Already tried this one first
+        try:
+            WLS_file: str = "/data/kpf/masters/"+\
+                f"{DATE}/kpf_{DATE}_master_WLS_autocal-lfc-all-{_TIMEOFDAY}_L1.fits"
+            assert "lfc" in fits.getval(WLS_file, "OBJECT").lower()
+        except AssertionError:
+            print(f"{WARNING}'lfc' not found in WLS file 'OBJECT' value!{ENDC}")
+            del WLS_file
+        except FileNotFoundError:
+            print(f"{WARNING}WLS file not found{ENDC}")
+            del WLS_file
+            
+    if not WLS_file:
+        print(f"{FAIL}No matching WLS file found. Exiting script.{ENDC}")
+        
+    return WLS_file
 
 
 
@@ -164,18 +207,18 @@ if __name__ == "__main__":
     
     
     # TODO: argparse these values from the command line?
-    DATE: str = "20240215"
-    TIMEOFDAY: str = "morn"
+    # DATE: str = "20240215"
+    # TIMEOFDAY: str = "morn"
 
     ORDERLETS : list[str] = [
-        "SCI1",
+        # "SCI1",
         "SCI2",
-        "SCI3",
+        # "SCI3",
         "CAL",
         # "SKY"
         ]
     
-    for DATE in [f"202402{x:02}" for x in range(1, 30)]:
+    for DATE in [f"202403{x:02}" for x in range(1, 31)]:
         print(DATE)
         for TIMEOFDAY in ["morn", "eve", "night"]:
             try:
