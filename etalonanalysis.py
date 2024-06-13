@@ -1,5 +1,43 @@
 """
+polly
+put the... Ketalon?
+
 Etalon analysis tools for KPF data products
+
+This package contains a class structure to be used for general analysis of
+etalon spectra from KPF. A short description of the three levels and what
+happens within each, from the top down:
+
+Spectrum
+    The top level class. Represents data corresponding to a single orderlet.
+    (SKY / SCI1 / SCI2 / SCI3 / CAL).
+    It can load flux data from either a single FITS file or a list of FITS files
+    (the data from which are then median-combined).
+    Wavelength solution data can be loaded independently from a separate FIT
+    file.
+    The Spectrum class is where the user interacts with the data. It contains a
+    list of Order objects (which each contain a list of Peak objects), but all
+    functionality can be initiated at the Spectrum level.
+    
+Order
+    The Order class actually contains the data arrays (`spec` and `wave`),
+    loaded directly from FITS files. Aside from being a data container, the
+    function of the Order class is to do a rough location of etalon peaks (using
+    `scipy.signal.find_peaks`, which is called from the `locate_peaks()` method)
+    Orders contain a list of Peak objects, wherein the fine-grained fitting with
+    analytic functions is performed, see below.
+    
+Peak
+    Objects of the Peak class contain details about an individual peak in the
+    spectrum. At first, these objects are initialised with a roughly identified
+    central wavelength (the highest pixel value in a peak), as well as the local
+    data from both the spectrum and the wavelength solution (`speclet` and
+    `wavelet`, respectively). After this, the `.fit()` method can be called,
+    which fits a (chosen) analytic function to the Peak's contained data. This
+    results in a sub-pixel estimation of the central wavelength of the Peak. The
+    fitting is typically initiated from the higher level (Spectrum object), and
+    all of the Peak's data is also passed upward to be accessible from Order and
+    Spectrum objects.
 """
 
 from __future__ import annotations
@@ -32,20 +70,65 @@ ENDC    = '\033[0m'
 
 @dataclass
 class Peak:
-    
     """
-    The Peak class contains information about a single identified or fitted
-    etalon peak in the spectrum. By default it is initialised with 
-    `coarse_wavelength` (usually corresponding to the pixel with the highest
-    value), as well as an order index number `order_i`, and short arrays
-    containing the spectrum and wavelength data around this identified peak
-    (`speclet` and `wavelet`, respectively).
+    Contains information about a single identified or fitted etalon peak
     
-    Peak objects have methods to fit analytic functional forms to the data in
-    order to refine the location of the peak in wavelength space.
-    
-    Peaks don't need to be interacted with directly; all actions can be called
-    from Order and Spectrum objects.
+    Properties:
+        coarse_wavelength: float [Angstrom]
+            The centre of an initially identified peak
+        order_i: int [Index starting from zero]
+            The index number of the order that contains the peak 
+        speclet: ArrayLike [ADU]
+            A short slice of the `spec` array around the peak
+        wavelet: ArrayLike [Angstrom]
+            A short slice of the `wave` array around the peak
+        
+        center_wavelength: float [Angstrom] = None
+            The centre wavelength resulting from the function fitting routine
+        
+        distance_from_order_center: float [Angstrom] = None
+            The absolute difference of the Peak's wavelength from the mean
+            wavelength of the containing order, used for selecting between
+            (identical) peaks appearing in adjacent orders
+        
+        fit_type: str = None
+            The name of the function that was used to fit the peak
+        amplitude: float = None
+            Fit parameter describing the height of the function (see the
+            function definitions)
+        sigma: float = None
+            Fit parameter describing the width of the Gaussian (part of the)
+            function (see the function definitions)
+        boxhalfwidth: float = None
+            Fit parameter describing the width of the top-hat part of the
+            function (see `conv_gauss_tophat` in `fit_erf_to_ccf_simplified.py`)
+        offset: float = None
+            Fit parameter describing the vertical offset of the function,
+            allowing for a flat bias (see the function definitions)
+            
+        wl: float [Angstrom]
+            alias for central_wavelength (if it is defined), otherwise it is an
+            alias for coarse_wavelength
+        i: int [Index starting from zero]
+            alias for order_i
+        d: float [Angstrom]
+            alias for distance_from_order_center
+            
+    Methods:
+        fit(type: str = "conv_gauss_tophat"):
+            Calls the relevant fitting function
+        
+        _fit_gaussian():
+            Fits a Gaussian function (see top-level `_gaussian()` function) to
+            the data, with data-driven initial guesses and bounds for the
+            parameters. Updates the Peak object parameters, returns nothing.
+        
+        _fit_conv_gauss_tophat():
+            Fits an analytic form of a Gaussian function convolved with a
+            top-hat function, constructed from two sigmoid "error" functions
+            (see `conv_gauss_tophat()` in `fit_erf_to_ccf_simplified.py` module.
+            Fitting routine has data-driven initial guesses and bounds for the
+            parameters. Updates the Peak object parameters, returns nothing.    
     """
     
     coarse_wavelength: float
@@ -57,11 +140,11 @@ class Peak:
     
     distance_from_order_center: float = None
     
+    fit_type: str = None
     amplitude: float = None
     sigma: float = None
     boxhalfwidth: float = None
     offset: float = None
-    fit_type: str = None
     
     
     @property
@@ -81,14 +164,6 @@ class Peak:
     
     
     def fit(self, type: str = "conv_gauss_tophat") -> Peak:
-        
-        """
-        This method is called to fit a roughly located peak with a given
-        functional form. Presently, the functions implemented are a gaussian
-        (with constant y-offset) and a gaussian convolved with a tophat (using
-        an analytic form buildind the function in two halves from error
-        functions / sigmoids).
-        """
         
         if type.lower() not in ["gaussian", "conv_gauss_tophat"]:
             raise NotImplementedError
@@ -169,18 +244,34 @@ class Peak:
 
 @dataclass
 class Order:
-    
     """
-    Order objects contain the L1 data for a single orderlet (CAL, SCI1, SCI2,
-    SCI3, SKY) in their `wave` and `spec` arrays. They also contain a list of
-    Peak objects (once identified).
+    Contains data arrays read in from KPF L1 FITS files
     
-    Location of spectral peaks is done at the Order level as this is where the
-    "raw" (L1) spectral data is stored. (See `Order.locate_peaks()`).
-    
-    Order objects do not need to be interacted with directly, instead a Spectrum
-    object (containing many Orders) can initiate all actions for orders to take
-    (in turn taking actions on their contained Peak objects).
+    Properties:
+        i: int [Index starting from zero]
+            Index of the echelle order in the full spectrum
+        wave: ArrayLike [Angstrom]
+            An array of wavelength values as loaded from the parent Spectrum
+            object's `wls_file` FITS file
+        spec: ArrayLike [ADU]
+            An array of flux values as loaded from the parent Spectrum object's
+            `spec_file` FITS file(s)
+        
+        peaks: list[Peak]
+            A list of Peak objects within the order. Originally populated when
+            the `locate_peaks()` method is called.
+        
+        peak_wavelengths: ArrayLike [Angstrom]
+        mean_wave: float [Angstrom]
+        
+    Methods:
+        locate_peaks():
+            Uses `scipy.sigal.find_peaks` to roughly locate peak positions. See
+            function docstring for more detail. Returns the Order itself so
+            methods can be chained
+        fit_peaks(type: str = "conv_gauss_tophat"):
+            Wrapper function which calls peak fitting function for each
+            contained peak. Returns the Order itself so methods can be chained
     """
     
     i: int
@@ -202,21 +293,36 @@ class Order:
    
     def locate_peaks(
         self,
-        fractional_height: float = 10,
+        fractional_height: float = 0.1,
         distance: float = 10,
         width: float = 3,
         window_to_save: int = 15
         ) -> Order:
         
         """
-        This method uses `scipy.optimize.curve_fit` to locate peaks in the
-        `Order.spec` data down to the pixel-level. The returned values are used
-        to populate a list of Peak objects within the Order.
+        A function using `scipy.signal.find_peaks` to roughly locate peaks
+        within the Order.spec flux array, and uses the corresponding wavelengths
+        in the Order.wave array to populate a list of Peak objects.
         
-        The distance_to_order_center is additionally stored inside each Peak,
-        to be used when directly comparing two Peaks at near-identical
-        wavelengths to determine which of the two should be kept (the closer to
-        order center). 
+        Parameters:
+            fractional_height: float = 0.1
+                The minimum height of the peak as a fraction of the maxmium
+                value in the flux array. Should account for the expected blaze
+                efficiency curve
+            distance: float = 10
+                The minimum distance between peaks (here in pixels)
+            width: float = 3
+                The minimum width of the peaks themselves. Setting this higher
+                than 1-2 will avoid location of single-pixel noise spikes or
+                cosmic rays, but the setting should not exceed the resolution
+                element sampling in the spectrograph.
+
+            window_to_save: int = 16
+                The total number of pixels to save into each Peak object. A
+                slice of both the `wave` and `spec` arrays is stored in each
+                Peak, where an analytic function is fit to this data.
+
+        Returns the Order itself so methods may be chained
         """
         
         y = self.spec - np.nanmin(self.spec)
@@ -259,11 +365,126 @@ class Order:
 
 @dataclass
 class Spectrum:
-    
     """
-    Spectrum objects are the main user interface in this code. They contain
-    metadata as well as a list of Order objects (each in turn containing a list
-    of Peak objects).
+    Contains data and metadata corresponding to a single orderlet and typically
+    a single date. Contains a list of Order objects (where the loaded L1
+    data is stored), each of which can contain a list of Peak objects. All
+    interfacing can be done to the Spectrum object, which initiates function
+    calls in the child objects, and which receives output data passed upward to
+    be accessed again at the Spectrum level.
+    
+    Properties:
+        spec_file: str | list[str] = None
+            The path (or a list of paths) of the L1 file(s) containing flux data
+            to be loaded. If a list of files is passed, the flux data is
+            median-combined.
+        wls_file: str  = None
+            The path of a single file to draw the wavelength solution (WLS)
+            from. This is typically the master L1 WLS file for the same date as
+            the flux data.
+        orderlet: str  = None
+            The name of the orderlet for which data should be loaded. Valid
+            options: SKY, SCI1, SC2, SCI3, CAL
+        
+        reference_mask: str = None
+            [Not yet implemented], path to a file containing a list of
+            wavelengths corresponding to etalon line locations in a reference
+            file. Rather than locating peaks in each order, the code should take
+            these reference wavelengths as its starting point.
+        reference_peaks: list[float] = None
+            [Not yet implemented], the list of wavelengths as parsed from
+            `reference_mask`
+        
+        orders: list[Order] = None
+            A list of Order objects (see Order definition)
+
+        date: str | list[str] = None
+            The date of observation, as read from the FITS header of `spec_file`
+        sci_obj: str = None
+            The SCI-OBJ keyword from the FITS header of `spec_file`
+        cal_obj: str = None
+            The CAL-OBJ keyword from the FITS header of `spec_file`
+        object: str = None
+            The OBJECT keyword from the FITS header of `spec_file`
+
+        filtered_peaks: list[Peak] = None
+            A list of Peak objects after locating, fitting, and filtering
+        
+        pp: str = ""
+            A prefix to add to any print or logging statements
+            
+        orderlet_name: str
+            Returns the non-numeric part of `orderlet`, used to build FITS
+            header keywords 
+        orderlet_index: str
+            Returns the numeric part of `orderlet` (if there is one), used to
+            build FITS header keywords
+        
+        peaks: list[Peak]
+            Traverses the list of Orders, and each Order's list of Peaks.
+            Returns a compiled list of all Peaks, the grandchildren of this
+            Spectrum object
+
+        num_located_peaks: int
+            Returns the total number of located peaks in all Orders
+        num_successfully_fit_peaks: int
+            Returns the total number of peaks that have a non-NaN
+            center_wavelength property
+            
+            
+    Methods:
+        parse_reference_mask
+            Reads in a reference mask (as output from the `save_peak_locations`
+            method) and populates `self.reference_peaks` with the wavelengths.
+            The rest of the functionality of using this mask is not yet
+            implemented
+        
+        load_spec
+            If `spec_file` is a string, this method loads the flux data from
+            the file, as well as the DATE, SCI-OBJ, CAL-OBJ and OBJECT keywords
+            If `spec_file` is a list of strings, this method loads the flux data
+            from all of the files, checks that their SCI-OBJ, CAL-OBJ and OBJECT
+            match one another, and if so, combines the fluxes by taking the
+            median value for each pixel.
+            Flux data is stored per-order in a list of Orders: self.orders
+        load_wls
+            Loads the `wls_file` file, and stores its wavelength data per-order
+            in self.orders.
+        
+        locate_peaks
+            Initiates locating peaks for each order. Parameters here are passed
+            to the Order-level functions
+        fit_peaks
+            Initiates fitting peaks at the Peak level. The `type` parameter here
+            is passed down to the Peak-level functions
+        filter_peaks
+            Filters identical peaks that appear in the overlap regions of two
+            adjacent orders. Within a given `window` [Angstroms], if two peaks
+            are identified, it removes the one that is further away from _its_
+            order's central wavelength. This must be done at the Spectrum level,
+            where many Orders' Peaks can be accessed at the same time
+        save_peak_locations
+            Outputs the filtered peaks to a csv file to be used as a mask for
+            either further iterations of peak-fitting processing, or for
+            measuring the etalon's RVs. If peaks have not been filtered yet,
+            it first calls the `filter_peaks` method.
+        plot
+            Generates a colour-coded plot of the spectrum. Optionally can use
+            a `matplotlib.pyplot.axes` object passed in as `ax` to allow
+            tweaking in the script that calls the class
+        
+        save_config_file
+            [Not yet implemented], will save the properties and parameters for
+            this Spectrum (and its Orders and their Peaks) to an external file
+            
+        TODO: Use a .cfg file as input as well, parsing parameters to run the
+        analysis. Unclear if this should go here or in a script that calls the
+        Spectrum class. Parameters needed:
+         * spec_file
+         * wls_file
+         * orderlet
+         * reference_mask
+         * ???
     """
     
     spec_file: str | list[str] = None
@@ -319,9 +540,9 @@ class Spectrum:
         
         
     @property
-    def orderlet_index(self) -> int | str:
+    def orderlet_index(self) -> str:
         if self.orderlet.startswith("SCI"):
-            return int(self.orderlet[-1])
+            return self.orderlet[-1]
         else:
             return ""
         
@@ -475,7 +696,7 @@ class Spectrum:
             
     def locate_peaks(
         self,
-        fractional_height: float = 10,
+        fractional_height: float = 0.1,
         distance: float = 10,
         width: float = 3,
         window_to_save: int = 15
@@ -512,7 +733,16 @@ class Spectrum:
     
     def filter_peaks(self, window: float = 0.01) -> Spectrum:
         """
-        window in angstroms
+        Filter the peaks such that any peaks of a close enough wavelength, but
+        appearing in different echelle orders, are selected so that only one
+        remains. To do this, all Orders (and all Peaks) have an order index, so
+        we can tell which order a peak was located in. So I just loop through
+        all peaks, and if two fall within the wavelength `window` AND have
+        different order indexes, I remove the one that is further from its
+        order's mean wavelength (`distance_from_order_center` is also stored
+        inside each Peak).
+        
+        `window` is in wavelength units of Angstroms
         """
         
         print(f"{self.pp:<20}Filtering {self.orderlet} peaks to remove "+\
