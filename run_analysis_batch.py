@@ -65,8 +65,6 @@ class File:
     date: str
 
 
-OUTDIR: str = "/scr/jpember/polly_outputs/NEW"
-
 # L1_FILE_LISTS = [
 #     "/scr/shalverson/SamWorkingDir/etalon_feb_morn.csv",
 #     "/scr/shalverson/SamWorkingDir/etalon_feb_eve.csv",
@@ -258,13 +256,11 @@ if __name__ == "__main__":
     
     # logging.basicConfig(filename="/scr/jpember/test.log", level=logging.INFO)
     
-    # TODO: argparse these values from the command line?
-    # DATE: str = "20240215"
-    # TIMEOFDAY: str = "morn"
+    OUTDIR: str = "/scr/jpember/polly_outputs/TEST"
 
     ORDERLETS : list[str] = [
         # "SCI1",
-        "SCI2",
+        # "SCI2",
         # "SCI3",
         "CAL",
         # "SKY"

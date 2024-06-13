@@ -181,6 +181,14 @@ class Peak:
         
         
     def _fit_gaussian(self) -> None:
+        """
+        `scipy.optimize.curve_fit` wrapper, with initial guesses `p0` and
+        bounds `bounds` coming from properties of the data themselves
+        
+        First centres the wavelength range about zero
+        
+        See top-level `_gaussian` for function definition
+        """
         
         x0 = np.mean(self.wavelet)
         x = self.wavelet - x0 # Centre about zero
@@ -208,10 +216,20 @@ class Peak:
         self.center_wavelength = x0 + mean
         self.amplitude = amplitude
         self.sigma = fwhm / (2 * np.sqrt(2 * np.log(2)))
+        # Does not define self.boxhalfwidth
         self.offset = offset
             
             
     def _fit_conv_gauss_tophat(self) -> None:
+        """
+        `scipy.optimize.curve_fit` wrapper, with initial guesses `p0` and
+        bounds `bounds` coming from properties of the data themselves
+        
+        First centres the wavelength range about zero
+        
+        See `conv_gauss_tophat` function definition in
+        `fit_erf_to_ccf_simplified.py` module
+        """
         
         x0 = np.mean(self.wavelet)
         x = self.wavelet - x0 # Centre about zero
@@ -293,7 +311,7 @@ class Order:
    
     def locate_peaks(
         self,
-        fractional_height: float = 0.1,
+        fractional_height: float = 0.01,
         distance: float = 10,
         width: float = 3,
         window_to_save: int = 15
@@ -871,7 +889,7 @@ def _gaussian(
 
 def test() -> None:
     
-    DATAPATH = "/home/jake/Desktop/kpf/data/kpf/masters/"
+    DATAPATH = "/data/kpf/masters/"
     DATE = "20240520"
     
     ORDERLETS = [
@@ -885,21 +903,15 @@ def test() -> None:
     WLS_file = f"{DATAPATH}{DATE}/kpf_{DATE}_master_WLS_autocal-lfc-all-morn_L1.fits"
     etalon_file = f"{DATAPATH}{DATE}/kpf_{DATE}_master_WLS_autocal-etalon-all-morn_L1.fits"
 
-    for f in [WLS_file, etalon_file]:
-        print(f"WLSFILE = {fits.getheader(f)['WLSFILE']}")
-        try:
-            print(f"WLSFILE2 = {fits.getheader(f)['WLSFILE2']}")
-        except Exception as e:
-            print(e)
-
-    data = {}
     for orderlet in ORDERLETS:
         s = Spectrum(spec_file=etalon_file, wls_file=WLS_file, orderlet=orderlet)
-        s.locate_peaks(window=15)
+        s.locate_peaks(fractional_height=0.01, window_to_save=10)
         s.fit_peaks(type="conv_gauss_tophat")
         s.filter_peaks(window=0.05)
+        
+        print(f"{s.num_located_peaks = }")
+        print(f"{s.num_successfully_fit_peaks = }")
         # s.save_peak_locations(f"./etalon_wavelengths_{orderlet}.csv")
-        data[orderlet] = s
 
 
 
@@ -914,4 +926,4 @@ if __name__ == "__main__":
     stats = pstats.Stats(pr)
     stats.sort_stats(pstats.SortKey.TIME)
     stats.print_stats()
-    # stats.dump_stats("etalon_analysis.prof")
+    # stats.dump_stats("../etalonanalysis.prof")
