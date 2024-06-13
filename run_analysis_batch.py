@@ -206,17 +206,17 @@ def find_WLS_file(DATE: str, TIMEOFDAY: str) -> str:
 
 
 
-parser = argparse.ArgumentParser(
-            prog="",
-            description="A utility to process KPF etalon data from individual"+\
-                "or multiple L1 files. Produces an output file with the"+\
-                "wavelengths of each identified etalon peak, as well as"+\
-                "diagnostic plots."
-                    )
+# parser = argparse.ArgumentParser(
+#             prog="",
+#             description="A utility to process KPF etalon data from individual"+\
+#                 "or multiple L1 files. Produces an output file with the"+\
+#                 "wavelengths of each identified etalon peak, as well as"+\
+#                 "diagnostic plots."
+#                     )
 
-parser.add_argument("files")
-parser.add_argument("-v", "--verbose",
-                    action="store_true")  # on/off flag
+# parser.add_argument("files")
+# parser.add_argument("-v", "--verbose",
+#                     action="store_true")  # on/off flag
 
 
 
