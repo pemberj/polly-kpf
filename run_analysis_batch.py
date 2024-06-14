@@ -63,13 +63,6 @@ class File:
     path: str
     date: str
 
-
-# L1_FILE_LISTS = [
-#     "/scr/shalverson/SamWorkingDir/etalon_feb_morn.csv",
-#     "/scr/shalverson/SamWorkingDir/etalon_feb_eve.csv",
-#     "/scr/shalverson/SamWorkingDir/etalon_feb_night.csv",
-# ]
-
 TIMESOFDAY = ["morn", "eve", "night"]
 
 
@@ -77,18 +70,6 @@ TIMESOFDAY = ["morn", "eve", "night"]
 def main(DATE: str, TIMEOFDAY: str, ORDERLET: str) -> None:
     
     pp = f"{f'[{DATE} {TIMEOFDAY:>5}]':<20}" # Print Prefix
-    
-    # FILES: list[str] = []
-    # # Generate list of files to look at
-    # for listname in L1_FILE_LISTS:
-    #     with open(listname, "r") as file_list:
-    #         lines = [line.strip() for line in file_list.readlines()[1:]]
-
-    #         for f in lines:
-    #             path, date = f.split(",")
-    #             csvfilename = listname.split("/")[-1]
-    #             if TIMEOFDAY in csvfilename and date == DATE:
-    #                 FILES.append(path)
                     
     SPEC_FILES = find_L1_etalon_files(DATE)[TIMEOFDAY]
                     
@@ -106,24 +87,23 @@ def main(DATE: str, TIMEOFDAY: str, ORDERLET: str) -> None:
         spec_file=SPEC_FILES,
         wls_file=WLS_FILE,
         orderlet=ORDERLET, pp=pp)
-    
-    fig = plt.figure(figsize=(12, 3))
-    ax = fig.gca()
-    ax.set_title(f"{DATE} {TIMEOFDAY} {ORDERLET}")
-    ax.set_xlim(440, 880)
-    s.plot(ax=ax, plot_peaks=False, label=f"{ORDERLET}")
-    
-    Path(f"{OUTDIR}").mkdir(parents=True, exist_ok=True) # Make OUTDIR
-    
-    plt.savefig(f"{OUTDIR}/{DATE}_{TIMEOFDAY}_{ORDERLET}_spectrum.png")
-    plt.close()
-    
     s.locate_peaks(fractional_height=0.01, window_to_save=10)
     s.fit_peaks(type="conv_gauss_tophat")
     s.filter_peaks(window=0.1)       
+    
+    Path(f"{OUTDIR}").mkdir(parents=True, exist_ok=True) # Make OUTDIR
     s.save_peak_locations(
         f"{OUTDIR}/{DATE}_{TIMEOFDAY}_{ORDERLET}_etalon_wavelengths.csv"
         )
+    
+    # Spectrum plot
+    # fig = plt.figure(figsize=(12, 3))
+    # ax = fig.gca()
+    # ax.set_title(f"{DATE} {TIMEOFDAY} {ORDERLET}")
+    # ax.set_xlim(440, 880)
+    # s.plot(ax=ax, plot_peaks=False, label=f"{ORDERLET}")
+    # plt.savefig(f"{OUTDIR}/{DATE}_{TIMEOFDAY}_{ORDERLET}_spectrum.png")
+    # plt.close()
 
     # Plot of FSR as a function of wavelength
     fig = plt.figure(figsize=(12, 4))
@@ -278,7 +258,8 @@ if __name__ == "__main__":
     for DATE in [f"202404{x:02}" for x in range(1, 31)]:
         for TIMEOFDAY in ["morn", "eve", "night"]:
             for ORDERLET in ORDERLETS:
-                if not Path(f"{OUTDIR}/{DATE}_{TIMEOFDAY}_{ORDERLET}_etalon_wavelengths.csv").exists():
+                if not Path(f"{OUTDIR}/{DATE}_{TIMEOFDAY}_{ORDERLET}"+\
+                                            "_etalon_wavelengths.csv").exists():
                     try:
                         main(DATE=DATE, TIMEOFDAY=TIMEOFDAY, ORDERLET=ORDERLET)
                     except Exception as e:
