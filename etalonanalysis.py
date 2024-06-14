@@ -128,7 +128,12 @@ class Peak:
             top-hat function, constructed from two sigmoid "error" functions
             (see `conv_gauss_tophat()` in `fit_erf_to_ccf_simplified.py` module.
             Fitting routine has data-driven initial guesses and bounds for the
-            parameters. Updates the Peak object parameters, returns nothing.    
+            parameters. Updates the Peak object parameters, returns nothing.
+            
+    TODO: 
+     * Plot of data and fit with vertical lines showing the coarse center and
+       the fine (fit) center. Accept an axis, so that these can be called and
+       plot into a pre-generated subplots grid
     """
     
     coarse_wavelength: float
