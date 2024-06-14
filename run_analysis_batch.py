@@ -53,14 +53,7 @@ FAIL    = '\033[91m'
 ENDC    = '\033[0m'
 
 
-@dataclass
-class File:
-    listname: str
-    path: str
-    date: str
-
 TIMESOFDAY = ["morn", "eve", "night"]
-
 
 
 def main(DATE: str, TIMEOFDAY: str, ORDERLET: str) -> None:

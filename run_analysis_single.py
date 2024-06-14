@@ -30,13 +30,6 @@ FAIL    = '\033[91m'
 ENDC    = '\033[0m'
 
 
-@dataclass
-class File:
-    listname: str
-    path: str
-    date: str
-
-
 def main(FILENAME: str, ORDERLET: str) -> None:
     
     DATE = "".join(fits.getval(FILENAME, "DATE-OBS").split("-"))
