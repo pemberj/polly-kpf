@@ -43,12 +43,16 @@ Peak
 from __future__ import annotations
 from dataclasses import dataclass
 from operator import attrgetter
+from typing import Callable
 from astropy.io import fits
+from astropy import units as u
+from astropy import constants
 from tqdm import tqdm # Progress bars
 import numpy as np
 from numpy.typing import ArrayLike
 from scipy.signal import find_peaks
 from scipy.optimize import curve_fit
+from scipy.interpolate import splrep, BSpline, UnivariateSpline
 from matplotlib import pyplot as plt
 
 try:
@@ -607,6 +611,24 @@ class Spectrum:
 
         return sum(1 for o in self.orders for p in o.peaks
                    if not np.isnan(p.center_wavelength))
+        
+    
+    @property
+    def delta_nu_FSR(self) -> ArrayLike:
+        """
+        Calculates and returns the FSR of the etalon spectrum in GHz
+        """
+        
+        # Get peak wavelengths
+        wls = np.array([p.wl for p in self.filtered_peaks]) * u.angstrom
+        # Filter out any NaN values
+        nanmask = ~np.isnan(wls)
+        wls = wls[nanmask]
+        
+        FSR =\
+            (constants.c * np.diff(wls) / np.power(wls[:-1], 2)).to(u.GHz).value
+        
+        return FSR
     
     
     def parse_reference_mask(self) -> Spectrum:
@@ -840,7 +862,7 @@ class Spectrum:
         return self
     
 
-    def plot(
+    def plot_spectrum(
         self,
         ax: plt.Axes = None,
         plot_peaks: bool = True,
@@ -883,15 +905,75 @@ class Spectrum:
 
         return ax
     
+    
+    def plot_FSR(self, ax: plt.Axes = None):
+        
+        if not ax:
+            fig = plt.figure(figsize = (20, 4))
+            ax = fig.gca()
+            
+        if ax.get_xlim() == (0.0, 1.0):
+            ax.set_xlim(440, 880) # Default xlims
+        if ax.get_ylim() == (0.0, 1.0):
+            ax.set_ylim(30.15, 30.35) # Default ylims
+        
+        wls = np.array([p.wl for p in self.filtered_peaks]) * u.angstrom
+        nanmask = ~np.isnan(wls)
+        wls = wls[nanmask]
+        
+        delta_nu_FSR = self.delta_nu_FSR()
+        estimate_FSR = np.nanmedian(delta_nu_FSR)
+        # Remove last wls value to make it the same length as FSR array
+        wls = wls[:-1]
+        
+        # Coarse removal of >= 1GHz outliers
+        mask = np.where(np.abs(delta_nu_FSR - estimate_FSR) <= 1)
+        
+        try:
+            model =\
+                _fit_spline(x = wls[mask], y = delta_nu_FSR[mask], knots = 21)
+            label = "Spline fit"
+        except ValueError as e:
+            print(f"{e}")
+            print("Spline fit failed. Fitting with polynomial.")
+            model = np.poly1d(np.polyfit(wls[mask], delta_nu_FSR[mask], 5))
+            label = "Polynomial fit"
+        
+        ax.plot(wls, model(wls), label=label, linestyle="--")
+            
+        # Remove >= 250MHz outliers from model
+        mask = np.where(np.abs(delta_nu_FSR - model(wls)) <= 0.25)
+        ax.scatter(wls[mask], delta_nu_FSR[mask], marker=".", alpha=0.2,
+                   label=f"Data (n = {len(mask[0]):,}/{len(delta_nu_FSR):,})")
+        
+        ax.legend(loc="lower right")
+        ax.set_xlabel("Wavelength [nm]", size=16)
+        ax.set_ylabel("Etalon $\Delta\\nu_{FSR}$ [GHz]", size=16)
+        
 
-    def save_config_file(self):
-        # TODO: complete this code
-        f"""
-        date: {self.date}
-        spec_file: {self.spec_file}
-        wls_file: {self.wls_file}
-        orderlet: {self.orderlet}
-        """
+        def save_config_file(self):
+            # TODO: complete this code
+            f"""
+            date: {self.date}
+            spec_file: {self.spec_file}
+            wls_file: {self.wls_file}
+            orderlet: {self.orderlet}
+            """
+
+
+def _fit_spline(
+    x: ArrayLike,
+    y: ArrayLike,
+    knots: int = 21,
+    ) -> Callable:
+    
+    # model = UnivariateSpline(x, y, k=5)
+    x_new = np.linspace(0, 1, knots + 2)[1:-1]
+    q_knots = np.quantile(x, x_new)
+    t,c,k = splrep(x, y, t = q_knots, s = 1)
+    model = BSpline(t, c, k)
+    
+    return model
 
 
 def _gaussian(

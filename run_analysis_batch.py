@@ -107,54 +107,13 @@ def main(DATE: str, TIMEOFDAY: str, ORDERLET: str) -> None:
     # plt.savefig(f"{OUTDIR}/spectrum_plots/{DATE}_{TIMEOFDAY}_{ORDERLET}_spectrum.png")
     # plt.close()
 
-    # Plot of FSR as a function of wavelength
+    # FSR plot
     fig = plt.figure(figsize=(12, 4))
     ax = fig.gca()
-
-    wls = np.array([p.wl for p in s.filtered_peaks]) * u.angstrom
-    nanmask = ~np.isnan(wls)
-    wls = wls[nanmask]
-    
-    delta_nu_FSR =\
-        (constants.c * np.diff(wls) / np.power(wls[:-1], 2)).to(u.GHz).value
-    wls = wls.to(u.nm).value
-
-    estimate_FSR = np.nanmedian(delta_nu_FSR)
-    
-    # Coarse removal of >= 1GHz outliers
-    mask = np.where(np.abs(delta_nu_FSR - estimate_FSR) <= 1)
-    
-    try:
-        model = UnivariateSpline(wls[:-1][mask], delta_nu_FSR[mask], k=5)
-        knot_numbers = 21
-        x_new = np.linspace(0, 1, knot_numbers+2)[1:-1]
-        q_knots = np.quantile(wls[:-1][mask], x_new)
-        t,c,k = splrep(wls[:-1][mask], delta_nu_FSR[mask], t=q_knots, s=1)
-        model = BSpline(t,c,k)
-        ax.plot(wls, model(wls), label=f"Spline fit", linestyle="--")
-    except ValueError as e:
-        print(f"{e}")
-        print("Spline fit failed. Fitting with polynomial.")
-        model = np.poly1d(np.polyfit(wls[:-1][mask], delta_nu_FSR[mask], 5))
-        ax.plot(wls, model(wls), label=f"Polynomial fit", linestyle="--")
-        
-    # Remove >= 250MHz outliers from model
-    mask = np.where(np.abs(delta_nu_FSR - model(wls[:-1])) <= 0.25)
-    ax.scatter(wls[:-1][mask], delta_nu_FSR[mask], marker=".", alpha=0.2,
-                label=f"Data (n = {len(mask[0]):,}/{len(delta_nu_FSR):,})")
-
-    # ax.set_xlim(min(wls), max(wls))
-    # plotrange =\
-        # ( np.mean(delta_nu_FSR[mask]) - 5 * np.std(delta_nu_FSR[mask]),
-        #   np.mean(delta_nu_FSR[mask]) + 5 * np.std(delta_nu_FSR[mask]) )
-    # ax.set_ylim(plotrange)
-    ax.set_xlim(440, 880)
-    ax.set_ylim(30.15, 30.35)
-    
-    ax.legend()
     ax.set_title(f"{DATE} {TIMEOFDAY} {ORDERLET}", size=20)
-    ax.set_xlabel("Wavelength [nm]", size=16)
-    ax.set_ylabel("Etalon $\Delta\\nu_{FSR}$ [GHz]", size=16)
+    # ax.set_xlim(440, 880)
+    # ax.set_ylim(30.15, 30.35)
+    s.plot_FSR(ax=ax)
     
     Path(f"{OUTDIR}/FSR_plots").mkdir(parents=True, exist_ok=True) # Make OUTDIR
     plt.savefig(f"{OUTDIR}/FSR_plots/{DATE}_{TIMEOFDAY}_{ORDERLET}_etalon_FSR.png")
@@ -162,6 +121,13 @@ def main(DATE: str, TIMEOFDAY: str, ORDERLET: str) -> None:
         
         
 def find_L1_etalon_files(DATE: str, TIMEOFDAY: str) -> dict[str, list[str]]:
+    """
+    TODO:
+     - Don't just take every matching frame! There are three "blocks" of three
+       etalon frames taken every morning (and evening?). Should take only the
+       single block that is closest to the SoCal observations.
+     - Use a database lookup (on shrek) to select files
+    """
     
     all_files: list[str] = glob(f"/data/kpf/L1/{DATE}/*.fits")
     
