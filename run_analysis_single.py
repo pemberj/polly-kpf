@@ -60,14 +60,16 @@ def main(FILENAME: str, ORDERLET: str) -> None:
         f"{OUTDIR}/{DATE}_{TIMEOFDAY}_{ORDERLET}_etalon_wavelengths.csv"
         )
     
-    # Spectrum plot
+    # # Spectrum plot
     # fig = plt.figure(figsize=(12, 3))
     # ax = fig.gca()
     # ax.set_title(f"{DATE} {TIMEOFDAY} {ORDERLET}")
     # ax.set_xlim(440, 880)
     # s.plot_spectrum(ax=ax, plot_peaks=False, label=f"{ORDERLET}")
-    # Path(f"{OUTDIR}/spectrum_plots").mkdir(parents=True, exist_ok=True) # Make OUTDIR
-    # plt.savefig(f"{OUTDIR}/spectrum_plots/{DATE}_{TIMEOFDAY}_{ORDERLET}_spectrum.png")
+    # # Make directory if it does not exist
+    # Path(f"{OUTDIR}/spectrum_plots").mkdir(parents=True, exist_ok=True)
+    # plt.savefig(f"{OUTDIR}/spectrum_plots/"+\
+    #             f"{DATE}_{TIMEOFDAY}_{ORDERLET}_spectrum.png")
     # plt.close()
 
     # FSR plot
@@ -77,31 +79,33 @@ def main(FILENAME: str, ORDERLET: str) -> None:
     # ax.set_xlim(440, 880)
     # ax.set_ylim(30.15, 30.35)
     s.plot_FSR(ax=ax)
-    Path(f"{OUTDIR}/FSR_plots").mkdir(parents=True, exist_ok=True) # Make OUTDIR
-    plt.savefig(f"{OUTDIR}/FSR_plots/{DATE}_{TIMEOFDAY}_{ORDERLET}_etalon_FSR.png")
+    # Make directory if it does not exist
+    Path(f"{OUTDIR}/FSR_plots").mkdir(parents=True, exist_ok=True)
+    plt.savefig(f"{OUTDIR}/FSR_plots/"+\
+                f"{DATE}_{TIMEOFDAY}_{ORDERLET}_etalon_FSR.png")
     plt.close()
 
 
 import argparse
 parser = argparse.ArgumentParser(
-            prog="",
+            prog="polly run_analysis_single",
             description="A utility to process KPF etalon data from "+\
                 "and individual file. Produces an output file with the "+\
                 "wavelengths of each identified etalon peak, as well as "+\
                 "diagnostic plots."
                     )
 
-parser.add_argument("-f", "--filename")
-parser.add_argument("-o", "--orderlet", default="all")
+parser.add_argument("-f", "--filename", type=str)
+parser.add_argument("-o", "--orderlet", type=str, default="all")
+parser.add_argument("--outdir", type=str, default="/scr/jpember/polly_outputs")
 
 
 if __name__ == "__main__":
     
     args = parser.parse_args()
+    OUTDIR = args.outdir
     
     # logging.basicConfig(filename="/scr/jpember/test.log", level=logging.INFO)
-    
-    OUTDIR: str = "/scr/jpember/polly_outputs"
 
     ORDERLETS : list[str] = [
         "SCI1",
