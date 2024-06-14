@@ -73,17 +73,13 @@ def main(DATE: str, TIMEOFDAY: str, ORDERLET: str) -> None:
     if not SPEC_FILES:
         print(f"{pp}{FAIL}No files for {DATE} {TIMEOFDAY}{ENDC}")
         return
-    
-    WLS_FILE = find_WLS_file(DATE=DATE, TIMEOFDAY=TIMEOFDAY)
-    
-    if not WLS_FILE:
-        print(f"{pp}{FAIL}No matching WLS file found{ENDC}")
-        return
 
     s = Spectrum(
-        spec_file=SPEC_FILES,
-        wls_file=WLS_FILE,
-        orderlet=ORDERLET, pp=pp)
+        spec_file = SPEC_FILES,
+        wls_file = None,
+        orderlet = ORDERLET,
+        pp = pp
+        )
     s.locate_peaks(fractional_height=0.01, window_to_save=10)
     s.fit_peaks(type="conv_gauss_tophat")
     s.filter_peaks(window=0.1)       
@@ -117,6 +113,10 @@ def main(DATE: str, TIMEOFDAY: str, ORDERLET: str) -> None:
         
 def find_L1_etalon_files(DATE: str, TIMEOFDAY: str) -> dict[str, list[str]]:
     """
+    Locates relevant L1 files for a given date and time of day. At the moment
+    it loops through all files and looks at the "OBJECT" keyword in their
+    headers.
+    
     TODO:
      - Don't just take every matching frame! There are three "blocks" of three
        etalon frames taken every morning (and evening?). Should take only the
@@ -129,60 +129,13 @@ def find_L1_etalon_files(DATE: str, TIMEOFDAY: str) -> dict[str, list[str]]:
     out_files: list[str] = []
     
     for f in all_files:
-        object = fits.getval(f, "object")
-        if "etalon" in object:
+        object = fits.getval(f, "OBJECT")
+        if "etalon" in object.lower():
             timeofday = object.split("-")[-1]
             if timeofday == TIMEOFDAY:
                 out_files.append(f)
                 
     return out_files
-
-
-def find_WLS_file(DATE: str, TIMEOFDAY: str, allow_other: bool = False) -> str:
-    
-    pp = f"{f'[{DATE} {TIMEOFDAY:>5}]':<20}" # Print Prefix
-    
-    WLS_file = None
-    
-    try:
-        WLS_file: str = "/data/kpf/masters/"+\
-            f"{DATE}/kpf_{DATE}_master_WLS_autocal-lfc-all-{TIMEOFDAY}_L1.fits"
-        assert "lfc" in fits.getval(WLS_file, "OBJECT").lower()
-    except AssertionError:
-        print(f"{pp}{WARNING}'lfc' not found in {TIMEOFDAY} "+\
-              f"WLS file 'OBJECT' value!{ENDC}")
-        WLS_file = None
-    except FileNotFoundError:
-        print(f"{pp}{WARNING}{TIMEOFDAY} WLS file not found{ENDC}")
-        WLS_file = None
-        
-    if WLS_file:
-        print(f"{pp}{OKBLUE}Using WLS file: {WLS_file.split('/')[-1]}{ENDC}")
-        return WLS_file
-
-    if not allow_other:
-        return None
-    
-    # allow_other is True, so we look at nearby WLS files
-    for _TIMEOFDAY in TIMESOFDAY:
-        if _TIMEOFDAY == TIMEOFDAY: continue # We already know it's missing
-        try:
-            WLS_file: str = "/data/kpf/masters/{DATE}/"+\
-                f"kpf_{DATE}_master_WLS_autocal-lfc-all-{_TIMEOFDAY}_L1.fits"
-            assert "lfc" in fits.getval(WLS_file, "OBJECT").lower()
-        except AssertionError:
-            print(f"{pp}{WARNING}'lfc' not found in {_TIMEOFDAY} "+\
-                  f"WLS file 'OBJECT' value!{ENDC}")
-            WLS_file = None
-        except FileNotFoundError:
-            print(f"{pp}{WARNING}{_TIMEOFDAY} WLS file not found{ENDC}")
-            WLS_file = None
-            
-        if WLS_file:
-            print(
-                f"{pp}{OKBLUE}Using WLS file: {WLS_file.split('/')[-1]}{ENDC}"
-                )
-            return WLS_file
 
 
 """
@@ -215,12 +168,12 @@ if __name__ == "__main__":
         # "SKY"
         ]
     
-    for DATE in [f"202402{x:02}" for x in range(1, 31)]:
+    for DATE in [f"202405{x:02}" for x in range(1, 31)]:
         for TIMEOFDAY in ["morn", "eve", "night"]:
             for ORDERLET in ORDERLETS:
                 if not Path(f"{OUTDIR}/{DATE}_{TIMEOFDAY}_{ORDERLET}"+\
                                             "_etalon_wavelengths.csv").exists():
-                    try:
+                    # try:
                         main(DATE=DATE, TIMEOFDAY=TIMEOFDAY, ORDERLET=ORDERLET)
-                    except Exception as e:
-                        print(e)
+                    # except Exception as e:
+                    #     print(e)

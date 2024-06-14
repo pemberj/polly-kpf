@@ -480,6 +480,14 @@ class Spectrum:
             match one another, and if so, combines the fluxes by taking the
             median value for each pixel.
             Flux data is stored per-order in a list of Orders: self.orders
+        
+        find_wls_file
+            If no WLS file is passed in, this method is called. It looks in the
+            /data/kpf/masters/ directory for the same date as the `spec_file`,
+            and finds the corresponding wavelength solution file. If the
+            `spec_file` was taken at "night" (from OBJECT keyword string), the
+            corresponding "eve" WLS file is located.
+        
         load_wls
             Loads the `wls_file` file, and stores its wavelength data per-order
             in self.orders.
@@ -529,7 +537,7 @@ class Spectrum:
     
     orders: list[Order] = None
 
-    date: str | list[str] = None
+    date: str = None # DATE-OBS in FITS header (without dashes), eg. 20240131
     sci_obj: str = None # SCI-OBJ in FITS header
     cal_obj: str = None # CAL-OBJ in FITS header
     object: str = None # OBJECT in FITS header
@@ -545,6 +553,9 @@ class Spectrum:
             if self.spec_file:
                 self.load_spec()
             if self.wls_file:
+                self.load_wls()
+            else:
+                self.find_wls_file()
                 self.load_wls()
             if self.reference_mask:
                 self.parse_reference_mask()
@@ -569,6 +580,12 @@ class Spectrum:
             raise TypeError(
                 f"{self.pp}Can only add two Spectrum objects together"
                 )
+            
+            
+    @property
+    def timeofday(self) -> str:
+        # morn, eve, night
+        return self.object.split("-")[-1]
         
 
     @property
@@ -599,7 +616,6 @@ class Spectrum:
                 
         return [p for o in self.orders for p in o.peaks]
             
-    
 
     @property
     def num_located_peaks(self) -> int:
@@ -660,6 +676,9 @@ class Spectrum:
             spec_red = fits.getdata(self.spec_file,
                         f"RED_{self.orderlet_name}_FLUX{self.orderlet_index}")
             
+            self.date = "".join(
+                        fits.getval(self.spec_file, "DATE-OBS").split("-")
+                        )
             self.sci_obj = fits.getval(self.spec_file, "SCI-OBJ")
             self.cal_obj = fits.getval(self.spec_file, "CAL-OBJ")
             self.object = fits.getval(self.spec_file, "OBJECT")
@@ -735,6 +754,35 @@ class Spectrum:
         
         print(f"{OKGREEN} DONE{ENDC}")
         return self
+    
+    
+    def find_wls_file(self) -> str:
+        
+        wls_file: str = None
+        
+        if self.timeofday == "night":
+            # Specifically look for "eve" WLS file
+            wls_file = f"/data/kpf/masters/{self.date}/kpf_{self.date}_"+\
+                            "master_WLS_autocal-lfc-all-eve_L1.fits"
+        # Otherwise, look for the same time of day WLS file ("morn" or "eve")
+        wls_file = f"/data/kpf/masters/{self.date}/kpf_{self.date}_"+\
+                       f"master_WLS_autocal-lfc-all-{self.timeofday}_L1.fits"
+        
+        try:
+            assert "lfc" in fits.getval(wls_file, "OBJECT").lower()
+        except AssertionError:
+            print(f"{self.pp}{WARNING}'lfc' not found in {self.timeofday} "+\
+                f"WLS file 'OBJECT' value!{ENDC}")
+            return
+        except FileNotFoundError:
+            print(f"{self.pp}{WARNING}{self.timeofday} WLS file "+\
+                  f"not found{ENDC}")
+            return
+            
+        if wls_file:
+            print(f"{self.pp}{OKBLUE}Using WLS file:"+\
+                  f"{wls_file.split('/')[-1]}{ENDC}")
+            self.wls_file = wls_file
     
     
     def load_wls(self) -> Spectrum:
