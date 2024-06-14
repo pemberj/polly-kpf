@@ -69,10 +69,11 @@ TIMESOFDAY = ["morn", "eve", "night"]
 
 def main(DATE: str, TIMEOFDAY: str, ORDERLET: str) -> None:
     
-    pp = f"{f'[{DATE} {TIMEOFDAY:>5}]':<20}" # Print Prefix
-                    
-    SPEC_FILES = find_L1_etalon_files(DATE)[TIMEOFDAY]
-                    
+    pp = f"{f'[{DATE} {TIMEOFDAY:>5}]':<20}" # Print/logging line prefix
+    
+    # Find matching etalon files
+    SPEC_FILES = find_L1_etalon_files(DATE, TIMEOFDAY)
+    
     if not SPEC_FILES:
         print(f"{pp}{FAIL}No files for {DATE} {TIMEOFDAY}{ENDC}")
         return
@@ -140,7 +141,7 @@ def main(DATE: str, TIMEOFDAY: str, ORDERLET: str) -> None:
     # Remove >= 250MHz outliers from model
     mask = np.where(np.abs(delta_nu_FSR - model(wls[:-1])) <= 0.25)
     ax.scatter(wls[:-1][mask], delta_nu_FSR[mask], marker=".", alpha=0.2,
-                label=f"Data (n = {len(mask):,}/{len(delta_nu_FSR):,})")
+                label=f"Data (n = {len(mask[0]):,}/{len(delta_nu_FSR):,})")
 
     # ax.set_xlim(min(wls), max(wls))
     # plotrange =\
@@ -160,24 +161,20 @@ def main(DATE: str, TIMEOFDAY: str, ORDERLET: str) -> None:
     plt.close()
         
         
-def find_L1_etalon_files(DATE: str, ) -> dict[str, list[str]]:
+def find_L1_etalon_files(DATE: str, TIMEOFDAY: str) -> dict[str, list[str]]:
     
-    files = glob(f"/data/kpf/L1/{DATE}/*.fits")
+    all_files: list[str] = glob(f"/data/kpf/L1/{DATE}/*.fits")
     
-    file_lists = {
-        "morn": [],
-        "eve": [],
-        "night": [],
-    }
+    out_files: list[str] = []
     
-    for f in files:
+    for f in all_files:
         object = fits.getval(f, "object")
         if "etalon" in object:
             timeofday = object.split("-")[-1]
-            if timeofday in file_lists.keys():
-                file_lists[timeofday].append(f)
+            if timeofday == TIMEOFDAY:
+                out_files.append(f)
                 
-    return file_lists
+    return out_files
 
 
 def find_WLS_file(DATE: str, TIMEOFDAY: str, allow_other: bool = False) -> str:
@@ -257,7 +254,7 @@ if __name__ == "__main__":
         # "SKY"
         ]
     
-    for DATE in [f"202404{x:02}" for x in range(1, 31)]:
+    for DATE in [f"202402{x:02}" for x in range(1, 31)]:
         for TIMEOFDAY in ["morn", "eve", "night"]:
             for ORDERLET in ORDERLETS:
                 if not Path(f"{OUTDIR}/{DATE}_{TIMEOFDAY}_{ORDERLET}"+\
