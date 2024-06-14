@@ -31,11 +31,7 @@ from __future__ import annotations
 from glob import glob
 from pathlib import Path
 from dataclasses import dataclass
-import numpy as np
 from astropy.io import fits
-from astropy import units as u
-from astropy import constants
-from scipy.interpolate import splrep, BSpline, UnivariateSpline
 from matplotlib import pyplot as plt
 # import logging
 # logger = logging.getLogger(__name__)
@@ -114,7 +110,6 @@ def main(DATE: str, TIMEOFDAY: str, ORDERLET: str) -> None:
     # ax.set_xlim(440, 880)
     # ax.set_ylim(30.15, 30.35)
     s.plot_FSR(ax=ax)
-    
     Path(f"{OUTDIR}/FSR_plots").mkdir(parents=True, exist_ok=True) # Make OUTDIR
     plt.savefig(f"{OUTDIR}/FSR_plots/{DATE}_{TIMEOFDAY}_{ORDERLET}_etalon_FSR.png")
     plt.close()
