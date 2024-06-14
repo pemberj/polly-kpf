@@ -28,7 +28,6 @@ TODO:
 
 
 from __future__ import annotations
-# import argparse
 from glob import glob
 from pathlib import Path
 from dataclasses import dataclass
@@ -94,13 +93,13 @@ def main(DATE: str, TIMEOFDAY: str, ORDERLETS: list[str]) -> None:
     SPEC_FILES = find_L1_etalon_files(DATE)[TIMEOFDAY]
                     
     if not SPEC_FILES:
-        print(f"{pp:<20}{FAIL}No files for {DATE} {TIMEOFDAY}{ENDC}")
+        print(f"{pp}{FAIL}No files for {DATE} {TIMEOFDAY}{ENDC}")
         return
     
     WLS_FILE = find_WLS_file(DATE=DATE, TIMEOFDAY=TIMEOFDAY)
     
     if not WLS_FILE:
-        print(f"{pp:<20}{FAIL}No matching WLS file found{ENDC}")
+        print(f"{pp}{FAIL}No matching WLS file found{ENDC}")
         return
 
     for ORDERLET in ORDERLETS:
@@ -134,11 +133,14 @@ def main(DATE: str, TIMEOFDAY: str, ORDERLETS: list[str]) -> None:
         nanmask = ~np.isnan(wls)
         wls = wls[nanmask]
         
-        delta_nu_FSR = (constants.c * np.diff(wls) / np.power(wls[:-1], 2)).to(u.GHz).value
+        delta_nu_FSR =\
+            (constants.c * np.diff(wls) / np.power(wls[:-1], 2)).to(u.GHz).value
         wls = wls.to(u.nm).value
 
-        estimate_FSR = np.nanmedian(delta_nu_FSR)    
-        mask = np.where(np.abs(delta_nu_FSR - estimate_FSR) <= 1) # Coarse removal of >= 1GHz outliers
+        estimate_FSR = np.nanmedian(delta_nu_FSR)
+        
+        # Coarse removal of >= 1GHz outliers
+        mask = np.where(np.abs(delta_nu_FSR - estimate_FSR) <= 1)
         
         try:
             model = UnivariateSpline(wls[:-1][mask], delta_nu_FSR[mask], k=5)
@@ -154,11 +156,15 @@ def main(DATE: str, TIMEOFDAY: str, ORDERLETS: list[str]) -> None:
             model = np.poly1d(np.polyfit(wls[:-1][mask], delta_nu_FSR[mask], 5))
             ax.plot(wls, model(wls), label=f"Polynomial fit", linestyle="--")
             
-        mask = np.where(np.abs(delta_nu_FSR - model(wls[:-1])) <= 0.25) # Remove >= 250MHz outliers from model
-        ax.scatter(wls[:-1][mask], delta_nu_FSR[mask], marker=".", alpha=0.2, label=f"Data (n = {len(delta_nu_FSR[mask]):,}/{len(delta_nu_FSR):,})")
+        # Remove >= 250MHz outliers from model
+        mask = np.where(np.abs(delta_nu_FSR - model(wls[:-1])) <= 0.25)
+        ax.scatter(wls[:-1][mask], delta_nu_FSR[mask], marker=".", alpha=0.2,
+                   label=f"Data (n = {len(mask):,}/{len(delta_nu_FSR):,})")
 
         # ax.set_xlim(min(wls), max(wls))
-        # plotrange = np.mean(delta_nu_FSR[mask]) - 5 * np.std(delta_nu_FSR[mask]), np.mean(delta_nu_FSR[mask]) + 5 * np.std(delta_nu_FSR[mask])
+        # plotrange =\
+            # ( np.mean(delta_nu_FSR[mask]) - 5 * np.std(delta_nu_FSR[mask]),
+            #   np.mean(delta_nu_FSR[mask]) + 5 * np.std(delta_nu_FSR[mask]) )
         # ax.set_ylim(plotrange)
         ax.set_xlim(440, 880)
         ax.set_ylim(30.15, 30.35)
@@ -195,7 +201,7 @@ def find_L1_etalon_files(DATE: str, ) -> dict[str, list[str]]:
 
 def find_WLS_file(DATE: str, TIMEOFDAY: str, allow_other: bool = False) -> str:
     
-    pp = f"[{DATE} {TIMEOFDAY:>5}]" # Print Prefix
+    pp = f"{'[{DATE} {TIMEOFDAY:>5}]':<20}" # Print Prefix
     
     WLS_file = None
     
@@ -204,14 +210,15 @@ def find_WLS_file(DATE: str, TIMEOFDAY: str, allow_other: bool = False) -> str:
             f"{DATE}/kpf_{DATE}_master_WLS_autocal-lfc-all-{TIMEOFDAY}_L1.fits"
         assert "lfc" in fits.getval(WLS_file, "OBJECT").lower()
     except AssertionError:
-        print(f"{pp:<20}{WARNING}'lfc' not found in {TIMEOFDAY} WLS file 'OBJECT' value!{ENDC}")
+        print(f"{pp}{WARNING}'lfc' not found in {TIMEOFDAY} "+\
+              f"WLS file 'OBJECT' value!{ENDC}")
         WLS_file = None
     except FileNotFoundError:
-        print(f"{pp:<20}{WARNING}{TIMEOFDAY} WLS file not found{ENDC}")
+        print(f"{pp}{WARNING}{TIMEOFDAY} WLS file not found{ENDC}")
         WLS_file = None
         
     if WLS_file:
-        print(f"{pp:<20}{OKBLUE}Using WLS file: {WLS_file.split('/')[-1]}{ENDC}")
+        print(f"{pp}{OKBLUE}Using WLS file: {WLS_file.split('/')[-1]}{ENDC}")
         return WLS_file
 
     if not allow_other:
@@ -221,35 +228,38 @@ def find_WLS_file(DATE: str, TIMEOFDAY: str, allow_other: bool = False) -> str:
     for _TIMEOFDAY in TIMESOFDAY:
         if _TIMEOFDAY == TIMEOFDAY: continue # We already know it's missing
         try:
-            WLS_file: str = "/data/kpf/masters/"+\
-                f"{DATE}/kpf_{DATE}_master_WLS_autocal-lfc-all-{_TIMEOFDAY}_L1.fits"
+            WLS_file: str = "/data/kpf/masters/{DATE}/"+\
+                f"kpf_{DATE}_master_WLS_autocal-lfc-all-{_TIMEOFDAY}_L1.fits"
             assert "lfc" in fits.getval(WLS_file, "OBJECT").lower()
         except AssertionError:
-            print(f"{pp:<20}{WARNING}'lfc' not found in {_TIMEOFDAY} WLS file 'OBJECT' value!{ENDC}")
+            print(f"{pp}{WARNING}'lfc' not found in {_TIMEOFDAY} "+\
+                  f"WLS file 'OBJECT' value!{ENDC}")
             WLS_file = None
         except FileNotFoundError:
-            print(f"{pp:<20}{WARNING}{_TIMEOFDAY} WLS file not found{ENDC}")
+            print(f"{pp}{WARNING}{_TIMEOFDAY} WLS file not found{ENDC}")
             WLS_file = None
             
         if WLS_file:
-            print(f"{pp:<20}{OKBLUE}Using WLS file: {WLS_file.split('/')[-1]}{ENDC}")
+            print(
+                f"{pp}{OKBLUE}Using WLS file: {WLS_file.split('/')[-1]}{ENDC}"
+                )
             return WLS_file
 
 
+"""
+import argparse
+parser = argparse.ArgumentParser(
+            prog="",
+            description="A utility to process KPF etalon data from individual"+\
+                "or multiple L1 files. Produces an output file with the"+\
+                "wavelengths of each identified etalon peak, as well as"+\
+                "diagnostic plots."
+                    )
 
-
-# parser = argparse.ArgumentParser(
-#             prog="",
-#             description="A utility to process KPF etalon data from individual"+\
-#                 "or multiple L1 files. Produces an output file with the"+\
-#                 "wavelengths of each identified etalon peak, as well as"+\
-#                 "diagnostic plots."
-#                     )
-
-# parser.add_argument("files")
-# parser.add_argument("-v", "--verbose",
-#                     action="store_true")  # on/off flag
-
+parser.add_argument("files")
+parser.add_argument("-v", "--verbose",
+                    action="store_true")  # on/off flag
+"""
 
 
 if __name__ == "__main__":
