@@ -74,9 +74,9 @@ TIMESOFDAY = ["morn", "eve", "night"]
 
 
 
-def main(DATE: str, TIMEOFDAY: str, ORDERLETS: list[str]) -> None:
+def main(DATE: str, TIMEOFDAY: str, ORDERLET: str) -> None:
     
-    pp = f"{'[{DATE} {TIMEOFDAY:>5}]':<20}" # Print Prefix
+    pp = f"{f'[{DATE} {TIMEOFDAY:>5}]':<20}" # Print Prefix
     
     # FILES: list[str] = []
     # # Generate list of files to look at
@@ -102,84 +102,81 @@ def main(DATE: str, TIMEOFDAY: str, ORDERLETS: list[str]) -> None:
         print(f"{pp}{FAIL}No matching WLS file found{ENDC}")
         return
 
-    for ORDERLET in ORDERLETS:
-        s = Spectrum(
-            spec_file=SPEC_FILES,
-            wls_file=WLS_FILE,
-            orderlet=ORDERLET, pp=pp)
-        
-        fig = plt.figure(figsize=(12, 3))
-        ax = fig.gca()
-        ax.set_title(f"{DATE} {TIMEOFDAY} {ORDERLET}")
-        ax.set_xlim(440, 880)
-        s.plot(ax=ax, plot_peaks=False, label=f"{ORDERLET}")
-        
-        Path(f"{OUTDIR}").mkdir(parents=True, exist_ok=True) # Make OUTDIR
-        
-        plt.savefig(f"{OUTDIR}/{DATE}_{TIMEOFDAY}_{ORDERLET}_spectrum.png")
-        
-        s.locate_peaks(fractional_height=0.01, window_to_save=10)
-        s.fit_peaks(type="conv_gauss_tophat")
-        s.filter_peaks(window=0.1)       
-        s.save_peak_locations(
-            f"{OUTDIR}/{DATE}_{TIMEOFDAY}_{ORDERLET}_etalon_wavelengths.csv"
-            )
+    s = Spectrum(
+        spec_file=SPEC_FILES,
+        wls_file=WLS_FILE,
+        orderlet=ORDERLET, pp=pp)
+    
+    fig = plt.figure(figsize=(12, 3))
+    ax = fig.gca()
+    ax.set_title(f"{DATE} {TIMEOFDAY} {ORDERLET}")
+    ax.set_xlim(440, 880)
+    s.plot(ax=ax, plot_peaks=False, label=f"{ORDERLET}")
+    
+    Path(f"{OUTDIR}").mkdir(parents=True, exist_ok=True) # Make OUTDIR
+    
+    plt.savefig(f"{OUTDIR}/{DATE}_{TIMEOFDAY}_{ORDERLET}_spectrum.png")
+    
+    s.locate_peaks(fractional_height=0.01, window_to_save=10)
+    s.fit_peaks(type="conv_gauss_tophat")
+    s.filter_peaks(window=0.1)       
+    s.save_peak_locations(
+        f"{OUTDIR}/{DATE}_{TIMEOFDAY}_{ORDERLET}_etalon_wavelengths.csv"
+        )
 
-        # Plot of FSR as a function of wavelength
-        fig = plt.figure(figsize=(12, 4))
-        ax = fig.gca()
+    # Plot of FSR as a function of wavelength
+    fig = plt.figure(figsize=(12, 4))
+    ax = fig.gca()
 
-        wls = np.array([p.wl for p in s.filtered_peaks]) * u.angstrom
-        nanmask = ~np.isnan(wls)
-        wls = wls[nanmask]
-        
-        delta_nu_FSR =\
-            (constants.c * np.diff(wls) / np.power(wls[:-1], 2)).to(u.GHz).value
-        wls = wls.to(u.nm).value
+    wls = np.array([p.wl for p in s.filtered_peaks]) * u.angstrom
+    nanmask = ~np.isnan(wls)
+    wls = wls[nanmask]
+    
+    delta_nu_FSR =\
+        (constants.c * np.diff(wls) / np.power(wls[:-1], 2)).to(u.GHz).value
+    wls = wls.to(u.nm).value
 
-        estimate_FSR = np.nanmedian(delta_nu_FSR)
+    estimate_FSR = np.nanmedian(delta_nu_FSR)
+    
+    # Coarse removal of >= 1GHz outliers
+    mask = np.where(np.abs(delta_nu_FSR - estimate_FSR) <= 1)
+    
+    try:
+        model = UnivariateSpline(wls[:-1][mask], delta_nu_FSR[mask], k=5)
+        knot_numbers = 21
+        x_new = np.linspace(0, 1, knot_numbers+2)[1:-1]
+        q_knots = np.quantile(wls[:-1][mask], x_new)
+        t,c,k = splrep(wls[:-1][mask], delta_nu_FSR[mask], t=q_knots, s=1)
+        model = BSpline(t,c,k)
+        ax.plot(wls, model(wls), label=f"Spline fit", linestyle="--")
+    except ValueError as e:
+        print(f"{e}")
+        print("Spline fit failed. Fitting with polynomial.")
+        model = np.poly1d(np.polyfit(wls[:-1][mask], delta_nu_FSR[mask], 5))
+        ax.plot(wls, model(wls), label=f"Polynomial fit", linestyle="--")
         
-        # Coarse removal of >= 1GHz outliers
-        mask = np.where(np.abs(delta_nu_FSR - estimate_FSR) <= 1)
-        
-        try:
-            model = UnivariateSpline(wls[:-1][mask], delta_nu_FSR[mask], k=5)
-            knot_numbers = 21
-            x_new = np.linspace(0, 1, knot_numbers+2)[1:-1]
-            q_knots = np.quantile(wls[:-1][mask], x_new)
-            t,c,k = splrep(wls[:-1][mask], delta_nu_FSR[mask], t=q_knots, s=1)
-            model = BSpline(t,c,k)
-            ax.plot(wls, model(wls), label=f"Spline fit", linestyle="--")
-        except ValueError as e:
-            print(f"{e}")
-            print("Spline fit failed. Fitting with polynomial.")
-            model = np.poly1d(np.polyfit(wls[:-1][mask], delta_nu_FSR[mask], 5))
-            ax.plot(wls, model(wls), label=f"Polynomial fit", linestyle="--")
-            
-        # Remove >= 250MHz outliers from model
-        mask = np.where(np.abs(delta_nu_FSR - model(wls[:-1])) <= 0.25)
-        ax.scatter(wls[:-1][mask], delta_nu_FSR[mask], marker=".", alpha=0.2,
-                   label=f"Data (n = {len(mask):,}/{len(delta_nu_FSR):,})")
+    # Remove >= 250MHz outliers from model
+    mask = np.where(np.abs(delta_nu_FSR - model(wls[:-1])) <= 0.25)
+    ax.scatter(wls[:-1][mask], delta_nu_FSR[mask], marker=".", alpha=0.2,
+                label=f"Data (n = {len(mask):,}/{len(delta_nu_FSR):,})")
 
-        # ax.set_xlim(min(wls), max(wls))
-        # plotrange =\
-            # ( np.mean(delta_nu_FSR[mask]) - 5 * np.std(delta_nu_FSR[mask]),
-            #   np.mean(delta_nu_FSR[mask]) + 5 * np.std(delta_nu_FSR[mask]) )
-        # ax.set_ylim(plotrange)
-        ax.set_xlim(440, 880)
-        ax.set_ylim(30.15, 30.35)
-        
-        ax.legend()
-        ax.set_title(f"{DATE} {TIMEOFDAY} {ORDERLET}", size=20)
-        ax.set_xlabel("Wavelength [nm]", size=16)
-        ax.set_ylabel("Etalon $\Delta\\nu_{FSR}$ [GHz]", size=16)
-        
-        plt.savefig(f"{OUTDIR}/{DATE}_{TIMEOFDAY}_{ORDERLET}_etalon_FSR.png")
+    # ax.set_xlim(min(wls), max(wls))
+    # plotrange =\
+        # ( np.mean(delta_nu_FSR[mask]) - 5 * np.std(delta_nu_FSR[mask]),
+        #   np.mean(delta_nu_FSR[mask]) + 5 * np.std(delta_nu_FSR[mask]) )
+    # ax.set_ylim(plotrange)
+    ax.set_xlim(440, 880)
+    ax.set_ylim(30.15, 30.35)
+    
+    ax.legend()
+    ax.set_title(f"{DATE} {TIMEOFDAY} {ORDERLET}", size=20)
+    ax.set_xlabel("Wavelength [nm]", size=16)
+    ax.set_ylabel("Etalon $\Delta\\nu_{FSR}$ [GHz]", size=16)
+    
+    plt.savefig(f"{OUTDIR}/{DATE}_{TIMEOFDAY}_{ORDERLET}_etalon_FSR.png")
         
         
 def find_L1_etalon_files(DATE: str, ) -> dict[str, list[str]]:
-    
-    pp = f"[{DATE} {'':>5}]"
     
     files = glob(f"/data/kpf/L1/{DATE}/*.fits")
     
@@ -201,7 +198,7 @@ def find_L1_etalon_files(DATE: str, ) -> dict[str, list[str]]:
 
 def find_WLS_file(DATE: str, TIMEOFDAY: str, allow_other: bool = False) -> str:
     
-    pp = f"{'[{DATE} {TIMEOFDAY:>5}]':<20}" # Print Prefix
+    pp = f"{f'[{DATE} {TIMEOFDAY:>5}]':<20}" # Print Prefix
     
     WLS_file = None
     
@@ -266,19 +263,21 @@ if __name__ == "__main__":
     
     # logging.basicConfig(filename="/scr/jpember/test.log", level=logging.INFO)
     
-    OUTDIR: str = "/scr/jpember/polly_outputs/TEST"
+    OUTDIR: str = "/scr/jpember/polly_outputs"
 
     ORDERLETS : list[str] = [
-        # "SCI1",
-        # "SCI2",
-        # "SCI3",
+        "SCI1",
+        "SCI2",
+        "SCI3",
         "CAL",
         # "SKY"
         ]
     
-    for DATE in [f"202403{x:02}" for x in range(3, 31)]:
+    for DATE in [f"202403{x:02}" for x in range(1, 31)]:
         for TIMEOFDAY in ["morn", "eve", "night"]:
-            try:
-                main(DATE=DATE, TIMEOFDAY=TIMEOFDAY, ORDERLETS=ORDERLETS)
-            except Exception as e:
-                print(e)
+            for ORDERLET in ORDERLETS:
+                if not Path(f"{OUTDIR}/{DATE}_{TIMEOFDAY}_{ORDERLET}_etalon_wavelengths.csv").exists():
+                    try:
+                        main(DATE=DATE, TIMEOFDAY=TIMEOFDAY, ORDERLET=ORDERLET)
+                    except Exception as e:
+                        print(e)
