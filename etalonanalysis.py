@@ -458,6 +458,12 @@ class Spectrum:
             Returns the total number of peaks that have a non-NaN
             center_wavelength property
             
+        delta_nu_FSR: ArrayLike
+            Compute and return an array of FSR (the spacing between peaks) in
+            units of GHz. Nominally the etalon has ~30GHz FSR, in practice there
+            is an absolute offset, a global tilt, and smaller-scale bumps and
+            wiggles as a function of wavelength
+            
             
     Methods:
         parse_reference_mask
@@ -614,7 +620,7 @@ class Spectrum:
         
     
     @property
-    def delta_nu_FSR(self) -> ArrayLike:
+    def delta_nu_FSR(self, unit = u.GHz) -> ArrayLike:
         """
         Calculates and returns the FSR of the etalon spectrum in GHz
         """
@@ -626,7 +632,7 @@ class Spectrum:
         wls = wls[nanmask]
         
         FSR =\
-            (constants.c * np.diff(wls) / np.power(wls[:-1], 2)).to(u.GHz).value
+            (constants.c * np.diff(wls) / np.power(wls[:-1], 2)).to(unit).value
         
         return FSR
     
