@@ -94,7 +94,7 @@ def main(DATE: str, TIMEOFDAY: str, ORDERLET: str) -> None:
     # ax = fig.gca()
     # ax.set_title(f"{DATE} {TIMEOFDAY} {ORDERLET}")
     # ax.set_xlim(440, 880)
-    # s.plot(ax=ax, plot_peaks=False, label=f"{ORDERLET}")
+    # s.plot_spectrum(ax=ax, plot_peaks=False, label=f"{ORDERLET}")
     # Path(f"{OUTDIR}/spectrum_plots").mkdir(parents=True, exist_ok=True) # Make OUTDIR
     # plt.savefig(f"{OUTDIR}/spectrum_plots/{DATE}_{TIMEOFDAY}_{ORDERLET}_spectrum.png")
     # plt.close()
