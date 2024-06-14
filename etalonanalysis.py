@@ -762,11 +762,11 @@ class Spectrum:
         
         if self.num_located_peaks is None:
             self.locate_peaks()
-        print(f"{self.pp}Fitting {self.orderlet} peaks with {type}"+\
+        print(f"{self.pp}Fitting {self.orderlet} peaks with {type} "+\
                "function...")
         for o in tqdm(self.orders, desc=f"{self.pp}Orders"):
             o.fit_peaks(type=type)
-        print(f"{''}{OKGREEN}DONE{ENDC}")
+        # print(f"{pp}{OKGREEN}DONE{ENDC}")
             
         return self
         
