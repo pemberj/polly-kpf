@@ -116,6 +116,7 @@ def main(DATE: str, TIMEOFDAY: str, ORDERLET: str) -> None:
     Path(f"{OUTDIR}").mkdir(parents=True, exist_ok=True) # Make OUTDIR
     
     plt.savefig(f"{OUTDIR}/{DATE}_{TIMEOFDAY}_{ORDERLET}_spectrum.png")
+    plt.close()
     
     s.locate_peaks(fractional_height=0.01, window_to_save=10)
     s.fit_peaks(type="conv_gauss_tophat")
@@ -174,6 +175,7 @@ def main(DATE: str, TIMEOFDAY: str, ORDERLET: str) -> None:
     ax.set_ylabel("Etalon $\Delta\\nu_{FSR}$ [GHz]", size=16)
     
     plt.savefig(f"{OUTDIR}/{DATE}_{TIMEOFDAY}_{ORDERLET}_etalon_FSR.png")
+    plt.close()
         
         
 def find_L1_etalon_files(DATE: str, ) -> dict[str, list[str]]:
@@ -247,10 +249,10 @@ def find_WLS_file(DATE: str, TIMEOFDAY: str, allow_other: bool = False) -> str:
 import argparse
 parser = argparse.ArgumentParser(
             prog="",
-            description="A utility to process KPF etalon data from individual"+\
-                "or multiple L1 files. Produces an output file with the"+\
-                "wavelengths of each identified etalon peak, as well as"+\
-                "diagnostic plots."
+            description="A utility to process KPF etalon data from "+\
+                "individual or multiple L1 files. Produces an output file "+\
+                "with the wavelengths of each identified etalon peak, as "+\
+                "well as diagnostic plots."
                     )
 
 parser.add_argument("files")
@@ -273,7 +275,7 @@ if __name__ == "__main__":
         # "SKY"
         ]
     
-    for DATE in [f"202403{x:02}" for x in range(1, 31)]:
+    for DATE in [f"202404{x:02}" for x in range(1, 31)]:
         for TIMEOFDAY in ["morn", "eve", "night"]:
             for ORDERLET in ORDERLETS:
                 if not Path(f"{OUTDIR}/{DATE}_{TIMEOFDAY}_{ORDERLET}_etalon_wavelengths.csv").exists():
