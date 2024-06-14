@@ -102,7 +102,8 @@ def main(DATE: str, TIMEOFDAY: str, ORDERLET: str) -> None:
     # ax.set_title(f"{DATE} {TIMEOFDAY} {ORDERLET}")
     # ax.set_xlim(440, 880)
     # s.plot(ax=ax, plot_peaks=False, label=f"{ORDERLET}")
-    # plt.savefig(f"{OUTDIR}/{DATE}_{TIMEOFDAY}_{ORDERLET}_spectrum.png")
+    # Path(f"{OUTDIR}/spectrum_plots").mkdir(parents=True, exist_ok=True) # Make OUTDIR
+    # plt.savefig(f"{OUTDIR}/spectrum_plots/{DATE}_{TIMEOFDAY}_{ORDERLET}_spectrum.png")
     # plt.close()
 
     # Plot of FSR as a function of wavelength
@@ -154,7 +155,8 @@ def main(DATE: str, TIMEOFDAY: str, ORDERLET: str) -> None:
     ax.set_xlabel("Wavelength [nm]", size=16)
     ax.set_ylabel("Etalon $\Delta\\nu_{FSR}$ [GHz]", size=16)
     
-    plt.savefig(f"{OUTDIR}/{DATE}_{TIMEOFDAY}_{ORDERLET}_etalon_FSR.png")
+    Path(f"{OUTDIR}/FSR_plots").mkdir(parents=True, exist_ok=True) # Make OUTDIR
+    plt.savefig(f"{OUTDIR}/FSR_plots/{DATE}_{TIMEOFDAY}_{ORDERLET}_etalon_FSR.png")
     plt.close()
         
         
