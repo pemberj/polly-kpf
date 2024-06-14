@@ -28,9 +28,8 @@ TODO:
 
 
 from __future__ import annotations
-from glob import glob
 from pathlib import Path
-from dataclasses import dataclass
+from glob import glob
 from astropy.io import fits
 from matplotlib import pyplot as plt
 # import logging

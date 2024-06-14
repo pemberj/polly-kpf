@@ -172,6 +172,13 @@ class Peak:
     def d(self) -> float: return self.distance_from_order_center
     
     
+    @property
+    def scaled_RMS(self) -> float:
+        if self.center_wavelength:
+            ...
+            # TODO: return the RMS value of residuals from the fit to the data
+    
+    
     def fit(self, type: str = "conv_gauss_tophat") -> Peak:
         
         if type.lower() not in ["gaussian", "conv_gauss_tophat"]:
@@ -266,7 +273,13 @@ class Peak:
         self.sigma = sigma
         self.boxhalfwidth = boxhalfwidth
         self.offset = offset
-        
+
+
+    def output_parameters(self):
+        """
+        return only the parameters we want to save to an output JSON file
+        """
+        ...
  
 
 @dataclass
@@ -434,6 +447,9 @@ class Spectrum:
         object: str = None
             The OBJECT keyword from the FITS header of `spec_file`
 
+        summary: str
+            Create a text summary of the Spectrum
+        
         filtered_peaks: list[Peak] = None
             A list of Peak objects after locating, fitting, and filtering
         
@@ -458,12 +474,6 @@ class Spectrum:
             Returns the total number of peaks that have a non-NaN
             center_wavelength property
             
-        delta_nu_FSR: ArrayLike
-            Compute and return an array of FSR (the spacing between peaks) in
-            units of GHz. Nominally the etalon has ~30GHz FSR, in practice there
-            is an absolute offset, a global tilt, and smaller-scale bumps and
-            wiggles as a function of wavelength
-            
             
     Methods:
         parse_reference_mask
@@ -471,6 +481,11 @@ class Spectrum:
             method) and populates `self.reference_peaks` with the wavelengths.
             The rest of the functionality of using this mask is not yet
             implemented
+            
+        apply_reference_mask
+            Once a reference mask is parsed (its wavelengths read into a list),
+            these can be applied with this method, which passes the relecant
+            wavelengths down to each Order, where a list of Peaks is initialised
         
         load_spec
             If `spec_file` is a string, this method loads the flux data from
@@ -509,10 +524,20 @@ class Spectrum:
             either further iterations of peak-fitting processing, or for
             measuring the etalon's RVs. If peaks have not been filtered yet,
             it first calls the `filter_peaks` method.
-        plot
+        
+        plot_spectrum
             Generates a colour-coded plot of the spectrum. Optionally can use
             a `matplotlib.pyplot.axes` object passed in as `ax` to allow
             tweaking in the script that calls the class
+            
+        delta_nu_FSR: ArrayLike
+            Compute and return an array of FSR (the spacing between peaks) in
+            units of GHz. Nominally the etalon has ~30GHz FSR, in practice there
+            is an absolute offset, a global tilt, and smaller-scale bumps and
+            wiggles as a function of wavelength
+        
+        plot_FSR
+            ...
         
         save_config_file
             [Not yet implemented], will save the properties and parameters for
@@ -582,6 +607,25 @@ class Spectrum:
                 )
             
             
+    def __repr__(self):
+        
+        return None
+    
+    
+    @property
+    def summary(self):
+        """
+        Create a short summary string of the object
+        """
+        
+        return  f"Spectrum with {len(self.orders)} Orders and {len(self.peaks)} total Peaks\n"+\
+                f" - spec_file={self.spec_file}\n"+\
+                f" - wls_file={self.wls_file}\n"+\
+                f" - orderlet={self.orderlet}\n"+\
+                f" - object={self.object}"+\
+                f" - reference_mask={self.reference_mask}\n"
+
+            
     @property
     def timeofday(self) -> str:
         # morn, eve, night
@@ -633,24 +677,6 @@ class Spectrum:
 
         return sum(1 for o in self.orders for p in o.peaks
                    if not np.isnan(p.center_wavelength))
-        
-    
-    @property
-    def delta_nu_FSR(self, unit = u.GHz) -> ArrayLike:
-        """
-        Calculates and returns the FSR of the etalon spectrum in GHz
-        """
-        
-        # Get peak wavelengths
-        wls = np.array([p.wl for p in self.filtered_peaks]) * u.angstrom
-        # Filter out any NaN values
-        nanmask = ~np.isnan(wls)
-        wls = wls[nanmask]
-        
-        FSR =\
-            (constants.c * np.diff(wls) / np.power(wls[:-1], 2)).to(unit).value
-        
-        return FSR
     
     
     def parse_reference_mask(self) -> Spectrum:
@@ -660,6 +686,31 @@ class Spectrum:
         
             self.reference_peaks =\
                 [float(l.strip().split(" ")[0]) for l in lines]
+        
+        return self
+    
+    
+    def apply_reference_mask(self) -> Spectrum:
+        
+        if not self.orders:
+            print(f"{self.pp}{WARNING}No order data - first load data, then "+\
+                  f"apply reference mask{ENDC}")
+            
+            return self
+        
+        for o in self.orders:
+            """
+            Find the wavelength limits
+            Loop through reference mask (should be sorted)
+            For any wavelengths in the range, create a Peak with that coarse wavelength,
+            also need to create slices of the underlying data?
+            
+            Maybe it's best done at the Order level, but I just pass the relevant
+            peak wavelengths down.
+            
+            TODO
+            """
+            ...
         
         return self
             
@@ -927,10 +978,9 @@ class Spectrum:
             fig = plt.figure(figsize = (20, 4))
             ax = fig.gca()
             
-        if ax.get_xlim() != (0.0, 1.0):
-            xlims = ax.get_xlim()
-        else:
-            xlims = -np.inf, np.inf
+        if ax.get_xlim() == (0.0, 1.0):
+            ax.set_xlim(440, 880)
+        xlims = ax.get_xlim()
 
         # plot the full spectrum
         Col = plt.get_cmap("Spectral")
@@ -952,15 +1002,34 @@ class Spectrum:
                     if p.wl/10. > xlims[0] and p.wl/10. < xlims[1]:
                         ax.axvline(x = p.wl/10., color = "k", alpha = 0.1)
 
+        if label:
+            ax.legend()
         ax.set_xlabel("Wavelength [nm]")
         ax.set_ylabel("Flux")
         
-        ax.legend()
+        plt.show()
 
-        return ax
+        return self
     
     
-    def plot_FSR(self, ax: plt.Axes = None):
+    def delta_nu_FSR(self, unit = u.GHz) -> ArrayLike:
+        """
+        Calculates and returns the FSR of the etalon spectrum in GHz
+        """
+        
+        # Get peak wavelengths
+        wls = np.array([p.wl for p in self.filtered_peaks]) * u.angstrom
+        # Filter out any NaN values
+        nanmask = ~np.isnan(wls)
+        wls = wls[nanmask]
+        
+        FSR =\
+            (constants.c * np.diff(wls) / np.power(wls[:-1], 2)).to(unit).value
+        
+        return FSR
+    
+    
+    def plot_FSR(self, ax: plt.Axes = None) -> Spectrum:
         
         if not ax:
             fig = plt.figure(figsize = (20, 4))
@@ -971,11 +1040,11 @@ class Spectrum:
         if ax.get_ylim() == (0.0, 1.0):
             ax.set_ylim(30.15, 30.35) # Default ylims
         
-        wls = np.array([p.wl for p in self.filtered_peaks]) * u.angstrom
+        wls = np.array([p.wl for p in self.filtered_peaks])
         nanmask = ~np.isnan(wls)
-        wls = wls[nanmask]
+        wls = wls[nanmask]        
         
-        delta_nu_FSR = self.delta_nu_FSR()
+        delta_nu_FSR = self.delta_nu_FSR(unit = u.GHz)
         estimate_FSR = np.nanmedian(delta_nu_FSR)
         # Remove last wls value to make it the same length as FSR array
         wls = wls[:-1]
@@ -997,22 +1066,28 @@ class Spectrum:
             
         # Remove >= 250MHz outliers from model
         mask = np.where(np.abs(delta_nu_FSR - model(wls)) <= 0.25)
-        ax.scatter(wls[mask], delta_nu_FSR[mask], marker=".", alpha=0.2,
+        
+        # plot as a function of wavelength in nanometers
+        ax.scatter(wls[mask]/10, delta_nu_FSR[mask], marker=".", alpha=0.2,
                    label=f"Data (n = {len(mask[0]):,}/{len(delta_nu_FSR):,})")
         
         ax.legend(loc="lower right")
         ax.set_xlabel("Wavelength [nm]", size=16)
         ax.set_ylabel("Etalon $\Delta\\nu_{FSR}$ [GHz]", size=16)
         
+        plt.show()
+        
+        return self
+        
 
-        def save_config_file(self):
-            # TODO: complete this code
-            f"""
-            date: {self.date}
-            spec_file: {self.spec_file}
-            wls_file: {self.wls_file}
-            orderlet: {self.orderlet}
-            """
+    def save_config_file(self):
+        # TODO: complete this code
+        f"""
+        date: {self.date}
+        spec_file: {self.spec_file}
+        wls_file: {self.wls_file}
+        orderlet: {self.orderlet}
+        """
 
 
 def _fit_spline(

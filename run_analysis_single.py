@@ -7,7 +7,6 @@ Single file analysis command-line utility. Can be passed a filename as argument.
 
 from __future__ import annotations
 from pathlib import Path
-from dataclasses import dataclass
 from astropy.io import fits
 from matplotlib import pyplot as plt
 # import logging
@@ -52,31 +51,35 @@ def main(FILENAME: str, ORDERLET: str) -> None:
     s.save_peak_locations(
         f"{OUTDIR}/{DATE}_{TIMEOFDAY}_{ORDERLET}_etalon_wavelengths.csv"
         )
-    
-    # # Spectrum plot
-    # fig = plt.figure(figsize=(12, 3))
-    # ax = fig.gca()
-    # ax.set_title(f"{DATE} {TIMEOFDAY} {ORDERLET}")
-    # ax.set_xlim(440, 880)
-    # s.plot_spectrum(ax=ax, plot_peaks=False, label=f"{ORDERLET}")
-    # # Make directory if it does not exist
-    # Path(f"{OUTDIR}/spectrum_plots").mkdir(parents=True, exist_ok=True)
-    # plt.savefig(f"{OUTDIR}/spectrum_plots/"+\
-    #             f"{DATE}_{TIMEOFDAY}_{ORDERLET}_spectrum.png")
-    # plt.close()
 
-    # FSR plot
-    fig = plt.figure(figsize=(12, 4))
-    ax = fig.gca()
-    ax.set_title(f"{DATE} {TIMEOFDAY} {ORDERLET}", size=20)
-    # ax.set_xlim(440, 880)
-    # ax.set_ylim(30.15, 30.35)
-    s.plot_FSR(ax=ax)
-    # Make directory if it does not exist
-    Path(f"{OUTDIR}/FSR_plots").mkdir(parents=True, exist_ok=True)
-    plt.savefig(f"{OUTDIR}/FSR_plots/"+\
-                f"{DATE}_{TIMEOFDAY}_{ORDERLET}_etalon_FSR.png")
-    plt.close()
+    
+    if args.spectrum_plot:
+        # Spectrum plot
+        fig = plt.figure(figsize=(12, 3))
+        ax = fig.gca()
+        ax.set_title(f"{DATE} {TIMEOFDAY} {ORDERLET}")
+        ax.set_xlim(440, 880)
+        s.plot_spectrum(ax=ax, plot_peaks=False, label=f"{ORDERLET}")
+        # Make directory if it does not exist
+        Path(f"{OUTDIR}/spectrum_plots").mkdir(parents=True, exist_ok=True)
+        plt.savefig(f"{OUTDIR}/spectrum_plots/"+\
+                    f"{DATE}_{TIMEOFDAY}_{ORDERLET}_spectrum.png")
+        plt.close()
+
+
+    if args.fsr_plot:
+        # FSR plot
+        fig = plt.figure(figsize=(12, 4))
+        ax = fig.gca()
+        ax.set_title(f"{DATE} {TIMEOFDAY} {ORDERLET}", size=20)
+        # ax.set_xlim(440, 880)
+        # ax.set_ylim(30.15, 30.35)
+        s.plot_FSR(ax=ax)
+        # Make directory if it does not exist
+        Path(f"{OUTDIR}/FSR_plots").mkdir(parents=True, exist_ok=True)
+        plt.savefig(f"{OUTDIR}/FSR_plots/"+\
+                    f"{DATE}_{TIMEOFDAY}_{ORDERLET}_etalon_FSR.png")
+        plt.close()
 
 
 import argparse
@@ -91,7 +94,8 @@ parser = argparse.ArgumentParser(
 parser.add_argument("-f", "--filename", type=str)
 parser.add_argument("-o", "--orderlet", type=str, default="all")
 parser.add_argument("--outdir", type=str, default="/scr/jpember/polly_outputs")
-
+parser.add_argument("--spectrum_plot", type=bool, default=False)
+parser.add_argument("--fsr_plot", type=bool, default=True)
 
 if __name__ == "__main__":
     
