@@ -581,7 +581,7 @@ class Spectrum:
                 self.load_wls()
             else:
                 self.find_wls_file()
-                if self.wls_file():
+                if self.wls_file:
                     self.load_wls()
             if self.reference_mask:
                 self.parse_reference_mask()
@@ -610,7 +610,7 @@ class Spectrum:
             
     def __repr__(self):
         
-        return None
+        return f"Spectrum with {len(self.orders)} Orders and {len(self.peaks)} total Peaks"
     
     
     @property
