@@ -581,7 +581,8 @@ class Spectrum:
                 self.load_wls()
             else:
                 self.find_wls_file()
-                self.load_wls()
+                if self.wls_file():
+                    self.load_wls()
             if self.reference_mask:
                 self.parse_reference_mask()
             if self.orders is not None and self.reference_mask is not None:
