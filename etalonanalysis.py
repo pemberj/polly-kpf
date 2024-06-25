@@ -839,6 +839,9 @@ class Spectrum:
     
     def load_wls(self) -> Spectrum:
         
+        if self.wls_file is None:
+            raise FileNotFoundError("No WLS file specified or found!")
+        
         if isinstance(self.wls_file, list):
             raise NotImplementedError(f"{self.pp}{FAIL}wls_file must be "+\
                                       f"a single filename only{ENDC}")
@@ -1008,7 +1011,7 @@ class Spectrum:
         ax.set_xlabel("Wavelength [nm]")
         ax.set_ylabel("Flux")
         
-        plt.show()
+        # plt.show()
 
         return self
     
@@ -1076,7 +1079,7 @@ class Spectrum:
         ax.set_xlabel("Wavelength [nm]", size=16)
         ax.set_ylabel("Etalon $\Delta\\nu_{FSR}$ [GHz]", size=16)
         
-        plt.show()
+        # plt.show()
         
         return self
         
