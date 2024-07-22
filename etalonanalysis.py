@@ -1,6 +1,7 @@
 """
 polly
-put the... Ketalon?
+
+Polly put the Ketalon?
 
 Etalon analysis tools for KPF data products
 
@@ -1066,7 +1067,7 @@ class Spectrum:
             model = np.poly1d(np.polyfit(wls[mask], delta_nu_FSR[mask], 5))
             label = "Polynomial fit"
         
-        ax.plot(wls, model(wls), label=label, linestyle="--")
+        ax.plot(wls/10, model(wls), label=label, linestyle="--")
             
         # Remove >= 250MHz outliers from model
         mask = np.where(np.abs(delta_nu_FSR - model(wls)) <= 0.25)
