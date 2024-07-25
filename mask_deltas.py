@@ -127,7 +127,9 @@ def compute_deltas(
     
     with open(reference_mask, "r") as f:
         reference_peaks =\
-            np.array([float(line.strip().split()[0]) for line in f.readlines()[1:]])
+            np.array(
+                [float(line.strip().split()[0]) for line in f.readlines()[1:]]
+                )
             
     peak_spacing = np.diff(reference_peaks)
 
@@ -167,8 +169,8 @@ def compute_deltas(
             if abs(delta) <= local_spacing / 10:        
                 deltas[mask].append((reference_peak, delta))
             else:
-                # print("Nearest peak not sufficiently close to reference peak!")
-                # print(f"{reference_peak = }, {peak = }")
+                #print("Nearest peak not sufficiently close to reference peak!")
+                #print(f"{reference_peak = }, {peak = }")
                 deltas[mask].append((reference_peak, None)) 
         print()
             
@@ -248,11 +250,13 @@ def main() -> None:
     #     print(i, m)
     # return
     
+    # May 2024
     # deltas = compute_deltas(
     #             reference_mask = masks[180],
     #             masks = masks[181:],
     #            )
     
+    # Oct 2023
     deltas = compute_deltas(
                 reference_mask = masks[0],
                 masks = masks[1:30],
