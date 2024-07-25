@@ -22,6 +22,7 @@ from __future__ import annotations
 # import argparse
 from glob import glob
 import numpy as np
+from numpy.typing import ArrayLike
 from math import factorial
 from datetime import datetime
 from astropy import units as u
@@ -42,7 +43,13 @@ MASKS_DIR: str = "/scr/jpember/polly_outputs"
 OUTPUT_DIR: str = "/scr/jpember/temp"
 
 
-def savitzky_golay(y, window_size, order, deriv=0, rate=1):
+def savitzky_golay(
+    y: ArrayLike,
+    window_size: int,
+    order: int,
+    deriv: int = 0,
+    rate: float = 1
+    ) -> ArrayLike:
     
     # FROM: https://scipy.github.io/old-wiki/pages/Cookbook/SavitzkyGolay
     
@@ -73,18 +80,6 @@ def savitzky_golay(y, window_size, order, deriv=0, rate=1):
     approach is to make for each point a least-square fit with a
     polynomial of high order over a odd-sized window centered at
     the point.
-    Examples
-    --------
-    t = np.linspace(-4, 4, 500)
-    y = np.exp( -t**2 ) + np.random.normal(0, 0.05, t.shape)
-    ysg = savitzky_golay(y, window_size=31, order=4)
-    import matplotlib.pyplot as plt
-    plt.plot(t, y, label='Noisy signal')
-    plt.plot(t, np.exp(-t**2), 'k', lw=1.5, label='Original signal')
-    plt.plot(t, ysg, 'r', label='Filtered signal')
-    plt.legend()
-    plt.show()
-    References
     ----------
     .. [1] A. Savitzky, M. J. E. Golay, Smoothing and Differentiation of
         Data by Simplified Least Squares Procedures. Analytical
@@ -108,12 +103,15 @@ def savitzky_golay(y, window_size, order, deriv=0, rate=1):
     order_range = range(order+1)
     half_window = (window_size -1) // 2
     # precompute coefficients
-    b = np.mat([[k**i for i in order_range] for k in range(-half_window, half_window+1)])
+    b = np.mat([
+            [k**i for i in order_range]\
+                for k in range(-half_window, half_window+1)
+            ])
     m = np.linalg.pinv(b).A[deriv] * rate**deriv * factorial(deriv)
     # pad the signal at the extremes with
     # values taken from the signal itself
-    firstvals = y[0]  - np.abs(y[1:half_window+1][::-1]   - y[0])
-    lastvals  = y[-1] + np.abs(y[-half_window-1:-1][::-1] - y[-1])
+    firstvals = y[0]  - np.abs(y[1: half_window+1  ][::-1] - y[0] )
+    lastvals  = y[-1] + np.abs(y[-half_window-1: -1][::-1] - y[-1])
     y = np.concatenate((firstvals, y, lastvals))
     return np.convolve(m[::-1], y, mode='valid')
 
