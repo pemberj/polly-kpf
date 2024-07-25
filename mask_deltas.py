@@ -10,6 +10,9 @@ The structure of the 'deltas' object passed between functions:
     "mask_2_name": [(wl_1, delta_wl_1), (wl_2, delta_wl_2), ... ],
     ...
 }
+
+TODO:
+ - Enable searching by date range to generate the list of masks
 """
 
 
@@ -20,6 +23,7 @@ from __future__ import annotations
 from glob import glob
 import numpy as np
 from math import factorial
+from datetime import datetime
 from astropy import units as u
 from matplotlib import pyplot as plt
 
@@ -129,11 +133,10 @@ def compute_deltas(
 
     deltas: dict[str, list[float]] = {}
     for mask in masks:
+        print(f"{mask} ", end="")
         with open(mask, "r") as f:
             peaks =\
                 [float(line.strip().split()[0]) for line in f.readlines()[1:]]
-        
-        print(f"{np.nanargmin(reference_peaks - peaks[0]) = }")
                 
         deltas[mask] = []
         for i, peak in enumerate(peaks):
@@ -151,7 +154,8 @@ def compute_deltas(
             try:
                 closest_index = np.nanargmin(distances)
             except ValueError as e:
-                print(e)
+                # print(e)
+                print(".", end="")
                 closest_index = -1
             # print(f"{closest_index = }")
             
@@ -159,21 +163,14 @@ def compute_deltas(
                 
             delta = reference_peak - peak
 
+            # Check that we are in fact looking at the same peak!
             if abs(delta) <= local_spacing / 10:        
                 deltas[mask].append((reference_peak, delta))
             else:
                 # print("Nearest peak not sufficiently close to reference peak!")
                 # print(f"{reference_peak = }, {peak = }")
-                deltas[mask].append((reference_peak, None))
-    
-    # deltas = {}
-    # for _mask, _peaks in peaks.items():
-    #     # plt.plot(_peaks)
-    #     for _p in _peaks:
-    #         offset_reference_peaks = np.abs(reference_peaks - _p)
-    #         _r = reference_peaks[np.argmin(offset_reference_peaks)]
-    #         deltas.append((_r, _r - _p))
-    #         # print((_r, _r - _p))
+                deltas[mask].append((reference_peak, None)) 
+        print()
             
     return deltas
     
@@ -186,25 +183,28 @@ def plot_deltas(
     ) -> None:
     
     for mask, _deltas in deltas.items():
-            
-        wavelengths = np.transpose(_deltas)[0] * u.angstrom
-        offsets = np.transpose(_deltas)[1] * u.angstrom
+        
+        try:
+            wavelengths = np.transpose(_deltas)[0] * u.angstrom
+            offsets = np.transpose(_deltas)[1] * u.angstrom
+        except Exception as e:
+            continue
         
         if ax is None:
-            fig = plt.figure(figsize = (12, 4))
+            fig = plt.figure(figsize = (12, 8))
             ax = fig.gca()
         
         if smoothed:
             
             smooth_y = savitzky_golay(
                 y = offsets.to(u.pm).value,
-                window_size = 13,
-                order = 3,
+                window_size = 51,
+                order = 5,
                 )
             
             ax.plot(
-                wavelengths.to(u.nm).value,
-                smooth_y,
+                wavelengths.to(u.nm).value[~np.isnan(smooth_y)],
+                smooth_y[~np.isnan(smooth_y)],
                 alpha=0.5
                 )
         
@@ -220,7 +220,7 @@ def plot_deltas(
         
     ax.legend()
     ax.set_xlim(440, 880)
-    ax.set_ylim(-1.5, 1.5)
+    ax.set_ylim(-1, 1)
         
     # ax.set_title(f"{mask.split('/')[-1]}", size=20)
     ax.set_xlabel("Wavelength [nm]", size=16)
@@ -229,18 +229,36 @@ def plot_deltas(
     plt.savefig(f"{OUTPUT_DIR}/_temp.png")
 
 
-
+def parse_filename(path: str) -> datetime:
+    filename = path.split("/")[-1]
+    
+    date, timeofday, orderlet = filename.split("_")[:3]
+    
+    # return datetime.fromtxt(date) ???
+    
+    # TODO: return a useful datetime or just date object
+    
+    
 
 def main() -> None:
     
     masks = sorted(glob(f"{MASKS_DIR}/*morn_SCI2*.csv"))
     
+    # for i, m in enumerate(masks):
+    #     print(i, m)
+    # return
+    
+    # deltas = compute_deltas(
+    #             reference_mask = masks[180],
+    #             masks = masks[181:],
+    #            )
+    
     deltas = compute_deltas(
-                reference_mask = masks[25],
-                masks = masks[26:31],
+                reference_mask = masks[0],
+                masks = masks[1:30],
                )
     
-    print([np.transpose(d) for d in deltas.values()])
+    # print([np.transpose(d) for d in deltas.values()])
     
     plot_deltas(deltas)
 
