@@ -160,12 +160,19 @@ if __name__ == "__main__":
         # "SKY"
         ]
     
-    for DATE in [f"202405{x:02}" for x in range(1, 31)]:
-        for TIMEOFDAY in ["morn", "eve", "night"]:
-            for ORDERLET in ORDERLETS:
-                if not Path(f"{OUTDIR}/{DATE}_{TIMEOFDAY}_{ORDERLET}"+\
-                                            "_etalon_wavelengths.csv").exists():
-                    # try:
-                        main(DATE=DATE, TIMEOFDAY=TIMEOFDAY, ORDERLET=ORDERLET)
-                    # except Exception as e:
-                    #     print(e)
+    for MONTH in ["05", "06"]:
+        for DATE in [f"2024{MONTH}{x:02}" for x in range(1, 32)]:
+            for TIMEOFDAY in [
+                "morn",
+                "eve",
+                # "night",
+                ]:
+                for ORDERLET in ORDERLETS:
+                    if Path(f"{OUTDIR}/{DATE}_{TIMEOFDAY}_{ORDERLET}"+\
+                                                "_etalon_wavelengths.csv").exists():
+                        print(f"{DATE}_{TIMEOFDAY}_{ORDERLET}_etalon_wavelengths.csv EXISTS!")
+                    else:
+                        try:
+                            main(DATE=DATE, TIMEOFDAY=TIMEOFDAY, ORDERLET=ORDERLET)
+                        except Exception as e:
+                            print(e)
