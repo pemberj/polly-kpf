@@ -42,7 +42,7 @@ Peak
 """
 
 from __future__ import annotations
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from operator import attrgetter
 from typing import Callable
 from astropy.io import fits
@@ -326,11 +326,11 @@ class Order:
             build FITS header keywords
     """
     
-    orderlet: str  = None # SCI1, SCI2, SCI3, CAL, SKY
+    orderlet: str = None # SCI1, SCI2, SCI3, CAL, SKY
     
-    i: int
-    wave: ArrayLike
-    spec: ArrayLike
+    i: int = None
+    wave: ArrayLike = None
+    spec: ArrayLike = None
     
     peaks: list[Peak] = None
     
@@ -343,22 +343,6 @@ class Order:
     @property
     def mean_wave(self) -> float:
         return np.mean(self.wave)
-    
-    
-    @property
-    def orderlet_name(self) -> str:
-        if self.orderlet.startswith("SCI"):
-            return "SCI"
-        else:
-            return self.orderlet
-        
-        
-    @property
-    def orderlet_index(self) -> str:
-        if self.orderlet.startswith("SCI"):
-            return self.orderlet[-1]
-        else:
-            return ""
 
    
     def locate_peaks(
@@ -576,25 +560,34 @@ class Spectrum:
     
     spec_file: str | list[str] = None
     wls_file: str  = None
+    orderlets_to_load: list[str] = None
     
     reference_mask: str = None
     reference_peaks: list[float] = None
     
-    orders: list[Order] = None
+    _orders: list[Order] = field(default_factory=list)
 
+    # Hold basic metadata from the FITS file
     date: str = None # DATE-OBS in FITS header (without dashes), eg. 20240131
     sci_obj: str = None # SCI-OBJ in FITS header
     cal_obj: str = None # CAL-OBJ in FITS header
     object: str = None # OBJECT in FITS header
 
     filtered_peaks: list[Peak] = None
-    
+
     pp: str = "" # Print prefix
     
     
     def __post_init__(self):
         
-        if self.orders is None:
+        if self.orderlets_to_load is None:
+            self.orderlets_to_load = ["SCI1", "SCI2", "SCI3", "CAL", "SKY"]
+            print(f"{self.orderlets_to_load = }")
+        
+        if self.orders:
+            ...
+        
+        else:
             if self.spec_file:
                 self.load_spec()
             if self.wls_file:
@@ -630,7 +623,8 @@ class Spectrum:
             
     def __repr__(self):
         
-        return f"Spectrum with {len(self.orders)} Orders and {len(self.peaks)} total Peaks"
+        return f"Spectrum with {len(self.orders)} Orders and {len(self.peaks)}"\
+               +"total Peaks"
     
     
     @property
@@ -649,6 +643,17 @@ class Spectrum:
         return orderlets
             
     
+    @property
+    def orders(self, orderlet: str = None) -> list[Order]:
+        if orderlet:
+            return sorted([o for o in self._orders if o.orderlet == orderlet],
+                key = attrgetter("i"))
+        else:
+            return sorted([o for o in self._orders],
+                key = (attrgetter("orderlet"), attrgetter("i")))
+                # Sort by two fields
+        
+    
     
     @property
     def summary(self):
@@ -656,12 +661,13 @@ class Spectrum:
         Create a short summary string of the object
         """
         
-        return  f"Spectrum with {len(self.orders)} Orders and {len(self.peaks)} total Peaks\n"+\
-                f" - spec_file={self.spec_file}\n"+\
-                f" - wls_file={self.wls_file}\n"+\
-                f" - orderlets={self.orderlets}\n"+\
-                f" - object={self.object}"+\
-                f" - reference_mask={self.reference_mask}\n"
+        return f"Spectrum with {len(self.orders)} Orders and {len(self.peaks)}"\
+               +"total Peaks\n"+\
+               f" - spec_file={self.spec_file}\n"+\
+               f" - wls_file={self.wls_file}\n"+\
+               f" - orderlets={self.orderlets}\n"+\
+               f" - object={self.object}"+\
+               f" - reference_mask={self.reference_mask}\n"
 
 
     @property
@@ -739,76 +745,76 @@ class Spectrum:
         
     def load_spec(self) -> Spectrum:
         
+        
         if isinstance(self.spec_file, str):
-            print(
-                f"{self.pp}Loading flux values from a single file...",
-                end=""
-                )
-            spec_green = fits.getdata(self.spec_file,
-                        f"GREEN_{self.orderlet_name}_FLUX{self.orderlet_index}")
-            spec_red = fits.getdata(self.spec_file,
-                        f"RED_{self.orderlet_name}_FLUX{self.orderlet_index}")
+            print(f"{self.pp}Loading flux values from a single file: {self.spec_file.split('/')[-1]}...", end="")
             
-            self.date = "".join(
-                        fits.getval(self.spec_file, "DATE-OBS").split("-")
-                        )
-            self.sci_obj = fits.getval(self.spec_file, "SCI-OBJ")
-            self.cal_obj = fits.getval(self.spec_file, "CAL-OBJ")
-            self.object = fits.getval(self.spec_file, "OBJECT")
+            for o in self.orderlets_to_load:
+                spec_green = fits.getdata(self.spec_file,
+                        f"GREEN_{_orderlet_name(o)}_FLUX{_orderlet_index(o)}")
+                spec_red = fits.getdata(self.spec_file,
+                        f"RED_{_orderlet_name(o)}_FLUX{_orderlet_index(o)}")
+                
+                self.date = "".join(
+                            fits.getval(self.spec_file, "DATE-OBS").split("-")
+                            )
+                self.sci_obj = fits.getval(self.spec_file, "SCI-OBJ")
+                self.cal_obj = fits.getval(self.spec_file, "CAL-OBJ")
+                self.object =  fits.getval(self.spec_file, "OBJECT" )
         
         elif isinstance(self.spec_file, list):
-            print(
-                f"{self.pp}Loading flux values from list of files...",
-                end=""
-                )
-            spec_green = np.median([fits.getdata(f,
-                    f"GREEN_{self.orderlet_name}_FLUX{self.orderlet_index}")\
-                                               for f in self.spec_file], axis=0)
-            spec_red = np.median([fits.getdata(f,
-                    f"RED_{self.orderlet_name}_FLUX{self.orderlet_index}")\
-                                               for f in self.spec_file], axis=0)
             
-            try:
-                assert all([fits.getval(f, "SCI-OBJ") ==\
-                    fits.getval(self.spec_file[0], "SCI-OBJ")\
-                        for f in self.spec_file])
-                self.sci_obj = fits.getval(self.spec_file[0], "SCI-OBJ")
-            except AssertionError:
-                print(f"{self.pp}{WARNING}SCI-OBJ did not match between "+\
-                      f"the input files!{ENDC}")
-                print([f for f in self.spec_file])
+            for o in self.orderlets_to_load:
+                print(f"{self.pp}Loading flux values from list of files...",
+                    end="")
+                spec_green = np.median([fits.getdata(f,
+                        f"GREEN_{_orderlet_name(o)}_FLUX{_orderlet_index(o)}")\
+                                            for f in self.spec_file], axis=0)
+                spec_red = np.median([fits.getdata(f,
+                        f"RED_{_orderlet_name(o)}_FLUX{_orderlet_index(o)}")\
+                                            for f in self.spec_file], axis=0)
+                
+                try:
+                    assert all([fits.getval(f, "SCI-OBJ") ==\
+                        fits.getval(self.spec_file[0], "SCI-OBJ")\
+                            for f in self.spec_file])
+                    self.sci_obj = fits.getval(self.spec_file[0], "SCI-OBJ")
+                except AssertionError:
+                    print(f"{self.pp}{WARNING}SCI-OBJ did not match between "+\
+                        f"the input files!{ENDC}")
+                    print([f for f in self.spec_file])
+                        
+                try:
+                    assert all([fits.getval(f, "CAL-OBJ") ==\
+                        fits.getval(self.spec_file[0], "CAL-OBJ")\
+                            for f in self.spec_file])
+                    self.cal_obj = fits.getval(self.spec_file[0], "CAL-OBJ")
+                except AssertionError:
+                    print(f"{self.pp}{WARNING}CAL-OBJ did not match between "+\
+                        f"the input files!{ENDC}")
+                    print([f for f in self.spec_file])
                     
-            try:
-                assert all([fits.getval(f, "CAL-OBJ") ==\
-                    fits.getval(self.spec_file[0], "CAL-OBJ")\
-                        for f in self.spec_file])
-                self.cal_obj = fits.getval(self.spec_file[0], "CAL-OBJ")
-            except AssertionError:
-                print(f"{self.pp}{WARNING}CAL-OBJ did not match between "+\
-                      f"the input files!{ENDC}")
-                print([f for f in self.spec_file])
-                
-            try:
-                assert all([fits.getval(f, "OBJECT") ==\
-                    fits.getval(self.spec_file[0], "OBJECT")\
-                        for f in self.spec_file])
-                self.object = fits.getval(self.spec_file[0], "OBJECT")
-            except AssertionError:
-                print(f"{self.pp}{WARNING}OBJECT did not match between "+\
-                      f"the input files!{ENDC}")
-                print([f for f in self.spec_file])
-                
-            try:
-                assert all([fits.getval(f, "DATE-OBS") ==\
-                    fits.getval(self.spec_file[0], "DATE-OBS")\
-                        for f in self.spec_file])
-                self.date = "".join(
-                        fits.getval(self.spec_file[0], "DATE-OBS").split("-")
-                        )
-            except AssertionError:
-                print(f"{self.pp}{WARNING}DATE-OBS did not match between "+\
-                      f"the input files!{ENDC}")
-                print([f for f in self.spec_file])
+                try:
+                    assert all([fits.getval(f, "OBJECT") ==\
+                        fits.getval(self.spec_file[0], "OBJECT")\
+                            for f in self.spec_file])
+                    self.object = fits.getval(self.spec_file[0], "OBJECT")
+                except AssertionError:
+                    print(f"{self.pp}{WARNING}OBJECT did not match between "+\
+                        f"the input files!{ENDC}")
+                    print([f for f in self.spec_file])
+                    
+                try:
+                    assert all([fits.getval(f, "DATE-OBS") ==\
+                        fits.getval(self.spec_file[0], "DATE-OBS")\
+                            for f in self.spec_file])
+                    self.date = "".join(
+                            fits.getval(self.spec_file[0], "DATE-OBS").split("-")
+                            )
+                except AssertionError:
+                    print(f"{self.pp}{WARNING}DATE-OBS did not match between "+\
+                        f"the input files!{ENDC}")
+                    print([f for f in self.spec_file])
             
         else: # self.spec_file is something else entirely
             raise NotImplementedError(
@@ -818,12 +824,8 @@ class Spectrum:
         
         spec = np.append(spec_green, spec_red, axis=0)
         
-        if self.orders is not None:
-            for i, s in enumerate(spec):
-                self.orders[i].spec = s
-        else:
-            self.orders = [Order(wave = None, spec = s, i = i)\
-                                    for i, s in enumerate(spec)]
+        self._orders.append(Order(wave=None, spec=s, i=i)\
+                                    for i, s in enumerate(spec))
         
         print(f"{OKGREEN} DONE{ENDC}")
         return self
@@ -860,26 +862,30 @@ class Spectrum:
     
     def load_wls(self) -> Spectrum:
         
-        if self.wls_file is None:
-            raise FileNotFoundError("No WLS file specified or found!")
+        for o in self.orderlets_to_load:
         
-        if isinstance(self.wls_file, list):
-            raise NotImplementedError(f"{self.pp}{FAIL}wls_file must be "+\
-                                      f"a single filename only{ENDC}")
-        
-        wave_green = fits.getdata(self.wls_file,
-                f"GREEN_{self.orderlet_name}_WAVE{self.orderlet_index}")
-        wave_red =  fits.getdata(self.wls_file,
-                    f"RED_{self.orderlet_name}_WAVE{self.orderlet_index}")
-        
-        wave = np.append(wave_green, wave_red, axis=0)
-        
-        if self.orders is not None:
-            for i, w in enumerate(wave):
-                self.orders[i].wave = w
-        else:
-            self.orders = [Order(wave = w, spec = None, i = i)\
-                                    for i, w in enumerate(wave)]
+            if self.wls_file is None:
+                raise FileNotFoundError("No WLS file specified or found!")
+            
+            if isinstance(self.wls_file, list):
+                raise NotImplementedError(f"{self.pp}{FAIL}wls_file must be "+\
+                                        f"a single filename only{ENDC}")
+            
+            wave_green = fits.getdata(self.wls_file,
+                    f"GREEN_{_orderlet_name(o)}_WAVE{_orderlet_index(o)}")
+            wave_red =  fits.getdata(self.wls_file,
+                        f"RED_{_orderlet_name(o)}_WAVE{_orderlet_index(o)}")
+            
+            wave = np.append(wave_green, wave_red, axis=0)
+            
+            if not self.orders:
+                self.orders = [Order(wave = w, spec = None, i = i)\
+                                        for i, w in enumerate(wave)]
+            else:
+                for ((i, w), o) in zip(enumerate(wave), self.orders):
+                    if o:
+                        self.orders[i].wave = w
+                        # TODO THIS NEEDS ATTENTION
             
         return self
             
@@ -893,16 +899,18 @@ class Spectrum:
         ) -> Spectrum:
         
         if self.reference_mask is None:
+            
+            for o in self.orderlets:
         
-            print(f"{self.pp}Locating {self.orderlet} peaks...", end="")
-            for o in self.orders:
-                o.locate_peaks(
-                    fractional_height = fractional_height,
-                    distance = distance,
-                    width = width,
-                    window_to_save=window_to_save,
-                    )
-            print(f"{OKGREEN} DONE{ENDC}")
+                print(f"{self.pp}Locating {o} peaks...", end="")
+                for o in self.orders:
+                    o.locate_peaks(
+                        fractional_height = fractional_height,
+                        distance = distance,
+                        width = width,
+                        window_to_save=window_to_save,
+                        )
+                print(f"{OKGREEN} DONE{ENDC}")
             
         else:
             print(f"{self.pp}{OKBLUE}Not locating peaks because a "+\
@@ -912,14 +920,16 @@ class Spectrum:
     
     def fit_peaks(self, type="conv_gauss_tophat") -> Spectrum:
         
-        if self.num_located_peaks is None:
-            self.locate_peaks()
-        print(f"{self.pp}Fitting {self.orderlet} peaks with {type} "+\
-               "function...")
-        for o in tqdm(self.orders, desc=f"{self.pp}Orders"):
-            o.fit_peaks(type=type)
-        # print(f"{pp}{OKGREEN}DONE{ENDC}")
-            
+        for o in self.orderlets:
+        
+            if self.num_located_peaks is None:
+                self.locate_peaks()
+            print(f"{self.pp}Fitting {o} peaks with {type} "+\
+                "function...")
+            for o in tqdm(self.orders, desc=f"{self.pp}Orders"):
+                o.fit_peaks(type=type)
+            # print(f"{pp}{OKGREEN}DONE{ENDC}")
+                
         return self
         
     
@@ -937,7 +947,7 @@ class Spectrum:
         `window` is in wavelength units of Angstroms
         """
         
-        print(f"{self.pp}Filtering {self.orderlet} peaks to remove "+\
+        print(f"{self.pp}Filtering peaks to remove "+\
                "identical peaks appearing in adjacent orders...", end="")
         need_new_line = True
         
@@ -1142,6 +1152,20 @@ def _gaussian(
     return amplitude * np.exp(-((x - mean) / (2 * stddev))**2) + offset
 
 
+def _orderlet_name(orderlet: str) -> str:
+    if orderlet.startswith("SCI"):
+        return "SCI"
+    else:
+        return orderlet
+    
+    
+def _orderlet_index(orderlet: str) -> str:
+    if orderlet.startswith("SCI"):
+        return orderlet[-1]
+    else:
+        return ""
+
+
 def test() -> None:
     
     # A basic test case: loading in data from master files; locating, fitting,
@@ -1150,28 +1174,19 @@ def test() -> None:
     DATAPATH = "/data/kpf/masters/"
     DATE = "20240520"
     
-    ORDERLETS = [
-        # "SCI1",
-        # "SCI2",
-        # "SCI3",
-        "CAL",
-        # "SKY",
-        ]
-    
     WLS_file =\
         f"{DATAPATH}{DATE}/kpf_{DATE}_master_WLS_autocal-lfc-all-morn_L1.fits"
     etalon_file =\
         f"{DATAPATH}{DATE}/kpf_{DATE}_master_WLS_autocal-etalon-all-morn_L1.fits"
 
-    for orderlet in ORDERLETS:
-        s = Spectrum(spec_file=etalon_file, wls_file=WLS_file, orderlet=orderlet)
-        s.locate_peaks(fractional_height=0.01, window_to_save=10)
-        s.fit_peaks(type="conv_gauss_tophat")
-        s.filter_peaks(window=0.05)
-        
-        print(f"{s.num_located_peaks = }")
-        print(f"{s.num_successfully_fit_peaks = }")
-        # s.save_peak_locations(f"./etalon_wavelengths_{orderlet}.csv")
+    s = Spectrum(spec_file=etalon_file, wls_file=WLS_file)
+    s.locate_peaks(fractional_height=0.01, window_to_save=10)
+    s.fit_peaks(type="conv_gauss_tophat")
+    s.filter_peaks(window=0.05)
+    
+    print(f"{s.num_located_peaks = }")
+    print(f"{s.num_successfully_fit_peaks = }")
+    # s.save_peak_locations(f"./etalon_wavelengths_{orderlet}.csv")
 
 
 
