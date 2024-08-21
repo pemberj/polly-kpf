@@ -289,6 +289,10 @@ class Order:
     Contains data arrays read in from KPF L1 FITS files
     
     Properties:
+        orderlet: str  = None
+            The name of the orderlet for which data should be loaded. Valid
+            options: SKY, SCI1, SC2, SCI3, CAL
+    
         i: int [Index starting from zero]
             Index of the echelle order in the full spectrum
         wave: ArrayLike [Angstrom]
@@ -313,7 +317,16 @@ class Order:
         fit_peaks(type: str = "conv_gauss_tophat"):
             Wrapper function which calls peak fitting function for each
             contained peak. Returns the Order itself so methods can be chained
+            
+        orderlet_name: str
+            Returns the non-numeric part of `orderlet`, used to build FITS
+            header keywords 
+        orderlet_index: str
+            Returns the numeric part of `orderlet` (if there is one), used to
+            build FITS header keywords
     """
+    
+    orderlet: str  = None # SCI1, SCI2, SCI3, CAL, SKY
     
     i: int
     wave: ArrayLike
@@ -330,6 +343,22 @@ class Order:
     @property
     def mean_wave(self) -> float:
         return np.mean(self.wave)
+    
+    
+    @property
+    def orderlet_name(self) -> str:
+        if self.orderlet.startswith("SCI"):
+            return "SCI"
+        else:
+            return self.orderlet
+        
+        
+    @property
+    def orderlet_index(self) -> str:
+        if self.orderlet.startswith("SCI"):
+            return self.orderlet[-1]
+        else:
+            return ""
 
    
     def locate_peaks(
@@ -407,12 +436,13 @@ class Order:
 @dataclass
 class Spectrum:
     """
-    Contains data and metadata corresponding to a single orderlet and typically
-    a single date. Contains a list of Order objects (where the loaded L1
-    data is stored), each of which can contain a list of Peak objects. All
-    interfacing can be done to the Spectrum object, which initiates function
-    calls in the child objects, and which receives output data passed upward to
-    be accessed again at the Spectrum level.
+    Contains data and metadata corresponding to a loaded KPF FITS file and
+    optionally a wavelength solution loaded from a separate FITS file.
+    Contains a list of Order objects (where the loaded L1 data is stored), each
+    of which can contain a list of Peak objects. All interfacing can be done to
+    the Spectrum object, which initiates function calls in the child objects,
+    and which receives output data passed upward to be accessed again at the
+    Spectrum level.
     
     Properties:
         spec_file: str | list[str] = None
@@ -423,9 +453,6 @@ class Spectrum:
             The path of a single file to draw the wavelength solution (WLS)
             from. This is typically the master L1 WLS file for the same date as
             the flux data.
-        orderlet: str  = None
-            The name of the orderlet for which data should be loaded. Valid
-            options: SKY, SCI1, SC2, SCI3, CAL
         
         reference_mask: str = None
             [Not yet implemented], path to a file containing a list of
@@ -456,13 +483,6 @@ class Spectrum:
         
         pp: str = ""
             A prefix to add to any print or logging statements
-            
-        orderlet_name: str
-            Returns the non-numeric part of `orderlet`, used to build FITS
-            header keywords 
-        orderlet_index: str
-            Returns the numeric part of `orderlet` (if there is one), used to
-            build FITS header keywords
         
         peaks: list[Peak]
             Traverses the list of Orders, and each Order's list of Peaks.
@@ -556,7 +576,6 @@ class Spectrum:
     
     spec_file: str | list[str] = None
     wls_file: str  = None
-    orderlet: str  = None # SCI1, SCI2, SCI3, CAL, SKY
     
     reference_mask: str = None
     reference_peaks: list[float] = None
@@ -615,6 +634,23 @@ class Spectrum:
     
     
     @property
+    def orderlets(self):
+        """
+        Loops through the contained Order objects and returns a list of the
+        orderlets that the data corresponds to
+        """
+        
+        orderlets: list[str] = []
+        
+        for o in self.orders:
+            if o.orderlet not in orderlets:
+                orderlets.append(o.orderlet)
+                
+        return orderlets
+            
+    
+    
+    @property
     def summary(self):
         """
         Create a short summary string of the object
@@ -623,33 +659,17 @@ class Spectrum:
         return  f"Spectrum with {len(self.orders)} Orders and {len(self.peaks)} total Peaks\n"+\
                 f" - spec_file={self.spec_file}\n"+\
                 f" - wls_file={self.wls_file}\n"+\
-                f" - orderlet={self.orderlet}\n"+\
+                f" - orderlets={self.orderlets}\n"+\
                 f" - object={self.object}"+\
                 f" - reference_mask={self.reference_mask}\n"
 
-            
+
     @property
     def timeofday(self) -> str:
         # morn, eve, night
         return self.object.split("-")[-1]
-        
 
-    @property
-    def orderlet_name(self) -> str:
-        if self.orderlet.startswith("SCI"):
-            return "SCI"
-        else:
-            return self.orderlet
-        
-        
-    @property
-    def orderlet_index(self) -> str:
-        if self.orderlet.startswith("SCI"):
-            return self.orderlet[-1]
-        else:
-            return ""
-        
-        
+
     @property
     def peaks(self) -> list[Peak]:
         
@@ -661,7 +681,7 @@ class Spectrum:
         # return peaks
                 
         return [p for o in self.orders for p in o.peaks]
-            
+
 
     @property
     def num_located_peaks(self) -> int:
@@ -672,8 +692,8 @@ class Spectrum:
         # return count
         
         return sum(len(o.peaks) for o in self.orders)
-    
-    
+
+
     @property
     def num_successfully_fit_peaks(self) -> int:
 
