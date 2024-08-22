@@ -584,7 +584,7 @@ class Spectrum:
             self.orderlets_to_load = ["SCI1", "SCI2", "SCI3", "CAL", "SKY"]
             print(f"{self.orderlets_to_load = }")
         
-        if self.orders:
+        if self._orders:
             ...
         
         else:
@@ -631,7 +631,7 @@ class Spectrum:
     def orderlets(self):
         """
         Loops through the contained Order objects and returns a list of the
-        orderlets that the data corresponds to
+        orderlets that the data corresponds to.
         """
         
         orderlets: list[str] = []
@@ -645,6 +645,11 @@ class Spectrum:
     
     @property
     def orders(self, orderlet: str = None) -> list[Order]:
+        """
+        Helper function that loops through all contained orders and returns the
+        ones matching the `orderlet' parameter.
+        """
+        
         if orderlet:
             return sorted([o for o in self._orders if o.orderlet == orderlet],
                 key = attrgetter("i"))
@@ -661,13 +666,18 @@ class Spectrum:
         Create a short summary string of the object
         """
         
-        return f"Spectrum with {len(self.orders)} Orders and {len(self.peaks)}"\
-               +"total Peaks\n"+\
+        counts = {}
+        
+        for i, ol in enumerate(self.orderlets):
+            counts[ol] = len(self.orders(orderlet=ol))
+        
+        return f"Spectrum object"+\
                f" - spec_file={self.spec_file}\n"+\
                f" - wls_file={self.wls_file}\n"+\
-               f" - orderlets={self.orderlets}\n"+\
                f" - object={self.object}"+\
-               f" - reference_mask={self.reference_mask}\n"
+               f" - reference_mask={self.reference_mask}\n"+\
+               f"Orderlets: {self.orderlets}\n"+\
+               f"Counts: {counts}"
 
 
     @property
@@ -678,24 +688,12 @@ class Spectrum:
 
     @property
     def peaks(self) -> list[Peak]:
-        
-        # peaks = []
-        # for o in self.orders:
-        #     for p in o.peaks:
-        #         peaks.append(p)
-        #
-        # return peaks
-                
+
         return [p for o in self.orders for p in o.peaks]
 
 
     @property
     def num_located_peaks(self) -> int:
-        # count = 0
-        # for o in self.orders:
-        #     count += len(o.peaks)
-        
-        # return count
         
         return sum(len(o.peaks) for o in self.orders)
 
@@ -747,8 +745,10 @@ class Spectrum:
         
         
         if isinstance(self.spec_file, str):
-            print(f"{self.pp}Loading flux values from a single file: {self.spec_file.split('/')[-1]}...", end="")
+            print(f"{self.pp}Loading flux values from a single file:"+\
+                  f"{self.spec_file.split('/')[-1]}...", end="")
             
+            _orders = []
             for o in self.orderlets_to_load:
                 spec_green = fits.getdata(self.spec_file,
                         f"GREEN_{_orderlet_name(o)}_FLUX{_orderlet_index(o)}")
@@ -761,9 +761,19 @@ class Spectrum:
                 self.sci_obj = fits.getval(self.spec_file, "SCI-OBJ")
                 self.cal_obj = fits.getval(self.spec_file, "CAL-OBJ")
                 self.object =  fits.getval(self.spec_file, "OBJECT" )
+                
+                spec = np.append(spec_green, spec_red, axis=0)
+                
+                _orders.append(Order(wave=None, spec=s, i=i)\
+                                                for i, s in enumerate(spec))
+        
+            self._orders = _orders
+                
+            print(f"{OKGREEN} DONE{ENDC}")
         
         elif isinstance(self.spec_file, list):
             
+            _orders = []
             for o in self.orderlets_to_load:
                 print(f"{self.pp}Loading flux values from list of files...",
                     end="")
@@ -815,6 +825,15 @@ class Spectrum:
                     print(f"{self.pp}{WARNING}DATE-OBS did not match between "+\
                         f"the input files!{ENDC}")
                     print([f for f in self.spec_file])
+                    
+                spec = np.append(spec_green, spec_red, axis=0)
+        
+                _orders.append(Order(wave=None, spec=s, i=i)\
+                                            for i, s in enumerate(spec))
+                
+            self._orders = _orders
+                
+            print(f"{OKGREEN} DONE{ENDC}")
             
         else: # self.spec_file is something else entirely
             raise NotImplementedError(
@@ -822,12 +841,6 @@ class Spectrum:
                 f"list of filenames{ENDC}"
                 )
         
-        spec = np.append(spec_green, spec_red, axis=0)
-        
-        self._orders.append(Order(wave=None, spec=s, i=i)\
-                                    for i, s in enumerate(spec))
-        
-        print(f"{OKGREEN} DONE{ENDC}")
         return self
     
     
