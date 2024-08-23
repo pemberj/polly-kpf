@@ -53,7 +53,7 @@ import numpy as np
 from numpy.typing import ArrayLike
 from scipy.signal import find_peaks
 from scipy.optimize import curve_fit
-from scipy.interpolate import splrep, BSpline, UnivariateSpline
+from scipy.interpolate import splrep, BSpline#, UnivariateSpline
 from matplotlib import pyplot as plt
 
 try:
@@ -281,6 +281,27 @@ class Peak:
         return only the parameters we want to save to an output JSON file
         """
         ...
+        
+        
+    @property
+    def has_speclet(self):
+        if self.speclet is None: return "[ ]"
+        else: return "[x]"
+        
+    
+    @property        
+    def has_wavelet(self):
+        if self.wavelet is None: return "[ ]"
+        else: return "[x]"
+    
+
+    def __repr__(self):
+        
+        return f"\nPeak(order_i={self.i}, "+\
+               f"coarse_wavelength {self.coarse_wavelength:.3f}, "+\
+               f"center_wavelength {self.center_wavelength:.3f}, "+\
+               f"order_i {self.order_i:.0f}, "+\
+               f"{self.has_speclet} speclet, {self.has_wavelet} wavelet)"
  
 
 @dataclass
@@ -332,17 +353,24 @@ class Order:
     wave: ArrayLike = None
     spec: ArrayLike = None
     
-    peaks: list[Peak] = None
+    peaks: list[Peak] = field(default_factory=list)
     
     
     @property
     def peak_wavelengths(self) -> ArrayLike:
-        return [p.wl for p in self.peaks]
+        return [p.wl for p in self.peaks()]
     
     
     @property
     def mean_wave(self) -> float:
         return np.mean(self.wave)
+    
+    
+    def apply_wavelength_solution(self, wls) -> Order:
+        
+        self.wave = wls
+        
+        return self
 
    
     def locate_peaks(
@@ -378,6 +406,10 @@ class Order:
 
         Returns the Order itself so methods may be chained
         """
+        
+        if self.spec is None or self.wave is None:
+            print(f"Issue with processing {self}")
+            return self
         
         y = self.spec - np.nanmin(self.spec)
         y = y[~np.isnan(y)]
@@ -415,6 +447,25 @@ class Order:
             p.fit(type=type)
             
         return self
+    
+    
+    @property
+    def has_spec(self):
+        if self.spec is None: return "[ ]"
+        else: return "[x]"
+        
+    
+    @property        
+    def has_wave(self):
+        if self.wave is None: return "[ ]"
+        else: return "[x]"
+    
+
+    def __repr__(self):
+        
+        return f"\nOrder(orderlet={self.orderlet}, i={self.i}, "+\
+               f"{self.has_spec} spec, {self.has_wave} wave, "+\
+               f"{len(self.peaks)} peaks)"
 
 
 @dataclass
@@ -568,12 +619,12 @@ class Spectrum:
     _orders: list[Order] = field(default_factory=list)
 
     # Hold basic metadata from the FITS file
-    date: str = None # DATE-OBS in FITS header (without dashes), eg. 20240131
+    date:    str = None # DATE-OBS in FITS header (without dashes), eg. 20240131
     sci_obj: str = None # SCI-OBJ in FITS header
     cal_obj: str = None # CAL-OBJ in FITS header
-    object: str = None # OBJECT in FITS header
+    object:  str = None # OBJECT in FITS header
 
-    filtered_peaks: list[Peak] = None
+    filtered_peaks: dict[str, list[Peak]] = None
 
     pp: str = "" # Print prefix
     
@@ -623,8 +674,15 @@ class Spectrum:
             
     def __repr__(self):
         
-        return f"Spectrum with {len(self.orders)} Orders and {len(self.peaks)}"\
-               +"total Peaks"
+        out_string =\
+            f"Spectrum {self.spec_file} with {len(self.orderlets)} orderlets:"
+        
+        for ol in self.orderlets:
+            out_string += f"\n - {ol}:"+\
+                          f"{len(self.filtered_orders(orderlet = ol))} Orders"+\
+                          f" and {len(self.peaks(orderlet = ol))} total Peaks"
+        
+        return out_string
     
     
     @property
@@ -641,25 +699,52 @@ class Spectrum:
                 orderlets.append(o.orderlet)
                 
         return orderlets
-            
-    
+
+
     @property
-    def orders(self, orderlet: str = None) -> list[Order]:
+    def orders(self) -> list[Order]:
         """
         Helper function that loops through all contained orders and returns the
         ones matching the `orderlet' parameter.
         """
+
+        return sorted([o for o in self._orders],
+                                        # Sort by two fields
+                                key = (attrgetter("orderlet", "i")))
+
+
+    def filtered_orders(self, orderlet: str = None, i: int = None):
+        """
+        """
         
-        if orderlet:
+        if orderlet is not None and i is not None:
+            result = [o for o in self._orders\
+                                        if o.orderlet == orderlet and o.i == i]
+            
+            if len(result) == 1:
+                return result[0]
+            elif len(result) > 1:
+                print("More than one matching Order!")
+                print(result)
+                return result
+            else:
+                print("No matching order found!")
+                return None
+        
+        elif orderlet is not None:
             return sorted([o for o in self._orders if o.orderlet == orderlet],
-                key = attrgetter("i"))
-        else:
-            return sorted([o for o in self._orders],
-                key = (attrgetter("orderlet"), attrgetter("i")))
-                # Sort by two fields
-        
-    
-    
+                                # Sort by two fields
+                        key = (attrgetter("i")))
+            
+        elif i is not None:
+            return sorted([o for o in self._orders if o.i == i],
+                                # Sort by two fields
+                        key = (attrgetter("orderlet")))
+            
+        else: # neither orderlet nor i is specified!
+            return self.orders
+
+
     @property
     def summary(self):
         """
@@ -684,25 +769,65 @@ class Spectrum:
     def timeofday(self) -> str:
         # morn, eve, night
         return self.object.split("-")[-1]
-
-
-    @property
-    def peaks(self) -> list[Peak]:
-
-        return [p for o in self.orders for p in o.peaks]
-
-
-    @property
-    def num_located_peaks(self) -> int:
+    
+    
+    def peaks(self, orderlet: str | list[str] = None) -> list[Peak]:
+        """
+        Find all peaks matching a particular orderlet
+        """
         
-        return sum(len(o.peaks) for o in self.orders)
+        if isinstance(orderlet, str):
+            orderlet = [orderlet]
+        
+        if orderlet is None:
+            orderlet = self.orderlets
+        
+        result = []
+        for ol in orderlet:
+            for o in self.filtered_orders(orderlet = ol):
+                for p in o.peaks:
+                    result.append(p)
+                    
+        return result
+    
+
+    def num_located_peaks(
+        self,
+        orderlet: str | list[str] = None,
+        ) -> int:
+        
+        if isinstance(orderlet, str):
+            orderlet = [orderlet]
+        
+        if orderlet is None:
+            orderlet = self.orderlets
+        
+        total = 0
+        
+        for ol in orderlet:
+            total += sum(len(o.peaks) for o in self.orders)
+            
+        return total
 
 
-    @property
-    def num_successfully_fit_peaks(self) -> int:
+    def num_successfully_fit_peaks(
+        self,
+        orderlet: str | list[str] = None,
+        ) -> int:
+        
+        if isinstance(orderlet, str):
+            orderlet = [orderlet]
+        
+        if orderlet is None:
+            orderlet = self.orderlets
 
-        return sum(1 for o in self.orders for p in o.peaks
-                   if not np.isnan(p.center_wavelength))
+        total = 0
+        
+        for ol in orderlet:
+            total += sum(1 for o in self.orders for p in o.peaks\
+                                        if not np.isnan(p.center_wavelength))
+            
+        return total
     
     
     def parse_reference_mask(self) -> Spectrum:
@@ -745,15 +870,15 @@ class Spectrum:
         
         
         if isinstance(self.spec_file, str):
-            print(f"{self.pp}Loading flux values from a single file:"+\
+            print(f"{self.pp}Loading flux values from a single file: "+\
                   f"{self.spec_file.split('/')[-1]}...", end="")
             
             _orders = []
-            for o in self.orderlets_to_load:
+            for ol in self.orderlets_to_load:
                 spec_green = fits.getdata(self.spec_file,
-                        f"GREEN_{_orderlet_name(o)}_FLUX{_orderlet_index(o)}")
+                        f"GREEN_{_orderlet_name(ol)}_FLUX{_orderlet_index(ol)}")
                 spec_red = fits.getdata(self.spec_file,
-                        f"RED_{_orderlet_name(o)}_FLUX{_orderlet_index(o)}")
+                        f"RED_{_orderlet_name(ol)}_FLUX{_orderlet_index(ol)}")
                 
                 self.date = "".join(
                             fits.getval(self.spec_file, "DATE-OBS").split("-")
@@ -764,9 +889,9 @@ class Spectrum:
                 
                 spec = np.append(spec_green, spec_red, axis=0)
                 
-                _orders.append(Order(wave=None, spec=s, i=i)\
-                                                for i, s in enumerate(spec))
-        
+                for i, s in enumerate(spec):
+                    _orders.append(Order(orderlet=ol, wave=None, spec=s, i=i))
+            
             self._orders = _orders
                 
             print(f"{OKGREEN} DONE{ENDC}")
@@ -774,14 +899,14 @@ class Spectrum:
         elif isinstance(self.spec_file, list):
             
             _orders = []
-            for o in self.orderlets_to_load:
+            for ol in self.orderlets_to_load:
                 print(f"{self.pp}Loading flux values from list of files...",
                     end="")
                 spec_green = np.median([fits.getdata(f,
-                        f"GREEN_{_orderlet_name(o)}_FLUX{_orderlet_index(o)}")\
+                    f"GREEN_{_orderlet_name(ol)}_FLUX{_orderlet_index(ol)}")\
                                             for f in self.spec_file], axis=0)
                 spec_red = np.median([fits.getdata(f,
-                        f"RED_{_orderlet_name(o)}_FLUX{_orderlet_index(o)}")\
+                    f"RED_{_orderlet_name(ol)}_FLUX{_orderlet_index(ol)}")\
                                             for f in self.spec_file], axis=0)
                 
                 try:
@@ -827,9 +952,9 @@ class Spectrum:
                     print([f for f in self.spec_file])
                     
                 spec = np.append(spec_green, spec_red, axis=0)
-        
-                _orders.append(Order(wave=None, spec=s, i=i)\
-                                            for i, s in enumerate(spec))
+                
+                for i, s in enumerate(spec):
+                    _orders.append(Order(orderlet=ol, wave=None, spec=s, i=i))
                 
             self._orders = _orders
                 
@@ -875,48 +1000,61 @@ class Spectrum:
     
     def load_wls(self) -> Spectrum:
         
-        for o in self.orderlets_to_load:
+        if self.wls_file is None:
+            raise FileNotFoundError("No WLS file specified or found!")
         
-            if self.wls_file is None:
-                raise FileNotFoundError("No WLS file specified or found!")
-            
-            if isinstance(self.wls_file, list):
-                raise NotImplementedError(f"{self.pp}{FAIL}wls_file must be "+\
-                                        f"a single filename only{ENDC}")
+        if isinstance(self.wls_file, list):
+            raise NotImplementedError(f"{self.pp}{FAIL}wls_file must be "+\
+                                                f"a single filename only{ENDC}")
+        
+        for ol in self.orderlets_to_load:
             
             wave_green = fits.getdata(self.wls_file,
-                    f"GREEN_{_orderlet_name(o)}_WAVE{_orderlet_index(o)}")
+                    f"GREEN_{_orderlet_name(ol)}_WAVE{_orderlet_index(ol)}")
             wave_red =  fits.getdata(self.wls_file,
-                        f"RED_{_orderlet_name(o)}_WAVE{_orderlet_index(o)}")
+                        f"RED_{_orderlet_name(ol)}_WAVE{_orderlet_index(ol)}")
             
             wave = np.append(wave_green, wave_red, axis=0)
             
-            if not self.orders:
-                self.orders = [Order(wave = w, spec = None, i = i)\
-                                        for i, w in enumerate(wave)]
+            # If there are no orders already (for this orderlet), just populate
+            # a new set of orders only with the wavelength solution
+            if not self.filtered_orders(orderlet = ol):
+                for i, w in enumerate(wave):
+                    self._orders.append(Order(wave = w, spec = None, i = i))
+                    
+            # Otherwise, apply the wavelength solution to the appropriate orders
             else:
-                for ((i, w), o) in zip(enumerate(wave), self.orders):
-                    if o:
-                        self.orders[i].wave = w
-                        # TODO THIS NEEDS ATTENTION
+                for i, w in enumerate(wave):
+                    try: self.filtered_orders(orderlet = ol, i = i)\
+                                            .apply_wavelength_solution(wls = w)
+                    except AttributeError as e:
+                        print(e)
+                        print(f"No order exists: orderlet={ol}, {i=}")
             
         return self
             
             
     def locate_peaks(
         self,
+        orderlet: list[str] = None,
         fractional_height: float = 0.1,
         distance: float = 10,
         width: float = 3,
         window_to_save: int = 15
         ) -> Spectrum:
         
+        if isinstance(orderlet, str):
+            orderlet = [orderlet]
+        
+        if orderlet is None:
+            orderlet = self.orderlets
+        
         if self.reference_mask is None:
             
-            for o in self.orderlets:
+            for ol in orderlet:
         
-                print(f"{self.pp}Locating {o} peaks...", end="")
-                for o in self.orders:
+                print(f"{self.pp}Locating {ol} peaks...", end="")
+                for o in self.filtered_orders(orderlet = ol):
                     o.locate_peaks(
                         fractional_height = fractional_height,
                         distance = distance,
@@ -931,22 +1069,39 @@ class Spectrum:
         return self
         
     
-    def fit_peaks(self, type="conv_gauss_tophat") -> Spectrum:
+    def fit_peaks(
+        self,
+        orderlet: str | list[str] = None,
+        type="conv_gauss_tophat"
+        ) -> Spectrum:
         
-        for o in self.orderlets:
+        if isinstance(orderlet, str):
+            orderlet = [orderlet]
+        
+        if orderlet is None:
+            orderlet = self.orderlets
+        
+        for ol in orderlet:
         
             if self.num_located_peaks is None:
                 self.locate_peaks()
-            print(f"{self.pp}Fitting {o} peaks with {type} "+\
+            print(f"{self.pp}Fitting {ol} peaks with {type} "+\
                 "function...")
-            for o in tqdm(self.orders, desc=f"{self.pp}Orders"):
+            for o in tqdm(
+                        self.filtered_orders(orderlet = ol),
+                        desc=f"{self.pp}Orders"
+                        ):
                 o.fit_peaks(type=type)
             # print(f"{pp}{OKGREEN}DONE{ENDC}")
                 
         return self
         
     
-    def filter_peaks(self, window: float = 0.01) -> Spectrum:
+    def filter_peaks(
+        self,
+        orderlet: str | list[str] = None,
+        window: float = 0.01
+        ) -> Spectrum:
         """
         Filter the peaks such that any peaks of a close enough wavelength, but
         appearing in different echelle orders, are selected so that only one
@@ -960,67 +1115,105 @@ class Spectrum:
         `window` is in wavelength units of Angstroms
         """
         
-        print(f"{self.pp}Filtering peaks to remove "+\
-               "identical peaks appearing in adjacent orders...", end="")
-        need_new_line = True
+        if isinstance(orderlet, str):
+            orderlet = [orderlet]
         
-        peaks = self.peaks
+        if orderlet is None:
+            orderlet = self.orderlets
         
-        if not peaks:
-            print(f"{self.pp}{WARNING}No peaks found{ENDC}")
-            return self
+        for ol in orderlet:
         
-        peaks = sorted(peaks, key=attrgetter("wl"))
-        
-        rejected = []
-        for (p1, p2) in zip(peaks[:-1], peaks[1:]):
-            if abs(p1.wl - p2.wl) < window:
-                if p2.i == p1.i:
-                    if need_new_line:
-                        print("\n", end="")
-                        need_new_line = False
-                    print(f"{self.pp}{WARNING}Double-peaks identified at "+\
-                          f"{p1.wl} / {p2.wl} "+\
-                          f"from the same order: cutoff is too large?{ENDC}")
-                    continue
-                try:
-                    if p1.d < p2.d:
-                        rejected.append(p2)
-                        peaks.remove(p2)
-                    else:
-                        rejected.append(p1)
-                        peaks.remove(p1)
-                except ValueError:
-                    pass
-                    
-        self.filtered_peaks = peaks
-        print(f"{OKGREEN} DONE{ENDC}")
+            print(f"{self.pp}Filtering {ol} peaks to remove "+\
+                "identical peaks appearing in adjacent orders...", end="")
+            need_new_line = True
+            
+            peaks = self.peaks(orderlet = ol)
+            
+            if not peaks:
+                print(f"{self.pp}{WARNING}No peaks found{ENDC}")
+                return self
+            
+            peaks = sorted(peaks, key=attrgetter("wl"))
+            
+            rejected = []
+            for (p1, p2) in zip(peaks[:-1], peaks[1:]):
+                if abs(p1.wl - p2.wl) < window:
+                    if p2.i == p1.i:
+                        if need_new_line:
+                            print("\n", end="")
+                            need_new_line = False
+                        print(f"{self.pp}{WARNING}Double-peaks identified at "+\
+                            f"{p1.wl} / {p2.wl} "+\
+                            f"from the same order: cutoff is too large?{ENDC}")
+                        continue
+                    try:
+                        if p1.d < p2.d:
+                            rejected.append(p2)
+                            peaks.remove(p2)
+                        else:
+                            rejected.append(p1)
+                            peaks.remove(p1)
+                    except ValueError:
+                        pass
+                        
+            if self.filtered_peaks is None:
+                self.filtered_peaks = {}
+            
+            self.filtered_peaks[ol] = peaks
+            print(f"{OKGREEN} DONE{ENDC}")
                 
         return self
     
     
-    def save_peak_locations(self, filename: str) -> Spectrum:
-        if self.filtered_peaks is None:
-            self.filter_peaks()
+    def save_peak_locations(
+        self,
+        filename: str,
+        orderlet: str | list[str] = None,
+        ) -> Spectrum:
+        """
         
-        print(
-            f"{self.pp}Saving {self.orderlet} peaks to {filename}...",
-            end=""
-            )
-        with open(filename, "w") as f:
-            for p in self.filtered_peaks:
-                f.write(f"{p.wl}\t1.0\n")        
-        print(f"{OKGREEN} DONE{ENDC}")
-                
+        """
+        
+        if isinstance(orderlet, str):
+            orderlet = [orderlet]
+        
+        if orderlet is None:
+            orderlet = self.orderlets
+            
+        for ol in orderlet:
+        
+            if self.filtered_peaks[ol] is None:
+                self.filter_peaks(orderlet=ol)
+            
+            print(
+                f"{self.pp}Saving {ol} peaks to {filename}...",
+                end=""
+                )
+            with open(filename, "w") as f:
+                for p in self.filtered_peaks[ol]:
+                    f.write(f"{p.wl}\t1.0\n")        
+            print(f"{OKGREEN} DONE{ENDC}")
+                    
         return self
     
 
     def plot_spectrum(
         self,
+        orderlet: str | list[str] = None,
         ax: plt.Axes = None,
         plot_peaks: bool = True,
         label: str = None
         ) -> plt.Axes:
+        
+        """
+        
+        """
+        
+        if isinstance(orderlet, str):
+            orderlet = [orderlet]
+        
+        if orderlet is None:
+            orderlet = self.orderlets          
                 
         if not ax:
             fig = plt.figure(figsize = (20, 4))
@@ -1033,22 +1226,25 @@ class Spectrum:
         # plot the full spectrum
         Col = plt.get_cmap("Spectral")
 
-        # plot order by order
-        for o in self.orders:
-            wvl_mean_ord = np.nanmean(o.wave)
-            wvl_norm = 1. - ((wvl_mean_ord) - 4200.) / (7200. - 4200.)
-            bluemask = o.wave / 10. > xlims[0]
-            redmask  = o.wave / 10. < xlims[1]
-            mask = bluemask & redmask
-            ax.plot(o.wave[mask]/10., o.spec[mask], color="k", lw=1.5)
-            ax.plot(o.wave[mask]/10., o.spec[mask], lw=0.5, color=Col(wvl_norm))
-        ax.plot(0, 0, color="k", lw=1.5, label=label)
 
-        if plot_peaks:
-            if self.filtered_peaks is not None:
-                for p in self.filtered_peaks:
-                    if p.wl/10. > xlims[0] and p.wl/10. < xlims[1]:
-                        ax.axvline(x = p.wl/10., color = "k", alpha = 0.1)
+        for ol in orderlet:
+
+            # plot order by order
+            for o in self.filtered_orders(orderlet = ol):
+                wvl_mean_ord = np.nanmean(o.wave)
+                wvl_norm = 1. - ((wvl_mean_ord) - 4200.) / (7200. - 4200.)
+                bluemask = o.wave / 10. > xlims[0]
+                redmask  = o.wave / 10. < xlims[1]
+                mask = bluemask & redmask
+                ax.plot(o.wave[mask]/10., o.spec[mask], color="k", lw=1.5)
+                ax.plot(o.wave[mask]/10., o.spec[mask], lw=0.5, color=Col(wvl_norm))
+            ax.plot(0, 0, color="k", lw=1.5, label=label)
+
+            if plot_peaks:
+                if self.filtered_peaks[ol] is not None:
+                    for p in self.filtered_peaks[ol]:
+                        if p.wl/10. > xlims[0] and p.wl/10. < xlims[1]:
+                            ax.axvline(x = p.wl/10., color = "k", alpha = 0.1)
 
         if label:
             ax.legend()
@@ -1060,21 +1256,33 @@ class Spectrum:
         return self
     
     
-    def delta_nu_FSR(self, unit = u.GHz) -> ArrayLike:
+    def delta_nu_FSR(
+        self,
+        orderlet: str | list[str] = None,
+        unit = u.GHz
+        ) -> ArrayLike:
         """
         Calculates and returns the FSR of the etalon spectrum in GHz
         """
         
-        # Get peak wavelengths
-        wls = np.array([p.wl for p in self.filtered_peaks]) * u.angstrom
-        # Filter out any NaN values
-        nanmask = ~np.isnan(wls)
-        wls = wls[nanmask]
+        if isinstance(orderlet, str):
+            orderlet = [orderlet]
         
-        FSR =\
-            (constants.c * np.diff(wls) / np.power(wls[:-1], 2)).to(unit).value
+        if orderlet is None:
+            orderlet = self.orderlets
+            
+        for ol in orderlet:
         
-        return FSR
+            # Get peak wavelengths
+            wls = np.array([p.wl for p in self.filtered_peaks[ol]]) * u.angstrom
+            # Filter out any NaN values
+            nanmask = ~np.isnan(wls)
+            wls = wls[nanmask]
+            
+            FSR =\
+                (constants.c * np.diff(wls) / np.power(wls[:-1], 2)).to(unit).value
+            
+            return FSR
     
     
     def plot_FSR(self, ax: plt.Axes = None) -> Spectrum:
@@ -1134,7 +1342,7 @@ class Spectrum:
         date: {self.date}
         spec_file: {self.spec_file}
         wls_file: {self.wls_file}
-        orderlet: {self.orderlet}
+        orderlet: {self.orderlets}
         """
 
 
@@ -1187,18 +1395,24 @@ def test() -> None:
     DATAPATH = "/data/kpf/masters/"
     DATE = "20240520"
     
-    WLS_file =\
-        f"{DATAPATH}{DATE}/kpf_{DATE}_master_WLS_autocal-lfc-all-morn_L1.fits"
-    etalon_file =\
-        f"{DATAPATH}{DATE}/kpf_{DATE}_master_WLS_autocal-etalon-all-morn_L1.fits"
+    WLS_file = f"{DATAPATH}{DATE}/"+\
+               f"kpf_{DATE}_master_WLS_autocal-lfc-all-morn_L1.fits"
+    etalon_file = f"{DATAPATH}{DATE}/"+\
+                  f"kpf_{DATE}_master_WLS_autocal-etalon-all-morn_L1.fits"
 
     s = Spectrum(spec_file=etalon_file, wls_file=WLS_file)
+
     s.locate_peaks(fractional_height=0.01, window_to_save=10)
-    s.fit_peaks(type="conv_gauss_tophat")
-    s.filter_peaks(window=0.05)
+    s.fit_peaks(type="conv_gauss_tophat", orderlet="SCI2")
+    s.filter_peaks(window=0.05, orderlet="SCI2")
+    print(s)
     
-    print(f"{s.num_located_peaks = }")
-    print(f"{s.num_successfully_fit_peaks = }")
+    print(s.orders[:10])
+    
+    print(s.filtered_orders(orderlet="SCI2")[5].peaks[:10])
+    
+    print(f"{s.num_located_peaks() = }")
+    print(f"{s.num_successfully_fit_peaks() = }")
     # s.save_peak_locations(f"./etalon_wavelengths_{orderlet}.csv")
 
 
@@ -1213,5 +1427,5 @@ if __name__ == "__main__":
         
     stats = pstats.Stats(pr)
     stats.sort_stats(pstats.SortKey.TIME)
-    stats.print_stats()
+    stats.print_stats(10)
     # stats.dump_stats("../etalonanalysis.prof")
