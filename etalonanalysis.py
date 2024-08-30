@@ -212,7 +212,7 @@ class Peak:
         mean_dx = np.mean(np.diff(x))
         y = self.speclet
         
-        # TODO: better FWHM guess? Sampling of KPF?
+        # TODO: better FWHM guess? Based on sampling of KPF?
                    # amplitude,  mean,      fwhm,      offset
         p0 =        [max(y),     0,       mean_dx * 5,   0]
         bounds = [
@@ -252,7 +252,7 @@ class Peak:
         x = self.wavelet - x0 # Centre about zero
         mean_dx = abs(np.mean(np.diff(x)))
         y = self.speclet
-        # TODO: better guesses?
+        # TODO: better initial guesses?
            # center,          amp,       sigma,   boxhalfwidth,  offset
         p0 = [0,           max(y),     2 * mean_dx,  3 * mean_dx,  min(y)]
         bounds = [
@@ -280,20 +280,19 @@ class Peak:
         """
         return only the parameters we want to save to an output JSON file
         """
+        #TODO
         ...
-        
-        
-    @property
-    def has_speclet(self):
-        if self.speclet is None: return "[ ]"
-        else: return "[x]"
-        
-    
-    @property        
-    def has_wavelet(self):
-        if self.wavelet is None: return "[ ]"
-        else: return "[x]"
-    
+
+
+    def has(self, prop: str):
+        """String generation"""
+        if prop == "speclet":
+            if self.speclet is None: return "[ ]"
+            else: return "[x]"
+        elif prop == "wavelet":
+            if self.wavelet is None: return "[ ]"
+            else: return "[x]"
+  
 
     def __repr__(self):
         
@@ -301,7 +300,7 @@ class Peak:
                f"coarse_wavelength {self.coarse_wavelength:.3f}, "+\
                f"center_wavelength {self.center_wavelength:.3f}, "+\
                f"order_i {self.order_i:.0f}, "+\
-               f"{self.has_speclet} speclet, {self.has_wavelet} wavelet)"
+               f"{self.has('speclet')} speclet, {self.has('wavelet')} wavelet)"
  
 
 @dataclass
@@ -369,7 +368,6 @@ class Order:
     def apply_wavelength_solution(self, wls) -> Order:
         
         self.wave = wls
-        
         return self
 
    
@@ -448,23 +446,21 @@ class Order:
             
         return self
     
-    
-    @property
-    def has_spec(self):
-        if self.spec is None: return "[ ]"
-        else: return "[x]"
-        
-    
-    @property        
-    def has_wave(self):
-        if self.wave is None: return "[ ]"
-        else: return "[x]"
+
+    def has(self, prop: str):
+        """String generation"""
+        if prop == "spec":
+            if self.spec is None: return "[ ]"
+            else: return "[x]"
+        elif prop == "wave":
+            if self.wave is None: return "[ ]"
+            else: return "[x]"
     
 
     def __repr__(self):
         
         return f"\nOrder(orderlet={self.orderlet}, i={self.i}, "+\
-               f"{self.has_spec} spec, {self.has_wave} wave, "+\
+               f"{self.has('spec')} spec, {self.has('wave')} wave, "+\
                f"{len(self.peaks)} peaks)"
 
 
@@ -919,43 +915,43 @@ class Spectrum:
                 try:
                     assert all([fits.getval(f, "SCI-OBJ") ==\
                         fits.getval(self.spec_file[0], "SCI-OBJ")\
-                            for f in self.spec_file])
+                                                    for f in self.spec_file])
                     self.sci_obj = fits.getval(self.spec_file[0], "SCI-OBJ")
                 except AssertionError:
                     print(f"{self.pp}{WARNING}SCI-OBJ did not match between "+\
-                        f"the input files!{ENDC}")
+                          f"the input files!{ENDC}")
                     print([f for f in self.spec_file])
                         
                 try:
                     assert all([fits.getval(f, "CAL-OBJ") ==\
                         fits.getval(self.spec_file[0], "CAL-OBJ")\
-                            for f in self.spec_file])
+                                                    for f in self.spec_file])
                     self.cal_obj = fits.getval(self.spec_file[0], "CAL-OBJ")
                 except AssertionError:
                     print(f"{self.pp}{WARNING}CAL-OBJ did not match between "+\
-                        f"the input files!{ENDC}")
+                          f"the input files!{ENDC}")
                     print([f for f in self.spec_file])
                     
                 try:
                     assert all([fits.getval(f, "OBJECT") ==\
                         fits.getval(self.spec_file[0], "OBJECT")\
-                            for f in self.spec_file])
+                                                    for f in self.spec_file])
                     self.object = fits.getval(self.spec_file[0], "OBJECT")
                 except AssertionError:
                     print(f"{self.pp}{WARNING}OBJECT did not match between "+\
-                        f"the input files!{ENDC}")
+                          f"the input files!{ENDC}")
                     print([f for f in self.spec_file])
                     
                 try:
                     assert all([fits.getval(f, "DATE-OBS") ==\
                         fits.getval(self.spec_file[0], "DATE-OBS")\
-                            for f in self.spec_file])
+                                                for f in self.spec_file])
                     self.date = "".join(
-                            fits.getval(self.spec_file[0], "DATE-OBS").split("-")
-                            )
+                        fits.getval(self.spec_file[0], "DATE-OBS").split("-")
+                        )
                 except AssertionError:
                     print(f"{self.pp}{WARNING}DATE-OBS did not match between "+\
-                        f"the input files!{ENDC}")
+                          f"the input files!{ENDC}")
                     print([f for f in self.spec_file])
                     
                 spec = np.append(spec_green, spec_red, axis=0)
@@ -983,16 +979,16 @@ class Spectrum:
         if self.timeofday == "night":
             # Specifically look for "eve" WLS file
             wls_file = f"/data/kpf/masters/{self.date}/kpf_{self.date}_"+\
-                            "master_WLS_autocal-lfc-all-eve_L1.fits"
+                        "master_WLS_autocal-lfc-all-eve_L1.fits"
         # Otherwise, look for the same time of day WLS file ("morn" or "eve")
         wls_file = f"/data/kpf/masters/{self.date}/kpf_{self.date}_"+\
-                       f"master_WLS_autocal-lfc-all-{self.timeofday}_L1.fits"
+                   f"master_WLS_autocal-lfc-all-{self.timeofday}_L1.fits"
         
         try:
             assert "lfc" in fits.getval(wls_file, "OBJECT").lower()
         except AssertionError:
             print(f"{self.pp}{WARNING}'lfc' not found in {self.timeofday} "+\
-                f"WLS file 'OBJECT' value!{ENDC}")
+                  f"WLS file 'OBJECT' value!{ENDC}")
             return
         except FileNotFoundError:
             print(f"{self.pp}{WARNING}{self.timeofday} WLS file "+\
@@ -1012,7 +1008,7 @@ class Spectrum:
         
         if isinstance(self.wls_file, list):
             raise NotImplementedError(f"{self.pp}{FAIL}wls_file must be "+\
-                                                f"a single filename only{ENDC}")
+                                      f"a single filename only{ENDC}")
         
         for ol in self.orderlets_to_load:
             
@@ -1093,7 +1089,7 @@ class Spectrum:
             if self.num_located_peaks is None:
                 self.locate_peaks()
             print(f"{self.pp}Fitting {ol} peaks with {type} "+\
-                "function...")
+                   "function...")
             for o in tqdm(
                         self.filtered_orders(orderlet = ol),
                         desc=f"{self.pp}Orders"
@@ -1131,7 +1127,7 @@ class Spectrum:
         for ol in orderlet:
         
             print(f"{self.pp}Filtering {ol} peaks to remove "+\
-                "identical peaks appearing in adjacent orders...", end="")
+                   "identical peaks appearing in adjacent orders...", end="")
             need_new_line = True
             
             peaks = self.peaks(orderlet = ol)
@@ -1150,8 +1146,8 @@ class Spectrum:
                             print("\n", end="")
                             need_new_line = False
                         print(f"{self.pp}{WARNING}Double-peaks identified at "+\
-                            f"{p1.wl} / {p2.wl} "+\
-                            f"from the same order: cutoff is too large?{ENDC}")
+                              f"{p1.wl} / {p2.wl} from the same order "+\
+                              f"cutoff is too large?{ENDC}")
                         continue
                     try:
                         if p1.d < p2.d:
@@ -1211,9 +1207,7 @@ class Spectrum:
         plot_peaks: bool = True,
         label: str = None
         ) -> plt.Axes:
-        
         """
-        
         """
         
         if isinstance(orderlet, str):
@@ -1232,7 +1226,6 @@ class Spectrum:
 
         # plot the full spectrum
         Col = plt.get_cmap("Spectral")
-
 
         for ol in orderlet:
 
@@ -1287,7 +1280,7 @@ class Spectrum:
             wls = wls[nanmask]
             
             FSR = (constants.c * np.diff(wls)\
-                            / np.power(wls[:-1], 2)).to(unit).value
+                                    / np.power(wls[:-1], 2)).to(unit).value
             
             return FSR
     
@@ -1409,6 +1402,12 @@ def _orderlet_index(orderlet: str) -> str:
         return orderlet[-1]
     else:
         return ""
+
+
+
+
+
+
 
 
 def test() -> None:
