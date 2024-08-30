@@ -713,11 +713,15 @@ class Spectrum:
                                 key = (attrgetter("orderlet", "i")))
 
 
-    def filtered_orders(self, orderlet: str = None, i: int = None):
+    def filtered_orders(
+        self,
+        orderlet: str | None = None,
+        i: int | None = None
+        ) -> list[Order]:
         """
         """
         
-        if orderlet is not None and i is not None:
+        if (orderlet is not None) and (i is not None):
             result = [o for o in self._orders\
                                         if o.orderlet == orderlet and o.i == i]
             
@@ -771,7 +775,10 @@ class Spectrum:
         return self.object.split("-")[-1]
     
     
-    def peaks(self, orderlet: str | list[str] = None) -> list[Peak]:
+    def peaks(
+        self,
+        orderlet: str | list[str] | None = None
+        ) -> list[Peak]:
         """
         Find all peaks matching a particular orderlet
         """
@@ -793,7 +800,7 @@ class Spectrum:
 
     def num_located_peaks(
         self,
-        orderlet: str | list[str] = None,
+        orderlet: str | list[str] | None = None,
         ) -> int:
         
         if isinstance(orderlet, str):
@@ -812,7 +819,7 @@ class Spectrum:
 
     def num_successfully_fit_peaks(
         self,
-        orderlet: str | list[str] = None,
+        orderlet: str | list[str] | None = None,
         ) -> int:
         
         if isinstance(orderlet, str):
@@ -1036,7 +1043,7 @@ class Spectrum:
             
     def locate_peaks(
         self,
-        orderlet: list[str] = None,
+        orderlet: str | list[str] | None = None,
         fractional_height: float = 0.1,
         distance: float = 10,
         width: float = 3,
@@ -1071,7 +1078,7 @@ class Spectrum:
     
     def fit_peaks(
         self,
-        orderlet: str | list[str] = None,
+        orderlet: str | list[str] | None = None,
         type="conv_gauss_tophat"
         ) -> Spectrum:
         
@@ -1099,7 +1106,7 @@ class Spectrum:
     
     def filter_peaks(
         self,
-        orderlet: str | list[str] = None,
+        orderlet: str | list[str] | None = None,
         window: float = 0.01
         ) -> Spectrum:
         """
@@ -1168,7 +1175,7 @@ class Spectrum:
     def save_peak_locations(
         self,
         filename: str,
-        orderlet: str | list[str] = None,
+        orderlet: str | list[str] | None = None,
         ) -> Spectrum:
         """
         
@@ -1199,8 +1206,8 @@ class Spectrum:
 
     def plot_spectrum(
         self,
-        orderlet: str | list[str] = None,
-        ax: plt.Axes = None,
+        orderlet: str | list[str] | None = None,
+        ax: plt.Axes | None = None,
         plot_peaks: bool = True,
         label: str = None
         ) -> plt.Axes:
@@ -1215,7 +1222,7 @@ class Spectrum:
         if orderlet is None:
             orderlet = self.orderlets          
                 
-        if not ax:
+        if ax is None:
             fig = plt.figure(figsize = (20, 4))
             ax = fig.gca()
             
@@ -1236,8 +1243,9 @@ class Spectrum:
                 bluemask = o.wave / 10. > xlims[0]
                 redmask  = o.wave / 10. < xlims[1]
                 mask = bluemask & redmask
-                ax.plot(o.wave[mask]/10., o.spec[mask], color="k", lw=1.5)
-                ax.plot(o.wave[mask]/10., o.spec[mask], lw=0.5, color=Col(wvl_norm))
+                ax.plot(o.wave[mask]/10., o.spec[mask], lw=1.5, color="k")
+                ax.plot(o.wave[mask]/10., o.spec[mask],
+                                                lw=0.5, color=Col(wvl_norm))
             ax.plot(0, 0, color="k", lw=1.5, label=label)
 
             if plot_peaks:
@@ -1258,7 +1266,7 @@ class Spectrum:
     
     def delta_nu_FSR(
         self,
-        orderlet: str | list[str] = None,
+        orderlet: str | list[str] | None = None,
         unit = u.GHz
         ) -> ArrayLike:
         """
@@ -1272,22 +1280,24 @@ class Spectrum:
             orderlet = self.orderlets
             
         for ol in orderlet:
-        
             # Get peak wavelengths
             wls = np.array([p.wl for p in self.filtered_peaks[ol]]) * u.angstrom
             # Filter out any NaN values
             nanmask = ~np.isnan(wls)
             wls = wls[nanmask]
             
-            FSR =\
-                (constants.c * np.diff(wls) / np.power(wls[:-1], 2)).to(unit).value
+            FSR = (constants.c * np.diff(wls)\
+                            / np.power(wls[:-1], 2)).to(unit).value
             
             return FSR
     
     
-    def plot_FSR(self, ax: plt.Axes = None) -> Spectrum:
+    def plot_FSR(
+        self,
+        ax: plt.Axes | None = None
+        ) -> Spectrum:
         
-        if not ax:
+        if ax is None:
             fig = plt.figure(figsize = (20, 4))
             ax = fig.gca()
             
@@ -1374,6 +1384,13 @@ def _gaussian(
 
 
 def _orderlet_name(orderlet: str) -> str:
+    """
+    A simple helper function to get the non-numeric part of the orderlet name,
+    used to build the relevant FITS header keyword to access data.
+    
+    eg. SCI1 -> 'GREEN_SCI_FLUX1'
+    """
+    
     if orderlet.startswith("SCI"):
         return "SCI"
     else:
@@ -1381,6 +1398,13 @@ def _orderlet_name(orderlet: str) -> str:
     
     
 def _orderlet_index(orderlet: str) -> str:
+    """
+    A simple helper function to get only the numeric part of the orderlet name,
+    used to build the relevant FITS header keyword to access data.
+    
+    eg. SCI1 -> 'GREEN_SCI_FLUX1'
+    """
+    
     if orderlet.startswith("SCI"):
         return orderlet[-1]
     else:
@@ -1403,16 +1427,10 @@ def test() -> None:
     s = Spectrum(spec_file=etalon_file, wls_file=WLS_file)
 
     s.locate_peaks(fractional_height=0.01, window_to_save=10)
-    s.fit_peaks(type="conv_gauss_tophat", orderlet="SCI2")
-    s.filter_peaks(window=0.05, orderlet="SCI2")
+    s.fit_peaks(type="conv_gauss_tophat")
+    s.filter_peaks(window=0.05)
     print(s)
     
-    print(s.orders[:10])
-    
-    print(s.filtered_orders(orderlet="SCI2")[5].peaks[:10])
-    
-    print(f"{s.num_located_peaks() = }")
-    print(f"{s.num_successfully_fit_peaks() = }")
     # s.save_peak_locations(f"./etalon_wavelengths_{orderlet}.csv")
 
 
@@ -1427,5 +1445,5 @@ if __name__ == "__main__":
         
     stats = pstats.Stats(pr)
     stats.sort_stats(pstats.SortKey.TIME)
-    stats.print_stats(10)
+    stats.print_stats(20)
     # stats.dump_stats("../etalonanalysis.prof")
