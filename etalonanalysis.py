@@ -53,7 +53,7 @@ import numpy as np
 from numpy.typing import ArrayLike
 from scipy.signal import find_peaks
 from scipy.optimize import curve_fit
-from scipy.interpolate import splrep, BSpline#, UnivariateSpline
+from scipy.interpolate import splrep, BSpline
 from matplotlib import pyplot as plt
 
 try:

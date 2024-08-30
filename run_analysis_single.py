@@ -29,7 +29,12 @@ FAIL    = '\033[91m'
 ENDC    = '\033[0m'
 
 
-def main(FILENAME: str, ORDERLET: str) -> None:
+def main(
+    FILENAME: str,
+    ORDERLETS: str | list[str] | None,
+    spectrum_plot: bool = False,
+    fsr_plot: bool = True,
+    ) -> None:
     
     DATE = "".join(fits.getval(FILENAME, "DATE-OBS").split("-"))
     TIMEOFDAY = fits.getval(FILENAME, "OBJECT").split("-")[-1]
@@ -40,7 +45,7 @@ def main(FILENAME: str, ORDERLET: str) -> None:
     s = Spectrum(
         spec_file = FILENAME,
         wls_file = None, # Package will locate the corresponding date/time file
-        orderlet = ORDERLET,
+        orderlets_to_load = ORDERLETS,
         pp = pp
         )
     s.locate_peaks(fractional_height=0.01, window_to_save=10)
@@ -48,37 +53,44 @@ def main(FILENAME: str, ORDERLET: str) -> None:
     s.filter_peaks(window=0.1)       
     
     Path(f"{OUTDIR}").mkdir(parents=True, exist_ok=True) # Make OUTDIR
-    s.save_peak_locations(
-        f"{OUTDIR}/{DATE}_{TIMEOFDAY}_{ORDERLET}_etalon_wavelengths.csv"
-        )
+    for ol in s.orderlets:
+        s.save_peak_locations(
+            f"{OUTDIR}/{DATE}_{TIMEOFDAY}_{ol}_etalon_wavelengths.csv"
+            )
 
     
-    if args.spectrum_plot:
+    if spectrum_plot:
         # Spectrum plot
         fig = plt.figure(figsize=(12, 3))
         ax = fig.gca()
-        ax.set_title(f"{DATE} {TIMEOFDAY} {ORDERLET}")
+        ax.set_title(f"{DATE} {TIMEOFDAY}")
         ax.set_xlim(440, 880)
-        s.plot_spectrum(ax=ax, plot_peaks=False, label=f"{ORDERLET}")
+        for ol in s.orderlets:
+            s.plot_spectrum(ax=ax, plot_peaks=False, label=f"{ol}")
+        ax.legend()
+        
         # Make directory if it does not exist
         Path(f"{OUTDIR}/spectrum_plots").mkdir(parents=True, exist_ok=True)
         plt.savefig(f"{OUTDIR}/spectrum_plots/"+\
-                    f"{DATE}_{TIMEOFDAY}_{ORDERLET}_spectrum.png")
+                    f"{DATE}_{TIMEOFDAY}_spectrum.png")
         plt.close()
 
 
-    if args.fsr_plot:
+    if fsr_plot:
         # FSR plot
         fig = plt.figure(figsize=(12, 4))
         ax = fig.gca()
-        ax.set_title(f"{DATE} {TIMEOFDAY} {ORDERLET}", size=20)
-        # ax.set_xlim(440, 880)
+        ax.set_title(f"{DATE} {TIMEOFDAY}", size=20)
+        ax.set_xlim(440, 880)
         # ax.set_ylim(30.15, 30.35)
-        s.plot_FSR(ax=ax)
+        for ol in s.orderlets:
+            s.plot_FSR(ax=ax, label=f"{ol}")
+        ax.legend()
+        
         # Make directory if it does not exist
         Path(f"{OUTDIR}/FSR_plots").mkdir(parents=True, exist_ok=True)
         plt.savefig(f"{OUTDIR}/FSR_plots/"+\
-                    f"{DATE}_{TIMEOFDAY}_{ORDERLET}_etalon_FSR.png")
+                    f"{DATE}_{TIMEOFDAY}_etalon_FSR.png")
         plt.close()
 
 
@@ -113,8 +125,13 @@ if __name__ == "__main__":
         ]
     
     if args.orderlet == "all":
-        for orderlet in ORDERLETS:
-            main(FILENAME = args.filename, ORDERLET = orderlet)
-            
+        orderlet = None
     else:
-        main(FILENAME = args.filename, ORDERLET = args.orderlet)
+        orderlet = args.orderlet
+    
+    main(
+        FILENAME = args.filename,
+        ORDERLET = orderlet,
+        spectrum_plot = args.spectrum_plot,
+        fsr_plot = args.fsr_plot,
+        )
