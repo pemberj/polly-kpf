@@ -28,6 +28,16 @@ WARNING = '\033[93m'
 FAIL    = '\033[91m'
 ENDC    = '\033[0m'
 
+TIMESOFDAY = ["morn", "eve", "night"]
+
+ORDERLETS : list[str] = [
+    "SCI1",
+    "SCI2",
+    "SCI3",
+    "CAL",
+    "SKY"
+    ]
+
 
 def main(
     FILENAME: str,
@@ -38,7 +48,7 @@ def main(
     
     DATE = "".join(fits.getval(FILENAME, "DATE-OBS").split("-"))
     TIMEOFDAY = fits.getval(FILENAME, "OBJECT").split("-")[-1]
-    # Should be "morn", "eve", or "night"
+    assert TIMEOFDAY in TIMESOFDAY
         
     pp = f"{f'[{DATE} {TIMEOFDAY:>5}]':<20}" # Print/logging line prefix
 
@@ -98,16 +108,17 @@ import argparse
 parser = argparse.ArgumentParser(
             prog="polly run_analysis_single",
             description="A utility to process KPF etalon data from "+\
-                "and individual file. Produces an output file with the "+\
+                "an individual file. Produces an output file with the "+\
                 "wavelengths of each identified etalon peak, as well as "+\
                 "diagnostic plots."
                     )
 
 parser.add_argument("-f", "--filename", type=str)
-parser.add_argument("-o", "--orderlet", type=str, default="all")
+parser.add_argument("-o", "--orderlet", type=str, default=None, choices=ORDERLETS)
 parser.add_argument("--outdir", type=str, default="/scr/jpember/polly_outputs")
 parser.add_argument("--spectrum_plot", type=bool, default=False)
 parser.add_argument("--fsr_plot", type=bool, default=True)
+parser.add_argument("-v", "--verbose", action="store_true")  # on/off flag
 
 if __name__ == "__main__":
     
@@ -115,23 +126,10 @@ if __name__ == "__main__":
     OUTDIR = args.outdir
     
     # logging.basicConfig(filename="/scr/jpember/test.log", level=logging.INFO)
-
-    ORDERLETS : list[str] = [
-        "SCI1",
-        "SCI2",
-        "SCI3",
-        "CAL",
-        # "SKY"
-        ]
-    
-    if args.orderlet == "all":
-        orderlet = None
-    else:
-        orderlet = args.orderlet
     
     main(
         FILENAME = args.filename,
-        ORDERLET = orderlet,
+        ORDERLET = args.orderlet,
         spectrum_plot = args.spectrum_plot,
         fsr_plot = args.fsr_plot,
         )
