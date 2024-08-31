@@ -1260,7 +1260,7 @@ class Spectrum:
     def delta_nu_FSR(
         self,
         orderlet: str | list[str] | None = None,
-        unit = u.GHz
+        unit: u.core.Unit = u.GHz
         ) -> ArrayLike:
         """
         Calculates and returns the FSR of the etalon spectrum in GHz
@@ -1381,7 +1381,7 @@ def _orderlet_name(orderlet: str) -> str:
     A simple helper function to get the non-numeric part of the orderlet name,
     used to build the relevant FITS header keyword to access data.
     
-    eg. SCI1 -> 'GREEN_SCI_FLUX1'
+    eg. for 'SCI1' we need 'GREEN_SCI_FLUX1', so return 'SCI'
     """
     
     if orderlet.startswith("SCI"):
@@ -1395,7 +1395,7 @@ def _orderlet_index(orderlet: str) -> str:
     A simple helper function to get only the numeric part of the orderlet name,
     used to build the relevant FITS header keyword to access data.
     
-    eg. SCI1 -> 'GREEN_SCI_FLUX1'
+    eg. for 'SCI1' we need 'GREEN_SCI_FLUX1', so return '1'
     """
     
     if orderlet.startswith("SCI"):
