@@ -94,18 +94,25 @@ class Peak:
     Contains information about a single identified or fitted etalon peak
     
     Properties:
+        parent_ref: weakref
+            A reference to the parent Order object for the Peak. Used to
+            populate the relevant information (orderlet, order_i)
+
         coarse_wavelength: float [Angstrom]
             The centre pixel of an initially identified peak
-        order_i: int [Index starting from zero]
-            The index number of the order that contains the peak 
         speclet: ArrayLike [ADU]
             A short slice of the `spec` array around the peak
         wavelet: ArrayLike [Angstrom]
             A short slice of the `wave` array around the peak
         
+        orderlet: str ["SKY", "SCI1", "SCI2", "SCI3", "CAL"]
+            Automatically inherited from parent Order object
+        order_i: int [Index starting from zero]
+            The index number of the order that contains the peak, automatically
+            inherited from parent Order object
+        
         center_wavelength: float [Angstrom] = None
             The centre wavelength resulting from the function fitting routine
-        
         distance_from_order_center: float [Angstrom] = None
             The absolute difference of the Peak's wavelength from the mean
             wavelength of the containing order, used for selecting between
@@ -121,14 +128,14 @@ class Peak:
             function (see the function definitions)
         boxhalfwidth: float = None
             Fit parameter describing the width of the top-hat part of the
-            function (see `conv_gauss_tophat` in `fit_erf_to_ccf_simplified.py`)
+            function (see `conv_gauss_tophat' in `fit_erf_to_ccf_simplified.py')
         offset: float = None
             Fit parameter describing the vertical offset of the function,
             allowing for a flat bias (see the function definitions)
             
         wl: float [Angstrom]
-            alias for central_wavelength (if it is defined), otherwise it is an
-            alias for coarse_wavelength
+            alias for central_wavelength (if it is defined), otherwise it
+            returns the value of coarse_wavelength
         i: int [Index starting from zero]
             alias for order_i
         d: float [Angstrom]
@@ -150,10 +157,23 @@ class Peak:
             Fitting routine has data-driven initial guesses and bounds for the
             parameters. Updates the Peak object parameters, returns nothing.
             
-    TODO: 
-     * Plot of data and fit with vertical lines showing the coarse center and
-       the fine (fit) center. Accept an axis, so that these can be called and
-       plot into a pre-generated subplots grid
+        output_parameters():
+            TODO: a function to return the parameters to be saved to an output
+            (JSON?) file
+            
+        has(prop: str):
+            Used for repr generation. Returns a checked box if the Peak has
+            `speclet' or `wavelet' arrays, else returns an empty box.
+            
+        __repr__():
+            Returns a one-line summary of the Peak object. May be expanded in
+            the future.   
+    
+        plot_fit(ax: plt.Axes):
+            TODO: Plot of data and fit with vertical lines showing the coarse
+            center and the fine (fit) center.
+            Optionally accepts an axis object in which to plot, for calling
+            the function in batch from some higher level.
     """
     
     parent_ref: weakref.ReferenceType
@@ -164,6 +184,7 @@ class Peak:
     
     orderlet: str | None = None
     order_i: int | None = None
+    
     center_wavelength: float | None = None
     distance_from_order_center: float | None = None
     
@@ -311,12 +332,14 @@ class Peak:
         self.offset = offset
 
 
-    def output_parameters(self):
+    def output_parameters(self) -> str:
         """
-        return only the parameters we want to save to an output JSON file
+        TODO
+        Construct a string with the parameters we want to save to an output
+        (JSON?) file
         """
-        #TODO
-        ...
+        
+        return ""
 
 
     def has(self, prop: str) -> str:
@@ -336,6 +359,13 @@ class Peak:
                f"center_wavelength {self.center_wavelength:.3f}, "+\
                f"order_i {self.order_i:.0f}, "+\
                f"{self.has('speclet')} speclet, {self.has('wavelet')} wavelet)"
+               
+               
+    def plot_fit(self, ax: plt.Axes | None = None) -> None:
+        """
+        TODO
+        """
+        return None
  
 
 @dataclass
@@ -344,41 +374,57 @@ class Order:
     Contains data arrays read in from KPF L1 FITS files
     
     Properties:
-        orderlet: str  = None
+        parent_ref: weakref
+            A reference to the parent Spectrum object for the Order. Used to
+            populate the relevant information (orderlet, order_i)
+    
+        orderlet: str
             The name of the orderlet for which data should be loaded. Valid
             options: SKY, SCI1, SC2, SCI3, CAL
-    
-        i: int [Index starting from zero]
-            Index of the echelle order in the full spectrum
-        wave: ArrayLike [Angstrom]
-            An array of wavelength values as loaded from the parent Spectrum
-            object's `wls_file` FITS file
         spec: ArrayLike [ADU]
             An array of flux values as loaded from the parent Spectrum object's
             `spec_file` FITS file(s)
+        i: int [Index starting from zero]
+            Index of the echelle order in the full spectrum
+    
+        wave: ArrayLike [Angstrom] | None
+            An array of wavelength values as loaded from the parent Spectrum
+            object's `wls_file` FITS file
         
         peaks: list[Peak]
             A list of Peak objects within the order. Originally populated when
             the `locate_peaks()` method is called.
         
+        parent
+            Returns the parent Spectrum object to which this Order belongs.
+        
         peak_wavelengths: ArrayLike [Angstrom]
+            Returns a list of the central wavelengths of all contained Peaks.
+        
         mean_wave: float [Angstrom]
+            Returns the mean wavelength of the Order in Agnstroms.
         
     Methods:
+        apply_wavelength_solution(wls: ArrayLike):
+            A simple `setter' function to apply wavelength values to the `wave'
+            array.
+
         locate_peaks():
             Uses `scipy.sigal.find_peaks` to roughly locate peak positions. See
             function docstring for more detail. Returns the Order itself so
             methods can be chained
+
         fit_peaks(type: str = "conv_gauss_tophat"):
             Wrapper function which calls peak fitting function for each
             contained peak. Returns the Order itself so methods can be chained
             
-        orderlet_name: str
-            Returns the non-numeric part of `orderlet`, used to build FITS
-            header keywords 
-        orderlet_index: str
-            Returns the numeric part of `orderlet` (if there is one), used to
-            build FITS header keywords
+        has(prop: str):
+            Used for repr generation. Returns a checked box if the Order has
+            `spec' or `wave' arrays, else returns an empty box.
+            
+        __repr__():
+            Returns a one-line summary of the Order object. May be expanded in
+            the future.   
     """
     
     parent_ref = weakref.ReferenceType
@@ -522,14 +568,16 @@ class Spectrum:
     Spectrum level.
     
     Properties:
-        spec_file: str | list[str] = None
+        spec_file: str | list[str] | None = None
             The path (or a list of paths) of the L1 file(s) containing flux data
             to be loaded. If a list of files is passed, the flux data is
             median-combined.
-        wls_file: str  = None
+        wls_file: str | None = None
             The path of a single file to draw the wavelength solution (WLS)
             from. This is typically the master L1 WLS file for the same date as
             the flux data.
+        orderlets_to_load: str | list[str] | None = None
+            Which orderlets should be loaded into the Spectrum (and Orders).
         
         reference_mask: str = None
             [Not yet implemented], path to a file containing a list of
@@ -538,42 +586,58 @@ class Spectrum:
             these reference wavelengths as its starting point.
         reference_peaks: list[float] = None
             [Not yet implemented], the list of wavelengths as parsed from
-            `reference_mask`
-        
-        orders: list[Order] = None
+            `reference_mask'
+            
+        _orders: list[Order] = empty list
             A list of Order objects (see Order definition)
+            See also the .orders() method, the main interface to the Order
+            objects.
+            
+        orderlets: list[str]
+            Returns all unique orderlets that the contained Order objects
+            correspond to.
 
-        date: str | list[str] = None
-            The date of observation, as read from the FITS header of `spec_file`
-        sci_obj: str = None
-            The SCI-OBJ keyword from the FITS header of `spec_file`
-        cal_obj: str = None
-            The CAL-OBJ keyword from the FITS header of `spec_file`
-        object: str = None
-            The OBJECT keyword from the FITS header of `spec_file`
-
-        summary: str
-            Create a text summary of the Spectrum
+        date: str | None = None
+            The date of observation, as read from the FITS header of `spec_file'
+        sci_obj: str | None = None
+            The SCI-OBJ keyword from the FITS header of `spec_file'
+        cal_obj: str | None = None
+            The CAL-OBJ keyword from the FITS header of `spec_file'
+        object: str | None = None
+            The OBJECT keyword from the FITS header of `spec_file'
         
         filtered_peaks: list[Peak] = None
-            A list of Peak objects after locating, fitting, and filtering
+            A list of Peak objects after locating, fitting, and filtering.
         
         pp: str = ""
-            A prefix to add to any print or logging statements
+            A prefix to add to any print or logging statements, for a nicer
+            command line interface.
         
         peaks: list[Peak]
             Traverses the list of Orders, and each Order's list of Peaks.
             Returns a compiled list of all Peaks, the grandchildren of this
             Spectrum object
-
-        num_located_peaks: int
-            Returns the total number of located peaks in all Orders
-        num_successfully_fit_peaks: int
-            Returns the total number of peaks that have a non-NaN
-            center_wavelength property
+            
+        timeofday: str
+            Returns the time of day of the `specfile' FITS file
+            Possible values: "morn", "eve", "night"
+            
+        summary: str
+            Create a text summary of the Spectrum
             
             
     Methods:
+        orders(orderlet: str, i: int) -> list[Order]
+            returns a list of orders matching either or both of the input
+            parameters. This is the main interface to the Order objects.
+            
+        num_located_peaks(orderlet: str) -> int
+            Returns the total number of located peaks in all Orders
+            
+        num_successfully_fit_peaks(orderlet: str) -> int
+            Returns the total number of peaks that have a non-NaN
+            center_wavelength property
+    
         parse_reference_mask
             Reads in a reference mask (as output from the `save_peak_locations`
             method) and populates `self.reference_peaks` with the wavelengths.
@@ -586,37 +650,40 @@ class Spectrum:
             wavelengths down to each Order, where a list of Peaks is initialised
         
         load_spec
-            If `spec_file` is a string, this method loads the flux data from
+            If `spec_file' is a string, this method loads the flux data from
             the file, as well as the DATE, SCI-OBJ, CAL-OBJ and OBJECT keywords
-            If `spec_file` is a list of strings, this method loads the flux data
+            If `spec_file' is a list of strings, this method loads the flux data
             from all of the files, checks that their SCI-OBJ, CAL-OBJ and OBJECT
             match one another, and if so, combines the fluxes by taking the
             median value for each pixel.
-            Flux data is stored per-order in a list of Orders: self.orders
+            Flux data is stored per-order in a list of Orders: self._orders
         
         find_wls_file
             If no WLS file is passed in, this method is called. It looks in the
-            /data/kpf/masters/ directory for the same date as the `spec_file`,
+            /data/kpf/masters/ directory for the same date as the `spec_file',
             and finds the corresponding wavelength solution file. If the
-            `spec_file` was taken at "night" (from OBJECT keyword string), the
+            `spec_file' was taken at "night" (from OBJECT keyword string), the
             corresponding "eve" WLS file is located.
         
         load_wls
-            Loads the `wls_file` file, and stores its wavelength data per-order
-            in self.orders.
+            Loads the `wls_file' file, and stores its wavelength data per-order
+            in self._orders.
         
         locate_peaks
             Initiates locating peaks for each order. Parameters here are passed
             to the Order-level functions
+
         fit_peaks
-            Initiates fitting peaks at the Peak level. The `type` parameter here
+            Initiates fitting peaks at the Peak level. The `type' parameter here
             is passed down to the Peak-level functions
+        
         filter_peaks
             Filters identical peaks that appear in the overlap regions of two
             adjacent orders. Within a given `window` [Angstroms], if two peaks
             are identified, it removes the one that is further away from _its_
             order's central wavelength. This must be done at the Spectrum level,
             where many Orders' Peaks can be accessed at the same time
+        
         save_peak_locations
             Outputs the filtered peaks to a csv file to be used as a mask for
             either further iterations of peak-fitting processing, or for
@@ -628,14 +695,15 @@ class Spectrum:
             a `matplotlib.pyplot.axes` object passed in as `ax` to allow
             tweaking in the script that calls the class
             
-        delta_nu_FSR: ArrayLike
+        delta_nu_FSR
             Compute and return an array of FSR (the spacing between peaks) in
             units of GHz. Nominally the etalon has ~30GHz FSR, in practice there
             is an absolute offset, a global tilt, and smaller-scale bumps and
             wiggles as a function of wavelength
         
         plot_FSR
-            ...
+            Creates an FSR plot of the located (and fit) peaks, across all
+            Orders.
         
         save_config_file
             [Not yet implemented], will save the properties and parameters for
@@ -691,7 +759,7 @@ class Spectrum:
                     self.load_wls()
             if self.reference_mask:
                 self.parse_reference_mask()
-            if self.orders is not None and self.reference_mask is not None:
+            if self.orders() is not None and self.reference_mask is not None:
                 try:
                     self.apply_reference_mask()
                 except:
@@ -707,7 +775,7 @@ class Spectrum:
         if isinstance(other, Spectrum):
             return Spectrum(file = None, orders =\
                 [Order(i=o1.i, wave = o1.wave, spec = o1.spec + o2.spec)\
-                                for o1, o2 in zip(self.orders, other.orders)])
+                            for o1, o2 in zip(self.orders(), other.orders())])
         else:
             raise TypeError(
                 f"{self.pp}Can only add two Spectrum objects together"
@@ -721,7 +789,7 @@ class Spectrum:
         
         for ol in self.orderlets:
             out_string += f"\n - {ol}:"+\
-                          f"{len(self.filtered_orders(orderlet = ol))} Orders"+\
+                          f"{len(self.orders(orderlet = ol))} Orders"+\
                           f" and {len(self.peaks(orderlet = ol))} total Peaks"
         
         return out_string
@@ -736,26 +804,14 @@ class Spectrum:
         
         orderlets: list[str] = []
         
-        for o in self.orders:
+        for o in self.orders():
             if o.orderlet not in orderlets:
                 orderlets.append(o.orderlet)
                 
         return orderlets
 
 
-    @property
-    def orders(self) -> list[Order]:
-        """
-        Helper function that loops through all contained orders and returns the
-        ones matching the `orderlet' parameter.
-        """
-
-        return sorted([o for o in self._orders],
-                                        # Sort by two fields
-                                key = (attrgetter("orderlet", "i")))
-
-
-    def filtered_orders(
+    def orders(
         self,
         orderlet: str | None = None,
         i: int | None = None
@@ -779,16 +835,16 @@ class Spectrum:
         
         elif orderlet is not None:
             return sorted([o for o in self._orders if o.orderlet == orderlet],
-                                # Sort by two fields
-                        key = (attrgetter("i")))
+                                        key = (attrgetter("i")))
             
         elif i is not None:
             return sorted([o for o in self._orders if o.i == i],
-                                # Sort by two fields
-                        key = (attrgetter("orderlet")))
+                                        key = (attrgetter("orderlet")))
             
         else: # neither orderlet nor i is specified!
-            return self.orders
+            return sorted([o for o in self._orders],
+                                                    # Sort by two fields
+                                        key = (attrgetter("orderlet", "i")))
 
 
     @property
@@ -830,7 +886,7 @@ class Spectrum:
         
         result = []
         for ol in orderlet:
-            for o in self.filtered_orders(orderlet = ol):
+            for o in self.orders(orderlet = ol):
                 for p in o.peaks:
                     result.append(p)
                     
@@ -848,7 +904,7 @@ class Spectrum:
         total = 0
         
         for ol in orderlet:
-            total += sum(len(o.peaks) for o in self.orders)
+            total += sum(len(o.peaks) for o in self.orders(orderlet=ol))
             
         return total
 
@@ -867,7 +923,7 @@ class Spectrum:
         total = 0
         
         for ol in orderlet:
-            total += sum(1 for o in self.orders for p in o.peaks\
+            total += sum(1 for o in self.orders(orderlet=ol) for p in o.peaks\
                                         if not np.isnan(p.center_wavelength))
             
         return total
@@ -886,13 +942,13 @@ class Spectrum:
     
     def apply_reference_mask(self) -> Spectrum:
         
-        if not self.orders:
+        if not self.orders():
             print(f"{self.pp}{WARNING}No order data - first load data, then "+\
                   f"apply reference mask{ENDC}")
             
             return self
         
-        for o in self.orders:
+        for o in self.orders():
             """
             Find the wavelength limits
             Loop through reference mask (should be sorted)
@@ -910,7 +966,6 @@ class Spectrum:
             
         
     def load_spec(self) -> Spectrum:
-        
         
         if isinstance(self.spec_file, str):
             print(f"{self.pp}Loading flux values from a single file: "+\
@@ -1061,14 +1116,14 @@ class Spectrum:
             
             # If there are no orders already (for this orderlet), just populate
             # a new set of orders only with the wavelength solution
-            if not self.filtered_orders(orderlet = ol):
+            if not self.orders(orderlet = ol):
                 for i, w in enumerate(wave):
                     self._orders.append(Order(wave = w, spec = None, i = i))
                     
             # Otherwise, apply the wavelength solution to the appropriate orders
             else:
                 for i, w in enumerate(wave):
-                    try: self.filtered_orders(orderlet = ol, i = i)\
+                    try: self.orders(orderlet = ol, i = i)\
                                             .apply_wavelength_solution(wls = w)
                     except AttributeError as e:
                         print(e)
@@ -1097,7 +1152,7 @@ class Spectrum:
             for ol in orderlet:
         
                 print(f"{self.pp}Locating {ol} peaks...", end="")
-                for o in self.filtered_orders(orderlet = ol):
+                for o in self.orders(orderlet = ol):
                     o.locate_peaks(
                         fractional_height = fractional_height,
                         distance = distance,
@@ -1131,7 +1186,7 @@ class Spectrum:
             print(f"{self.pp}Fitting {ol} peaks with {type} "+\
                    "function...")
             for o in tqdm(
-                        self.filtered_orders(orderlet = ol),
+                        self.orders(orderlet = ol),
                         desc=f"{self.pp}Orders",
                         unit="order",
                         ncols=100
@@ -1272,7 +1327,7 @@ class Spectrum:
         for ol in orderlet:
 
             # plot order by order
-            for o in self.filtered_orders(orderlet = ol):
+            for o in self.orders(orderlet = ol):
                 wvl_mean_ord = np.nanmean(o.wave)
                 wvl_norm = 1. - ((wvl_mean_ord) - 4200.) / (7200. - 4200.)
                 bluemask = o.wave / 10. > xlims[0]
@@ -1396,6 +1451,9 @@ def _fit_spline(
     y: ArrayLike,
     knots: int = 21,
     ) -> Callable:
+    """
+    Fits a B-spline to the input data with a given number of knots
+    """
     
     # model = UnivariateSpline(x, y, k=5)
     x_new = np.linspace(0, 1, knots + 2)[1:-1]
@@ -1413,6 +1471,9 @@ def _gaussian(
     fwhm: float = 1,
     offset: float = 0,
     ) -> ArrayLike:
+    """
+    A parametrised Gaussian function, optionally used in the peak fitting.
+    """
     
     stddev = fwhm / (2 * np.sqrt(2 * np.log(2)))
     return amplitude * np.exp(-((x - mean) / (2 * stddev))**2) + offset
