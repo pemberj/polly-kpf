@@ -645,22 +645,22 @@ class Spectrum:
          * ???
     """
     
-    spec_file: str | list[str] = None
-    wls_file: str  = None
-    orderlets_to_load: list[str] = None
+    spec_file: str | list[str] | None = None
+    wls_file: str | None = None
+    orderlets_to_load: list[str] | None = None
     
-    reference_mask: str = None
-    reference_peaks: list[float] = None
+    reference_mask: str | None = None
+    reference_peaks: list[float] | None = None
     
     _orders: list[Order] = field(default_factory=list)
 
     # Hold basic metadata from the FITS file
-    date:    str = None # DATE-OBS in FITS header (without dashes), eg. 20240131
-    sci_obj: str = None # SCI-OBJ in FITS header
-    cal_obj: str = None # CAL-OBJ in FITS header
-    object:  str = None # OBJECT in FITS header
+    date:    str | None = None # DATE-OBS in FITS header (without dashes), eg. 20240131
+    sci_obj: str | None = None # SCI-OBJ in FITS header
+    cal_obj: str | None = None # CAL-OBJ in FITS header
+    object:  str | None = None # OBJECT in FITS header
 
-    filtered_peaks: dict[str, list[Peak]] = None
+    filtered_peaks: dict[str, list[Peak]] | None = None
 
     pp: str = "" # Print prefix
     
@@ -692,7 +692,7 @@ class Spectrum:
                     ...
 
         
-    def __add__(self, other):
+    def __add__(self, other) -> Spectrum:
         """
         I've never used this, but it's here so that two Spectrum objects can be
         added together and it just adds the contained `spec` values together
@@ -708,7 +708,7 @@ class Spectrum:
                 )
             
             
-    def __repr__(self):
+    def __repr__(self) -> str:
         
         out_string =\
             f"Spectrum {self.spec_file} with {len(self.orderlets)} orderlets:"
@@ -722,7 +722,7 @@ class Spectrum:
     
     
     @property
-    def orderlets(self):
+    def orderlets(self) -> list[str]:
         """
         Loops through the contained Order objects and returns a list of the
         orderlets that the data corresponds to.
@@ -786,7 +786,7 @@ class Spectrum:
 
 
     @property
-    def summary(self):
+    def summary(self) -> str:
         """
         Create a short summary string of the object
         """
@@ -811,10 +811,7 @@ class Spectrum:
         return self.object.split("-")[-1]
     
     
-    def peaks(
-        self,
-        orderlet: str | list[str] | None = None
-        ) -> list[Peak]:
+    def peaks(self, orderlet: str | list[str] | None = None) -> list[Peak]:
         """
         Find all peaks matching a particular orderlet
         """
@@ -834,10 +831,7 @@ class Spectrum:
         return result
     
 
-    def num_located_peaks(
-        self,
-        orderlet: str | list[str] | None = None,
-        ) -> int:
+    def num_located_peaks(self, orderlet: str | list[str] | None = None) -> int:
         
         if isinstance(orderlet, str):
             orderlet = [orderlet]
