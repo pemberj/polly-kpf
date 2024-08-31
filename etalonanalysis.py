@@ -10,40 +10,49 @@ etalon spectra from KPF. A short description of the three levels and what
 happens within each, from the top down:
 
 Spectrum
-    The top level class. Represents data corresponding to a single orderlet.
-    (SKY / SCI1 / SCI2 / SCI3 / CAL).
+    A Spectrum object represents data corresponding to a single FITS file,
+    including all (or a subset of) the SKY / SCI1 / SCI2 / SCI3 / CAL orderlets.
+    
     It can load flux data from either a single FITS file or a list of FITS files
     (the data from which are then median-combined).
-    Wavelength solution data can be loaded independently from a separate FIT
-    file.
+    
+    Wavelength solution data can be loaded independently from a separate FITS
+    file. If the parameter `wls_file' is not specified, the code will try to
+    find the matching WLS file from available daily masters.
+    
     The Spectrum class is where the user interacts with the data. It contains a
     list of Order objects (which each contain a list of Peak objects), but all
     functionality can be initiated at the Spectrum level.
     
 Order
-    The Order class actually contains the data arrays (`spec` and `wave`),
-    loaded directly from FITS files. Aside from being a data container, the
-    function of the Order class is to do a rough location of etalon peaks (using
+    An Order object represents the L1 data for a single orderlet and spectral
+    order. It contains the data arrays `spec' and `wave', loaded directly from
+    the FITS file(s) of a Spectrum object.
+    
+    The rough (pixel-scale) location of peaks is done at the Order level (using
     `scipy.signal.find_peaks`, which is called from the `locate_peaks()` method)
+    
     Orders contain a list of Peak objects, wherein the fine-grained fitting with
     analytic functions is performed, see below.
     
 Peak
-    Objects of the Peak class contain details about an individual peak in the
-    spectrum. At first, these objects are initialised with a roughly identified
-    central wavelength (the highest pixel value in a peak), as well as the local
-    data from both the spectrum and the wavelength solution (`speclet` and
-    `wavelet`, respectively). After this, the `.fit()` method can be called,
-    which fits a (chosen) analytic function to the Peak's contained data. This
-    results in a sub-pixel estimation of the central wavelength of the Peak. The
-    fitting is typically initiated from the higher level (Spectrum object), and
-    all of the Peak's data is also passed upward to be accessible from Order and
-    Spectrum objects.
+    A Peak object represents a small slice of flux and wavelength data around
+    a single located Etalon peak. A Peak is initialised with `speclet' and
+    `wavelet' arrays and a roughly identified wavelength position of the peak.
+    
+    After initialisation, the `.fit()` method fits a (chosen) analytic function
+    to the Peak's contained data. This results gives sub-pixel estimation of the
+    central wavelength of the Peak.
+    
+    The fitting is typically initiated from the higher level (Spectrum object),
+    and inversely all of the Peak's data is also passed upward to be accessible
+    from Order and Spectrum objects.
 """
 
 from __future__ import annotations
 from dataclasses import dataclass, field
 from operator import attrgetter
+import weakref
 from typing import Callable
 from astropy.io import fits
 from astropy import units as u
@@ -80,7 +89,7 @@ class Peak:
     
     Properties:
         coarse_wavelength: float [Angstrom]
-            The centre of an initially identified peak
+            The centre pixel of an initially identified peak
         order_i: int [Index starting from zero]
             The index number of the order that contains the peak 
         speclet: ArrayLike [ADU]
@@ -141,20 +150,37 @@ class Peak:
        plot into a pre-generated subplots grid
     """
     
+    parent_ref: weakref.ReferenceType
+    
     coarse_wavelength: float
-    order_i: int
     speclet: ArrayLike
     wavelet: ArrayLike
     
-    center_wavelength: float = None
+    orderlet: str | None = None
+    order_i: int | None = None
+    center_wavelength: float | None = None
+    distance_from_order_center: float | None = None
     
-    distance_from_order_center: float = None
+    fit_type: str | None = None
+    amplitude: float | None = None
+    sigma: float | None = None
+    boxhalfwidth: float | None = None
+    offset: float | None = None
     
-    fit_type: str = None
-    amplitude: float = None
-    sigma: float = None
-    boxhalfwidth: float = None
-    offset: float = None
+    
+    def __post_init__(self):
+        # Set order_i and orderlet from parent Order
+        self.order_i = self.parent.i
+        self.orderlet = self.parent.orderlet
+    
+    
+    @property
+    def parent(self) -> Order:
+        """
+        Return the Order to which this Peak belongs
+        """
+        
+        return self.parent_ref()
     
     
     @property
@@ -230,10 +256,12 @@ class Peak:
             
         amplitude, mean, fwhm, offset = p
         
+        # Populate the fit parameters
         self.center_wavelength = x0 + mean
         self.amplitude = amplitude
         self.sigma = fwhm / (2 * np.sqrt(2 * np.log(2)))
-        # Does not define self.boxhalfwidth
+        # In case another function fit had already defined self.boxhalfwidth
+        self.boxhalfwidth = None
         self.offset = offset
             
             
@@ -269,6 +297,7 @@ class Peak:
         
         center, amplitude, sigma, boxhalfwidth, offset = p
         
+        # Populate the fit parameters
         self.center_wavelength = x0 + center
         self.amplitude = amplitude
         self.sigma = sigma
@@ -284,7 +313,7 @@ class Peak:
         ...
 
 
-    def has(self, prop: str):
+    def has(self, prop: str) -> str:
         """String generation"""
         if prop == "speclet":
             if self.speclet is None: return "[ ]"
@@ -294,7 +323,7 @@ class Peak:
             else: return "[x]"
   
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         
         return f"\nPeak(order_i={self.i}, "+\
                f"coarse_wavelength {self.coarse_wavelength:.3f}, "+\
@@ -346,13 +375,23 @@ class Order:
             build FITS header keywords
     """
     
-    orderlet: str = None # SCI1, SCI2, SCI3, CAL, SKY
+    parent_ref = weakref.ReferenceType
     
-    i: int = None
-    wave: ArrayLike = None
-    spec: ArrayLike = None
+    orderlet: str # SCI1, SCI2, SCI3, CAL, SKY
+    spec: ArrayLike
+    i: int
     
+    wave: ArrayLike | None = None
     peaks: list[Peak] = field(default_factory=list)
+    
+    
+    @property
+    def parent(self) -> Spectrum:
+        """
+        Return the Spectrum to which this Order belongs
+        """
+        
+        return self.parent_ref()
     
     
     @property
@@ -365,7 +404,7 @@ class Order:
         return np.mean(self.wave)
     
     
-    def apply_wavelength_solution(self, wls) -> Order:
+    def apply_wavelength_solution(self, wls: ArrayLike) -> Order:
         
         self.wave = wls
         return self
@@ -422,6 +461,7 @@ class Order:
         
         self.peaks = [
                 Peak(
+                    parent_ref = weakref.ref(self),
                     coarse_wavelength = self.wave[_p],
                     order_i = self.i,
                     speclet =\
@@ -447,7 +487,7 @@ class Order:
         return self
     
 
-    def has(self, prop: str):
+    def has(self, prop: str) -> str:
         """String generation"""
         if prop == "spec":
             if self.spec is None: return "[ ]"
@@ -457,7 +497,7 @@ class Order:
             else: return "[x]"
     
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         
         return f"\nOrder(orderlet={self.orderlet}, i={self.i}, "+\
                f"{self.has('spec')} spec, {self.has('wave')} wave, "+\
