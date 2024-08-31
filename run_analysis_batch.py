@@ -165,7 +165,7 @@ parser = argparse.ArgumentParser(
 parser.add_argument("-d", "--date", type=int, default=15)
 parser.add_argument("-m", "--month", type=int, default=5)
 parser.add_argument("-y", "--year", type=int, default=2024)
-parser.add_argument("-t", "--timeofday", stype=str, choices=TIMESOFDAY)
+parser.add_argument("-t", "--timeofday", type=str, choices=TIMESOFDAY)
 parser.add_argument("-o", "--orderlet", type=str, choices=ORDERLETS)
 parser.add_argument("--outdir", type=str, default="/scr/jpember/polly_outputs")
 parser.add_argument("--spectrum_plot", type=bool, default=False)

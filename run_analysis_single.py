@@ -114,7 +114,7 @@ parser = argparse.ArgumentParser(
                     )
 
 parser.add_argument("-f", "--filename", type=str)
-parser.add_argument("-o", "--orderlet", type=str, default=None, choices=ORDERLETS)
+parser.add_argument("-o", "--orderlets", type=str, default=None, choices=ORDERLETS)
 parser.add_argument("--outdir", type=str, default="/scr/jpember/polly_outputs")
 parser.add_argument("--spectrum_plot", type=bool, default=False)
 parser.add_argument("--fsr_plot", type=bool, default=True)
@@ -129,7 +129,7 @@ if __name__ == "__main__":
     
     main(
         FILENAME = args.filename,
-        ORDERLET = args.orderlet,
+        ORDERLETS = args.orderlets,
         spectrum_plot = args.spectrum_plot,
         fsr_plot = args.fsr_plot,
         )
