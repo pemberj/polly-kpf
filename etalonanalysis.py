@@ -73,10 +73,8 @@ from matplotlib import pyplot as plt
 import matplotlib.patheffects as pe
 
 try:
-    from polly.fit_erf_to_ccf_simplified import conv_gauss_tophat
     from polly.plotStyle import plotStyle
 except ImportError:
-    from fit_erf_to_ccf_simplified import conv_gauss_tophat
     from plotStyle import plotStyle
 plt.style.use(plotStyle)
 
@@ -333,7 +331,7 @@ class Peak:
                 ]
         try:
             p, cov = curve_fit(
-                f=conv_gauss_tophat,
+                f=_conv_gauss_tophat,
                 xdata=x,
                 ydata=y,
                 p0=p0,
@@ -415,12 +413,12 @@ class Peak:
                 fwhm = self.fwhm, offset = self.offset)
             
         elif self.fit_type == "conv_gauss_tophat":
-            yfit = conv_gauss_tophat(
+            yfit = _conv_gauss_tophat(
                 x = xfit, center = 0, amp = self.amplitude, sigma = self.sigma,
                 boxhalfwidth = self.boxhalfwidth, offset = self.offset
                 )
             
-            coarse_yfit = conv_gauss_tophat(
+            coarse_yfit = _conv_gauss_tophat(
                 x = x, center = 0, amp = self.amplitude, sigma = self.sigma,
                 boxhalfwidth = self.boxhalfwidth, offset = self.offset
                 )
@@ -1584,6 +1582,28 @@ def _gaussian(
     
     stddev = fwhm / (2 * np.sqrt(2 * np.log(2)))
     return amplitude * np.exp(-((x - mean) / (2 * stddev))**2) + offset
+
+
+def _conv_gauss_tophat(x, center, amp, sigma, boxhalfwidth, offset):
+    """
+    A piecewise analytical description of a convolution of a gaussian with a
+    finite-width tophat function (super-Gaussian). This accounts for a finite
+    with of the summed fibre cross-disperion profile (~flat-top) as well as the
+    optical image quality (~Gaussian).
+    
+    Adapted from a script by Sam Halverson, Ryan Terrien & Arpita Roy
+    (`fit_erf_to_ccf_simplified.py')
+    """
+    from math import sqrt
+    from scipy.special import erf
+    
+    arg1 = 2 * (boxhalfwidth - (x - center)) / (sqrt(2) * sigma)
+    arg2 = 2 * (boxhalfwidth + (x - center)) / (sqrt(2) * sigma)
+    part1 = erf(arg1)
+    part2 = erf(arg2)
+    out = amp * (part1 + part2) + offset
+    
+    return(out)
 
 
 def _orderlet_name(orderlet: str) -> str:
