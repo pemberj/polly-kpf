@@ -2,8 +2,6 @@
 
 """
 Test plots of individual peak fits
-
-TODO: Subplots across a grid of detector positions (3x3 grid per detector?)
 """
 
 
