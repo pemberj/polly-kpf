@@ -70,6 +70,7 @@ from scipy.optimize import curve_fit
 from scipy.interpolate import splrep, BSpline
 # Matplotlib
 from matplotlib import pyplot as plt
+import matplotlib.patheffects as pe
 
 try:
     from polly.fit_erf_to_ccf_simplified import conv_gauss_tophat
@@ -231,6 +232,16 @@ class Peak:
         if self.center_wavelength:
             ...
             # TODO: return the RMS value of residuals from the fit to the data
+            
+                
+    @property
+    def fwhm(self) -> float:
+        """Convenience function to get the FWHM of a fit from its sigma value"""
+        
+        if self.sigma is None:
+            return None
+        
+        return self.sigma * (2 * np.sqrt(2 * np.log(2)))
     
     
     def fit(self, type: str = "conv_gauss_tophat") -> Peak:
@@ -265,17 +276,21 @@ class Peak:
         mean_dx = np.mean(np.diff(x))
         y = self.speclet
         
-        # TODO: better FWHM guess? Based on sampling of KPF?
                    # amplitude,  mean,      fwhm,      offset
-        p0 =        [max(y),     0,       mean_dx * 5,   0]
+        p0 =        [max(y)/2,  0,       mean_dx * 2.5, 0]
         bounds = [
-                    [0,         -mean_dx, 0,            -np.inf],
-                    [max(y),     mean_dx, mean_dx * 10,  np.inf]
+                    [0,        -mean_dx, 0,            -np.inf],
+                    [max(y),    mean_dx, mean_dx * 10,  np.inf]
                 ]
         
         try:
-            p, cov = curve_fit(f=_gaussian, xdata=x, ydata=y,
-                               p0=p0, bounds=bounds)
+            p, cov = curve_fit(
+                f=_gaussian,
+                xdata=x,
+                ydata=y,
+                p0=p0,
+                bounds=bounds,
+                )
         except RuntimeError:
             p = [np.nan] * len(p0)
         except ValueError:
@@ -306,17 +321,27 @@ class Peak:
         x0 = np.mean(self.wavelet)
         x = self.wavelet - x0 # Centre about zero
         mean_dx = abs(np.mean(np.diff(x)))
-        y = self.speclet
-        # TODO: better initial guesses?
-           # center,          amp,       sigma,   boxhalfwidth,  offset
-        p0 = [0,           max(y),     2 * mean_dx,  3 * mean_dx,  min(y)]
+        maxy = max(self.speclet)
+        # Normalise
+        y = self.speclet / maxy
+        
+             # center,        amp,       sigma,       boxhalfwidth,  offset
+        p0 = [0,            max(y) / 2, mean_dx,        3 * mean_dx,  0]
         bounds = [
-            [-mean_dx * 2, 0,          0,            0,           -np.inf],
-            [ mean_dx * 2, 2 * max(y), 10 * mean_dx, 6 * mean_dx,  np.inf]
+            [-mean_dx * 2,  0,          0,              0,           -np.inf],
+            [ mean_dx * 2,  2 * max(y), 10 * mean_dx,   6 * mean_dx,  np.inf]
                 ]
         try:
-            p, cov = curve_fit(f=conv_gauss_tophat, xdata=x, ydata=y,
-                               p0=p0, bounds=bounds)
+            p, cov = curve_fit(
+                f=conv_gauss_tophat,
+                xdata=x,
+                ydata=y,
+                p0=p0,
+                bounds=bounds,
+                # Setting tolerances on the fitting. Speeds up processing by ~2x
+                # ftol=1e-3,
+                # xtol=1e-9,
+                )
         except RuntimeError:
             p = [np.nan] * len(p0)
         except ValueError:
@@ -326,10 +351,10 @@ class Peak:
         
         # Populate the fit parameters
         self.center_wavelength = x0 + center
-        self.amplitude = amplitude
+        self.amplitude = amplitude * maxy
         self.sigma = sigma
         self.boxhalfwidth = boxhalfwidth
-        self.offset = offset
+        self.offset = offset * maxy
 
 
     def output_parameters(self) -> str:
@@ -339,7 +364,8 @@ class Peak:
         (JSON?) file
         """
         
-        return ""
+        return ""+\
+            ""
 
 
     def has(self, prop: str) -> str:
@@ -365,6 +391,73 @@ class Peak:
         """
         TODO
         """
+        
+        if ax is None:
+            fig = plt.figure(figsize = (3, 3))
+            ax = fig.gca()
+            show = True
+        else:
+            show = False
+            
+        x = self.wavelet - self.center_wavelength
+        
+        if ax.get_xlim() == (0.0, 1.0):
+            ax.set_xlim(min(x), max(x))
+            
+        ax.set_ylim(0, 1.2)
+        
+        xfit = np.linspace(min(x), max(x), 100)
+        if self.fit_type == "gaussian":
+            yfit = _gaussian(x = xfit, amplitude = self.amplitude, mean = 0,
+                fwhm = self.fwhm, offset = self.offset)
+            
+            coarse_yfit = _gaussian(x = x, amplitude = self.amplitude, mean = 0,
+                fwhm = self.fwhm, offset = self.offset)
+            
+        elif self.fit_type == "conv_gauss_tophat":
+            yfit = conv_gauss_tophat(
+                x = xfit, center = 0, amp = self.amplitude, sigma = self.sigma,
+                boxhalfwidth = self.boxhalfwidth, offset = self.offset
+                )
+            
+            coarse_yfit = conv_gauss_tophat(
+                x = x, center = 0, amp = self.amplitude, sigma = self.sigma,
+                boxhalfwidth = self.boxhalfwidth, offset = self.offset
+                )
+            
+        else:
+            raise NotImplementedError(
+                "Fit type must be one of `gaussian' or `conv_gauss_tophat'!"
+                )
+            
+        maxy = max(yfit)
+        
+        residuals = (self.speclet - coarse_yfit) / maxy
+        rms_residuals = np.std(residuals)
+        
+        # Compute color for plotting raw data
+        Col = plt.get_cmap("Spectral")
+        wvl_mean_ord = self.center_wavelength
+        wvl_norm = 1. - ((wvl_mean_ord) - 4200.) / (7200. - 4200.)
+        
+        ax.step(
+            x, self.speclet/maxy, where="mid",
+            color=Col(wvl_norm), lw=2.5, label="Peak data",
+            path_effects=[pe.Stroke(linewidth=4, foreground="k"), pe.Normal()]
+            )
+        
+        ax.plot(xfit, yfit/maxy, color="k",
+                label=f"{self.fit_type}\nRMS(residuals)={rms_residuals:.2e}")
+        ax.axvline(x=0, color="r", ls="--", alpha=0.5,
+                   label=f"{self.center_wavelength:.2f}$\AA$")
+        
+        ax.set_xlabel("$\lambda$ [$\AA$]")
+        ax.set_ylabel("")
+        ax.legend(loc="lower center", fontsize="small", frameon=True)
+        
+        if show:
+            plt.show()
+        
         return None
  
 
@@ -467,7 +560,7 @@ class Order:
         fractional_height: float = 0.01,
         distance: float = 10,
         width: float = 3,
-        window_to_save: int = 15
+        window_to_save: int = 16,
         ) -> Order:
         
         """
@@ -537,6 +630,11 @@ class Order:
             p.fit(type=type)
             
         return self
+    
+    
+    @property
+    def num_peaks(self) -> int:
+        return len(self.peaks)
     
 
     def has(self, prop: str) -> str:
@@ -847,6 +945,11 @@ class Spectrum:
                                         key = (attrgetter("orderlet", "i")))
 
 
+    def num_orders(self, orderlet: str = "SCI2") -> int:
+        
+        return len(self.orders(orderlet=orderlet))
+
+
     @property
     def summary(self) -> str:
         """
@@ -1138,8 +1241,10 @@ class Spectrum:
         fractional_height: float = 0.1,
         distance: float = 10,
         width: float = 3,
-        window_to_save: int = 15
+        window_to_save: int = 16,
         ) -> Spectrum:
+        """
+        """
         
         if isinstance(orderlet, str):
             orderlet = [orderlet]
@@ -1172,6 +1277,8 @@ class Spectrum:
         orderlet: str | list[str] | None = None,
         type="conv_gauss_tophat"
         ) -> Spectrum:
+        """
+        """
         
         if isinstance(orderlet, str):
             orderlet = [orderlet]
@@ -1528,9 +1635,9 @@ def test() -> None:
 
     s = Spectrum(spec_file=etalon_file, wls_file=WLS_file)
 
-    s.locate_peaks(fractional_height=0.01, window_to_save=10)
-    s.fit_peaks(type="conv_gauss_tophat")
-    s.filter_peaks(window=0.05)
+    s.locate_peaks()
+    s.fit_peaks()
+    s.filter_peaks(window=0.01)
     print(s)
     
     # s.save_peak_locations(f"./etalon_wavelengths_{orderlet}.csv")

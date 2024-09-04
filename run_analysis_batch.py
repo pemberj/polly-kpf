@@ -62,31 +62,34 @@ ORDERLETS : list[str] = [
 
 def main(
     DATE: str,
-    TIMEOFDAY: str | None = None,
-    ORDERLET: str | None = None,
+    timeofday: str | None = None,
+    orderlets: str | list[str] | None = None,
     spectrum_plot: bool = False,
     fsr_plot: bool = True,
     ) -> None:
     
-    if not TIMEOFDAY:
+    if isinstance(orderlets, str):
+        orderlets = [orderlets]
+    
+    if not timeofday:
         timesofday = TIMESOFDAY
-    else: timesofday = TIMEOFDAY
+    else: timesofday = timeofday
     
-    for TIMEOFDAY in timesofday:
+    for timeofday in timesofday:
     
-        pp = f"{f'[{DATE} {TIMEOFDAY:>5}]':<20}" # Print/logging line prefix
+        pp = f"{f'[{DATE} {timeofday:>5}]':<20}" # Print/logging line prefix
         
         # Find matching etalon files
-        SPEC_FILES = find_L1_etalon_files(DATE, TIMEOFDAY)
+        spec_files = find_L1_etalon_files(DATE, timeofday)
         
-        if not SPEC_FILES:
-            print(f"{pp}{FAIL}No files for {DATE} {TIMEOFDAY}{ENDC}")
+        if not spec_files:
+            print(f"{pp}{FAIL}No files for {DATE} {timeofday}{ENDC}")
             return
 
         s = Spectrum(
-            spec_file = SPEC_FILES,
+            spec_file = spec_files,
             wls_file = None, # It will try to find the corresponding WLS file
-            orderlets_to_load = ORDERLET,
+            orderlets_to_load = orderlets,
             pp = pp
             )
         s.locate_peaks(fractional_height=0.01, window_to_save=10)
@@ -96,32 +99,32 @@ def main(
         Path(f"{OUTDIR}").mkdir(parents=True, exist_ok=True) # Make OUTDIR
         for ol in s.orderlets:
             s.save_peak_locations(
-                f"{OUTDIR}/{DATE}_{TIMEOFDAY}_{ol}_etalon_wavelengths.csv"
+                f"{OUTDIR}/{DATE}_{timeofday}_{ol}_etalon_wavelengths.csv"
                 )
         
         if spectrum_plot:
             fig = plt.figure(figsize=(12, 3))
             ax = fig.gca()
-            ax.set_title(f"{DATE} {TIMEOFDAY}")
+            ax.set_title(f"{DATE} {timeofday}")
             ax.set_xlim(440, 880)
             for ol in s.orderlets:
                 s.plot_spectrum(ax=ax, plot_peaks=False, label=f"{ol}")
             ax.legend()
             Path(f"{OUTDIR}/spectrum_plots").mkdir(parents=True, exist_ok=True)
-            plt.savefig(f"{OUTDIR}/spectrum_plots/{DATE}_{TIMEOFDAY}_spectrum.png")
+            plt.savefig(f"{OUTDIR}/spectrum_plots/{DATE}_{timeofday}_spectrum.png")
             plt.close()
 
         if fsr_plot:
             fig = plt.figure(figsize=(12, 4))
             ax = fig.gca()
-            ax.set_title(f"{DATE} {TIMEOFDAY}", size=20)
+            ax.set_title(f"{DATE} {timeofday}", size=20)
             ax.set_xlim(440, 880)
             # ax.set_ylim(30.15, 30.35)
             for ol in s.orderlets:
                 s.plot_FSR(ax=ax, label=f"{ol}")
             ax.legend()
             Path(f"{OUTDIR}/FSR_plots").mkdir(parents=True, exist_ok=True) # Make OUTDIR
-            plt.savefig(f"{OUTDIR}/FSR_plots/{DATE}_{TIMEOFDAY}_etalon_FSR.png")
+            plt.savefig(f"{OUTDIR}/FSR_plots/{DATE}_{timeofday}_etalon_FSR.png")
             plt.close()
             
         
@@ -166,7 +169,7 @@ parser.add_argument("-d", "--date", type=int, default=15)
 parser.add_argument("-m", "--month", type=int, default=5)
 parser.add_argument("-y", "--year", type=int, default=2024)
 parser.add_argument("-t", "--timeofday", type=str, choices=TIMESOFDAY)
-parser.add_argument("-o", "--orderlet", type=str, choices=ORDERLETS)
+parser.add_argument("-o", "--orderlets", type=str, choices=ORDERLETS)
 parser.add_argument("--outdir", type=str, default="/scr/jpember/polly_outputs")
 parser.add_argument("--spectrum_plot", type=bool, default=False)
 parser.add_argument("--fsr_plot", type=bool, default=True)
@@ -178,12 +181,12 @@ if __name__ == "__main__":
     args = parser.parse_args()
     OUTDIR: str = args.outdir
     
-    date = f"{args.year}{args.month:02}{args.date:02}"
+    DATE = f"{args.year}{args.month:02}{args.date:02}"
     
     main(
-        DATE=date,
-        TIMEOFDAY=args.timeofday,
-        ORDERLET=args.orderlet,
+        DATE=DATE,
+        timeofday=args.timeofday,
+        orderlets=args.orderlets,
         spectrum_plot = args.spectrum_plot,
         fsr_plot = args.fsr_plot,
         )
