@@ -1605,6 +1605,62 @@ class Spectrum:
         # plt.show()
         
         return self
+    
+    
+    def plot_peak_fit_quality(self) -> Spectrum:
+        
+        return self
+    
+    
+    def data2D(
+        self,
+        orderlet: str | list[str] | None = None,
+        ) -> ArrayLike | dict[str: ArrayLike]:
+        """
+        A method that returns the full raw data array for each orderlet.
+        
+        The output format if more than one orderlet is specified AND available:
+        
+        {
+            "SCI1" :
+            [
+                spec_array (shape=(67, 4080)),
+                wave_array (shape=(67, 4080))
+            ]
+            
+            "SCI2" :
+            
+            ...
+        }
+        
+        If only a single orderlet is specified, or None is specified and only a
+        single orderlet is available in the Spectrum object, the output is not
+        a dictionary, but just the array object alone:
+        
+            [
+                spec_array (shape=(67, 4080)),
+                wave_array (shape=(67, 4080))
+            ]
+        """
+        
+        if isinstance(orderlet, str):
+            orderlet = [orderlet]
+        
+        if orderlet is None:
+            orderlet = self.orderlets
+        
+        out = {ol: np.array(
+                [
+                    np.array([o.spec for o in self.orders(orderlet=ol)]),
+                    np.array([o.wave for o in self.orders(orderlet=ol)]),
+                ]
+            )\
+                for ol in orderlet}
+        
+        if len(orderlet) == 1:
+            return out[orderlet[0]]
+        
+        return out
         
 
     def save_config_file(self):
