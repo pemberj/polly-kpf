@@ -1439,7 +1439,7 @@ class Spectrum:
     def save_peak_locations(
         self,
         filename: str,
-        orderlet: str | list[str] | None = None,
+        orderlet: str | list[str],
         ) -> Spectrum:
         """
         
@@ -1470,19 +1470,14 @@ class Spectrum:
 
     def plot_spectrum(
         self,
-        orderlet: str | list[str] | None = None,
+        orderlet: str,
         ax: plt.Axes | None = None,
         plot_peaks: bool = True,
-        label: str = None
         ) -> plt.Axes:
         """
         """
         
-        if isinstance(orderlet, str):
-            orderlet = [orderlet]
-        
-        if orderlet is None:
-            orderlet = self.orderlets          
+        assert orderlet in self.orderlets
                 
         if ax is None:
             fig = plt.figure(figsize = (20, 4))
@@ -1495,28 +1490,24 @@ class Spectrum:
         # plot the full spectrum
         Col = plt.get_cmap("Spectral")
 
-        for ol in orderlet:
+        # plot order by order
+        for o in self.orders(orderlet = orderlet):
+            wvl_mean_ord = np.nanmean(o.wave)
+            wvl_norm = 1. - ((wvl_mean_ord) - 4200.) / (7200. - 4200.)
+            bluemask = o.wave / 10. > xlims[0]
+            redmask  = o.wave / 10. < xlims[1]
+            mask = bluemask & redmask
+            ax.plot(o.wave[mask]/10., o.spec[mask], lw=1.5, color="k")
+            ax.plot(o.wave[mask]/10., o.spec[mask],
+                                            lw=0.5, color=Col(wvl_norm))
+        ax.plot(0, 0, color="k", lw=1.5)
 
-            # plot order by order
-            for o in self.orders(orderlet = ol):
-                wvl_mean_ord = np.nanmean(o.wave)
-                wvl_norm = 1. - ((wvl_mean_ord) - 4200.) / (7200. - 4200.)
-                bluemask = o.wave / 10. > xlims[0]
-                redmask  = o.wave / 10. < xlims[1]
-                mask = bluemask & redmask
-                ax.plot(o.wave[mask]/10., o.spec[mask], lw=1.5, color="k")
-                ax.plot(o.wave[mask]/10., o.spec[mask],
-                                                lw=0.5, color=Col(wvl_norm))
-            ax.plot(0, 0, color="k", lw=1.5, label=label)
+        if plot_peaks:
+            if self.filtered_peaks[orderlet] is not None:
+                for p in self.filtered_peaks[orderlet]:
+                    if p.wl/10. > xlims[0] and p.wl/10. < xlims[1]:
+                        ax.axvline(x = p.wl/10., color = "k", alpha = 0.1)
 
-            if plot_peaks:
-                if self.filtered_peaks[ol] is not None:
-                    for p in self.filtered_peaks[ol]:
-                        if p.wl/10. > xlims[0] and p.wl/10. < xlims[1]:
-                            ax.axvline(x = p.wl/10., color = "k", alpha = 0.1)
-
-        if label:
-            ax.legend()
         ax.set_xlabel("Wavelength [nm]")
         ax.set_ylabel("Flux")
         
@@ -1555,8 +1546,12 @@ class Spectrum:
     
     def plot_FSR(
         self,
-        ax: plt.Axes | None = None
+        orderlet: str,
+        ax: plt.Axes | None = None,
+        name: str = "",
         ) -> Spectrum:
+        
+        assert orderlet in self.orderlets
         
         if ax is None:
             fig = plt.figure(figsize = (20, 4))
@@ -1567,7 +1562,7 @@ class Spectrum:
         if ax.get_ylim() == (0.0, 1.0):
             ax.set_ylim(30.15, 30.35) # Default ylims
         
-        wls = np.array([p.wl for p in self.filtered_peaks])
+        wls = np.array([p.wl for p in self.filtered_peaks[orderlet]])
         nanmask = ~np.isnan(wls)
         wls = wls[nanmask]        
         
@@ -1582,12 +1577,12 @@ class Spectrum:
         try:
             model =\
                 _fit_spline(x = wls[mask], y = delta_nu_FSR[mask], knots = 21)
-            label = "Spline fit"
+            label = f"{name}Spline fit"
         except ValueError as e:
             print(f"{e}")
             print("Spline fit failed. Fitting with polynomial.")
             model = np.poly1d(np.polyfit(wls[mask], delta_nu_FSR[mask], 5))
-            label = "Polynomial fit"
+            label = f"{name}Polynomial fit"
         
         ax.plot(wls/10, model(wls), label=label, linestyle="--")
             

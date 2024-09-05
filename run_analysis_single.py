@@ -59,43 +59,40 @@ def main(
     Path(f"{OUTDIR}").mkdir(parents=True, exist_ok=True) # Make OUTDIR
     for ol in s.orderlets:
         s.save_peak_locations(
-            f"{OUTDIR}/{date}_{timeofday}_{ol}_etalon_wavelengths.csv"
+            filename = f"{OUTDIR}/"+\
+                f"{date}_{timeofday}_{ol}_etalon_wavelengths.csv",
+            orderlet = ol,
             )
 
     
-    if spectrum_plot:
-        # Spectrum plot
-        fig = plt.figure(figsize=(12, 3))
-        ax = fig.gca()
-        ax.set_title(f"{date} {timeofday}")
-        ax.set_xlim(440, 880)
-        for ol in s.orderlets:
-            s.plot_spectrum(ax=ax, plot_peaks=False, label=f"{ol}")
-        ax.legend()
-        
-        # Make directory if it does not exist
-        Path(f"{OUTDIR}/spectrum_plots").mkdir(parents=True, exist_ok=True)
-        plt.savefig(f"{OUTDIR}/spectrum_plots/"+\
-                    f"{date}_{timeofday}_spectrum.png")
-        plt.close()
+        if spectrum_plot:
+            for ol in orderlets:
+                fig = plt.figure(figsize=(12, 4))
+                ax = fig.gca()
+                ax.set_title(f"{ol} {date} {timeofday}", size=20)
+                ax.set_xlim(440, 880)
+                s.plot_spectrum(orderlet=ol, ax=ax, plot_peaks=False)
+                ax.legend()
+                Path(f"{OUTDIR}/spectrum_plots")\
+                    .mkdir(parents=True, exist_ok=True)
+                plt.savefig(f"{OUTDIR}/spectrum_plots/"+\
+                    f"{date}_{timeofday}_{ol}_spectrum.png")
+                plt.close()
 
-
-    if fsr_plot:
-        # FSR plot
-        fig = plt.figure(figsize=(12, 4))
-        ax = fig.gca()
-        ax.set_title(f"{date} {timeofday}", size=20)
-        ax.set_xlim(440, 880)
-        # ax.set_ylim(30.15, 30.35)
-        for ol in s.orderlets:
-            s.plot_FSR(ax=ax, label=f"{ol}")
-        ax.legend()
-        
-        # Make directory if it does not exist
-        Path(f"{OUTDIR}/FSR_plots").mkdir(parents=True, exist_ok=True)
-        plt.savefig(f"{OUTDIR}/FSR_plots/"+\
-                    f"{date}_{timeofday}_etalon_FSR.png")
-        plt.close()
+        if fsr_plot:
+            for ol in s.orderlets:
+                fig = plt.figure(figsize=(12, 4))
+                ax = fig.gca()
+                ax.set_title(f"{ol} {date} {timeofday}", size=20)
+                ax.set_xlim(440, 880)
+                # ax.set_ylim(30.15, 30.35)
+                s.plot_FSR(orderlet=ol, ax=ax)
+                ax.legend()
+                Path(f"{OUTDIR}/FSR_plots")\
+                    .mkdir(parents=True, exist_ok=True)
+                plt.savefig(f"{OUTDIR}/FSR_plots/"+\
+                    f"{date}_{timeofday}_{ol}_etalon_FSR.png")
+                plt.close()
 
 
 import argparse
@@ -108,9 +105,9 @@ parser = argparse.ArgumentParser(
                     )
 
 parser.add_argument("-f", "--filename", type=str)
-parser.add_argument("-o", "--orderlets", type=str, default=None, choices=ORDERLETS)
-parser.add_argument("--outdir", type=str, default="/scr/jpember/polly_outputs")
-parser.add_argument("--spectrum_plot", type=bool, default=False)
+parser.add_argument("-o", "--orderlets", type=str, choices=ORDERLETS, default="SCI2")
+parser.add_argument("--outdir", type=str, default="/scr/jpember/temp")
+parser.add_argument("--spectrum_plot", type=bool, default=True)
 parser.add_argument("--fsr_plot", type=bool, default=True)
 parser.add_argument("-v", "--verbose", action="store_true")  # on/off flag
 
@@ -121,8 +118,12 @@ if __name__ == "__main__":
     
     # logging.basicConfig(filename="/scr/jpember/test.log", level=logging.INFO)
     
+    test_filename = "/data/kpf/masters/20240515/"+\
+                    "kpf_20240515_master_WLS_autocal-etalon-all-eve_L1.fits"
+    
     main(
-        filename = args.filename,
+        # filename = args.filename,
+        filename = test_filename,
         orderlets = args.orderlets,
         spectrum_plot = args.spectrum_plot,
         fsr_plot = args.fsr_plot,
