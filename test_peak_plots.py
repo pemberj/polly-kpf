@@ -51,7 +51,7 @@ def main(
         pp = pp
         )
 
-    s.locate_peaks(fractional_height=0.01, window_to_save=14)
+    s.locate_peaks(fractional_height=0.01, window_to_save=12)
     s.fit_peaks(type="conv_gauss_tophat")
     s.filter_peaks(window=0.05)
     

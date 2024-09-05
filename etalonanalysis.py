@@ -274,11 +274,11 @@ class Peak:
         mean_dx = np.mean(np.diff(x))
         y = self.speclet
         
-                   # amplitude,  mean,      fwhm,      offset
-        p0 =        [max(y)/2,  0,       mean_dx * 2.5, 0]
+                   # amplitude,  center,      sigma,        offset
+        p0 =        [max(y)/2,   0,        2.5 * mean_dx,   0     ]
         bounds = [
-                    [0,        -mean_dx, 0,            -np.inf],
-                    [max(y),    mean_dx, mean_dx * 10,  np.inf]
+                    [0,         -mean_dx,  0,              -np.inf],
+                    [max(y),     mean_dx,  10 * mean_dx,    np.inf]
                 ]
         
         try:
@@ -294,12 +294,12 @@ class Peak:
         except ValueError:
             p = [np.nan] * len(p0)
             
-        amplitude, mean, fwhm, offset = p
+        amplitude, center, sigma, offset = p
         
         # Populate the fit parameters
-        self.center_wavelength = x0 + mean
+        self.center_wavelength = x0 + center
         self.amplitude = amplitude
-        self.sigma = fwhm / (2 * np.sqrt(2 * np.log(2)))
+        self.sigma = sigma
         # In case another function fit had already defined self.boxhalfwidth
         self.boxhalfwidth = None
         self.offset = offset
@@ -323,11 +323,11 @@ class Peak:
         # Normalise
         y = self.speclet / maxy
         
-             # center,        amp,       sigma,       boxhalfwidth,  offset
-        p0 = [0,            max(y) / 2, mean_dx,        3 * mean_dx,  0]
+             # center,        amp,          sigma,       boxhalfwidth,  offset
+        p0 = [0,            max(y) / 2,  2.5 * mean_dx,  3 * mean_dx,   0     ]
         bounds = [
-            [-mean_dx * 2,  0,          0,              0,           -np.inf],
-            [ mean_dx * 2,  2 * max(y), 10 * mean_dx,   6 * mean_dx,  np.inf]
+            [-mean_dx * 2,  0,           0,              0,            -np.inf],
+            [ mean_dx * 2,  2 * max(y),  10 * mean_dx,   6 * mean_dx,   np.inf]
                 ]
         try:
             p, cov = curve_fit(
@@ -406,11 +406,11 @@ class Peak:
         
         xfit = np.linspace(min(x), max(x), 100)
         if self.fit_type == "gaussian":
-            yfit = _gaussian(x = xfit, amplitude = self.amplitude, mean = 0,
-                fwhm = self.fwhm, offset = self.offset)
+            yfit = _gaussian(x = xfit, amplitude = self.amplitude, center = 0,
+                sigma = self.sigma, offset = self.offset)
             
-            coarse_yfit = _gaussian(x = x, amplitude = self.amplitude, mean = 0,
-                fwhm = self.fwhm, offset = self.offset)
+            coarse_yfit = _gaussian(x = x, amplitude = self.amplitude, center = 0,
+                sigma = self.sigma, offset = self.offset)
             
         elif self.fit_type == "conv_gauss_tophat":
             yfit = _conv_gauss_tophat(
@@ -1276,6 +1276,13 @@ class Spectrum:
         type="conv_gauss_tophat"
         ) -> Spectrum:
         """
+        TODO: Run multiple fits at once, each in a separate process. The fitting
+        routine(s) are naturally the most time-intensive part of running the
+        analysis. Because they are individually fit, it should be relatively
+        straightforward to run this in multiple processes.
+        
+        It could be multiplexed at the Order level (67 orders per speclet), or
+        within each order at the Peak level.
         """
         
         if isinstance(orderlet, str):
@@ -1572,19 +1579,26 @@ def _fit_spline(
 def _gaussian(
     x: ArrayLike,
     amplitude: float = 1,
-    mean: float = 0,
-    fwhm: float = 1,
+    center: float = 0,
+    sigma: float = 1,
     offset: float = 0,
     ) -> ArrayLike:
     """
-    A parametrised Gaussian function, optionally used in the peak fitting.
+    A parametrised Gaussian function, optionally used for peak fitting.
     """
     
-    stddev = fwhm / (2 * np.sqrt(2 * np.log(2)))
-    return amplitude * np.exp(-((x - mean) / (2 * stddev))**2) + offset
+    return amplitude * np.exp(-((x - center) / (2 * sigma))**2) + offset
 
 
-def _conv_gauss_tophat(x, center, amp, sigma, boxhalfwidth, offset):
+def _conv_gauss_tophat(
+    x: ArrayLike,
+    center: float = 0,
+    amp: float = 1,
+    sigma: float = 1,
+    boxhalfwidth: float = 1,
+    offset: float = 0,
+    normalize: bool = False,
+    ):
     """
     A piecewise analytical description of a convolution of a gaussian with a
     finite-width tophat function (super-Gaussian). This accounts for a finite
@@ -1593,17 +1607,23 @@ def _conv_gauss_tophat(x, center, amp, sigma, boxhalfwidth, offset):
     
     Adapted from a script by Sam Halverson, Ryan Terrien & Arpita Roy
     (`fit_erf_to_ccf_simplified.py')
+    
+    Changes since that script:
+      * Re-express the arguments
+      * Add small value meaning zero `boxhalfwidth' corresponds to convolution
+        with ~a delta function, producing a normal Gaussian as expected
+      * Normalise the function so that `amp' corresponds to the highest value
     """
-    from math import sqrt
     from scipy.special import erf
+
+    arg1 = (x - center + (boxhalfwidth / 2 + 1e-6)) / (2 * sigma)
+    arg2 = (x - center - (boxhalfwidth / 2 + 1e-6)) / (2 * sigma)
+    partial = 0.5 * (erf(arg1) - erf(arg2))
     
-    arg1 = 2 * (boxhalfwidth - (x - center)) / (sqrt(2) * sigma)
-    arg2 = 2 * (boxhalfwidth + (x - center)) / (sqrt(2) * sigma)
-    part1 = erf(arg1)
-    part2 = erf(arg2)
-    out = amp * (part1 + part2) + offset
+    if normalize:
+        return amp * (partial / np.nanmax(partial)) + offset
     
-    return(out)
+    return amp * partial + offset
 
 
 def _orderlet_name(orderlet: str) -> str:
