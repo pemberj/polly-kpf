@@ -355,6 +355,22 @@ class Peak:
         self.offset = offset * maxy
 
 
+    def remove_fit(self) -> Peak:
+        """
+        Not sure when this might be used, but this method will remove any
+        existing fit that has previously been stored.
+        """
+        
+        self.fit_type = None
+        self.center_wavelength = None
+        self.amplitude = None
+        self.sigma = None
+        self.boxhalfwidth = None
+        self.offset = None
+        
+        return self
+
+
     def output_parameters(self) -> str:
         """
         TODO
@@ -364,30 +380,70 @@ class Peak:
         
         return ""+\
             ""
-
-
-    def has(self, prop: str) -> str:
-        """String generation"""
-        if prop == "speclet":
-            if self.speclet is None: return "[ ]"
-            else: return "[x]"
-        elif prop == "wavelet":
-            if self.wavelet is None: return "[ ]"
-            else: return "[x]"
-  
-
-    def __repr__(self) -> str:
+            
+            
+    def evaluate_fit(
+        self,
+        x: ArrayLike,
+        about_zero: bool = False,
+        ) -> ArrayLike | None:
         
-        return f"\nPeak(order_i={self.i}, "+\
-               f"coarse_wavelength {self.coarse_wavelength:.3f}, "+\
-               f"center_wavelength {self.center_wavelength:.3f}, "+\
-               f"order_i {self.order_i:.0f}, "+\
-               f"{self.has('speclet')} speclet, {self.has('wavelet')} wavelet)"
+        if about_zero:
+            center = 0
+        else:
+            center = self.center_wavelength
+        
+        if self.fit_type is None:
+            return None
+        
+        elif self.fit_type == "gaussian":
+            yfit = _gaussian(
+                x = x,
+                amplitude = self.amplitude,
+                center = center,
+                sigma = self.sigma,
+                offset = self.offset
+                )
+            
+        elif self.fit_type == "conv_gauss_tophat":
+            yfit = _conv_gauss_tophat(
+                x = x,
+                center = center,
+                amp = self.amplitude,
+                sigma = self.sigma,
+                boxhalfwidth = self.boxhalfwidth,
+                offset = self.offset,
+                )
+            
+        return yfit
+            
+    
+    @property
+    def residuals(self) -> ArrayLike | None:
+        """
+        If a fit exists, return the residuals between the raw data and the fit,
+        after normalising to the max value of the fit.
+        """
+        
+        if self.fit_type is None:
+            return None
+        
+        xfit = np.linspace(min(self.wavelet), max(self.wavelet), 100)
+        yfit = self.evaluate_fit(x = xfit)
+        maxy = max(yfit)
+        coarse_yfit = self.evaluate_fit(x = self.wavelet)
+        
+        residuals = (self.speclet - coarse_yfit) / maxy
+        
+        return residuals
                
                
     def plot_fit(self, ax: plt.Axes | None = None) -> None:
         """
-        TODO
+        Generates a plot of the (normalised) wavelet and speclet raw data, with
+        the functional fit overplotted on a denser grid of wavelengths.
+        
+        The central wavelength and RMS of the residuals are labelled.
         """
         
         if ax is None:
@@ -405,30 +461,9 @@ class Peak:
         ax.set_ylim(0, 1.2)
         
         xfit = np.linspace(min(x), max(x), 100)
-        if self.fit_type == "gaussian":
-            yfit = _gaussian(x = xfit, amplitude = self.amplitude, center = 0,
-                sigma = self.sigma, offset = self.offset)
-            
-            coarse_yfit = _gaussian(x = x, amplitude = self.amplitude, center = 0,
-                sigma = self.sigma, offset = self.offset)
-            
-        elif self.fit_type == "conv_gauss_tophat":
-            yfit = _conv_gauss_tophat(
-                x = xfit, center = 0, amp = self.amplitude, sigma = self.sigma,
-                boxhalfwidth = self.boxhalfwidth, offset = self.offset
-                )
-            
-            coarse_yfit = _conv_gauss_tophat(
-                x = x, center = 0, amp = self.amplitude, sigma = self.sigma,
-                boxhalfwidth = self.boxhalfwidth, offset = self.offset
-                )
-            
-        else:
-            raise NotImplementedError(
-                "Fit type must be one of `gaussian' or `conv_gauss_tophat'!"
-                )
-            
+        yfit = self.evaluate_fit(x = xfit, about_zero=True)
         maxy = max(yfit)
+        coarse_yfit = self.evaluate_fit(x = self.wavelet, about_zero=True)
         
         residuals = (self.speclet - coarse_yfit) / maxy
         rms_residuals = np.std(residuals)
@@ -457,6 +492,30 @@ class Peak:
             plt.show()
         
         return None
+ 
+ 
+    def has(self, prop: str) -> str:
+        """String generation"""
+        if prop == "speclet":
+            if self.speclet is None: return "[ ]"
+            else: return "[x]"
+        elif prop == "wavelet":
+            if self.wavelet is None: return "[ ]"
+            else: return "[x]"
+        elif prop == "fit":
+            if self.fit_type is None: return "[ ]"
+            else: return "[x]"
+  
+
+    def __repr__(self) -> str:
+        
+        return f"\nPeak(order_i={self.i}, "+\
+               f"order_i {self.order_i:.0f}, "+\
+               f"coarse_wavelength {self.coarse_wavelength:.3f}, "+\
+               f"{self.has('speclet')} speclet, "+\
+               f"{self.has('wavelet')} wavelet, "+\
+               f"{self.has('fit')} fit: "+\
+               f"center_wavelength {self.center_wavelength:.3f})"
  
 
 @dataclass
