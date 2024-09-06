@@ -30,10 +30,9 @@ TODO:
 from __future__ import annotations
 from pathlib import Path
 from glob import glob
+import argparse
 from astropy.io import fits
 from matplotlib import pyplot as plt
-# import logging
-# logger = logging.getLogger(__name__)
 
 try:
     from polly.etalonanalysis import Spectrum
@@ -51,57 +50,93 @@ WARNING = '\033[93m'
 FAIL    = '\033[91m'
 ENDC    = '\033[0m'
 
-
 TIMESOFDAY = ["morn", "eve", "night"]
 
+ORDERLETS : list[str] = [
+    "SCI1",
+    "SCI2",
+    "SCI3",
+    "CAL",
+    # "SKY"
+    ]
 
-def main(DATE: str, TIMEOFDAY: str, ORDERLET: str) -> None:
-    
-    pp = f"{f'[{DATE} {TIMEOFDAY:>5}]':<20}" # Print/logging line prefix
-    
-    # Find matching etalon files
-    SPEC_FILES = find_L1_etalon_files(DATE, TIMEOFDAY)
-    
-    if not SPEC_FILES:
-        print(f"{pp}{FAIL}No files for {DATE} {TIMEOFDAY}{ENDC}")
-        return
 
-    s = Spectrum(
-        spec_file = SPEC_FILES,
-        wls_file = None,
-        orderlet = ORDERLET,
-        pp = pp
-        )
-    s.locate_peaks(fractional_height=0.01, window_to_save=10)
-    s.fit_peaks(type="conv_gauss_tophat")
-    s.filter_peaks(window=0.1)       
+def main(
+    DATE: str,
+    timesofday: str | None,
+    orderlets: str | list[str] | None,
+    spectrum_plot: bool,
+    fsr_plot: bool,
+    fit_plot: bool,
+    ) -> None:
     
-    Path(f"{OUTDIR}").mkdir(parents=True, exist_ok=True) # Make OUTDIR
-    s.save_peak_locations(
-        f"{OUTDIR}/{DATE}_{TIMEOFDAY}_{ORDERLET}_etalon_wavelengths.csv"
-        )
+    if isinstance(orderlets, str): orderlets = [orderlets]
+    elif orderlets is None: orderlets = ORDERLETS
     
-    # Spectrum plot
-    # fig = plt.figure(figsize=(12, 3))
-    # ax = fig.gca()
-    # ax.set_title(f"{DATE} {TIMEOFDAY} {ORDERLET}")
-    # ax.set_xlim(440, 880)
-    # s.plot_spectrum(ax=ax, plot_peaks=False, label=f"{ORDERLET}")
-    # Path(f"{OUTDIR}/spectrum_plots").mkdir(parents=True, exist_ok=True) # Make OUTDIR
-    # plt.savefig(f"{OUTDIR}/spectrum_plots/{DATE}_{TIMEOFDAY}_{ORDERLET}_spectrum.png")
-    # plt.close()
-
-    # FSR plot
-    fig = plt.figure(figsize=(12, 4))
-    ax = fig.gca()
-    ax.set_title(f"{DATE} {TIMEOFDAY} {ORDERLET}", size=20)
-    # ax.set_xlim(440, 880)
-    # ax.set_ylim(30.15, 30.35)
-    s.plot_FSR(ax=ax)
-    Path(f"{OUTDIR}/FSR_plots").mkdir(parents=True, exist_ok=True) # Make OUTDIR
-    plt.savefig(f"{OUTDIR}/FSR_plots/{DATE}_{TIMEOFDAY}_{ORDERLET}_etalon_FSR.png")
-    plt.close()
+    if isinstance(timesofday, str): timesofday = [timesofday]
+    elif timesofday is None: timesofday = TIMESOFDAY
+    
+    
+    Path(f"{OUTDIR}/masks/").mkdir(parents=True, exist_ok=True)
+    if spectrum_plot:
+        Path(f"{OUTDIR}/spectrum_plots").mkdir(parents=True, exist_ok=True)
+    if fsr_plot:
+        Path(f"{OUTDIR}/FSR_plots").mkdir(parents=True, exist_ok=True)
+    if fit_plot:
+        Path(f"{OUTDIR}/fit_plots").mkdir(parents=True, exist_ok=True)
+    
+    for t in timesofday:
+    
+        pp = f"{f'[{DATE} {t:>5}]':<20}" # Print/logging line prefix
         
+        spec_files = find_L1_etalon_files(DATE, t)
+        
+        if not spec_files:
+            print(f"{pp}{FAIL}No files for {DATE} {t}{ENDC}")
+            return
+
+        s = Spectrum(
+            spec_file = spec_files,
+            wls_file = None, # It will try to find the corresponding WLS file
+            orderlets_to_load = orderlets,
+            pp = pp,
+            )        
+        s.locate_peaks(fractional_height=0.01, window_to_save=10)
+        s.fit_peaks(type="conv_gauss_tophat")
+        s.filter_peaks(window=0.1)
+        
+        for ol in s.orderlets:
+            try:
+                s.save_peak_locations(
+                    filename=f"{OUTDIR}/masks/"+\
+                        f"{DATE}_{t}_{ol}_etalon_wavelengths.csv",
+                    orderlet=ol,
+                    )
+            except Exception as e:
+                print(f"{pp}{e}")
+                continue
+        
+        if spectrum_plot:
+            for ol in orderlets:
+                s.plot_spectrum(orderlet=ol, plot_peaks=False)
+                plt.savefig(f"{OUTDIR}/spectrum_plots/"+\
+                    f"{DATE}_{t}_{ol}_spectrum.png")
+                plt.close()
+
+        if fsr_plot:
+            for ol in s.orderlets:
+                s.plot_FSR(orderlet=ol)
+                plt.savefig(f"{OUTDIR}/FSR_plots/"+\
+                    f"{DATE}_{t}_{ol}_etalon_FSR.png")
+                plt.close()
+                
+        if fit_plot:
+            for ol in s.orderlets:
+                s.plot_peak_fits(orderlet=ol)
+                plt.savefig(f"{OUTDIR}/fit_plots/"+\
+                    f"{DATE}_{t}_{ol}_etalon_fits.png")
+                plt.close()
+            
         
 def find_L1_etalon_files(DATE: str, TIMEOFDAY: str) -> dict[str, list[str]]:
     """
@@ -130,42 +165,41 @@ def find_L1_etalon_files(DATE: str, TIMEOFDAY: str) -> dict[str, list[str]]:
     return out_files
 
 
-"""
-import argparse
 parser = argparse.ArgumentParser(
-            prog="",
-            description="A utility to process KPF etalon data from "+\
-                "individual or multiple L1 files. Produces an output file "+\
-                "with the wavelengths of each identified etalon peak, as "+\
-                "well as diagnostic plots."
-                    )
+            prog="polly run_analysis_batch",
+            description="A utility to process KPF etalon data from multiple"+\
+                "L1 files specified by observation date and time of day."+\
+                "Produces an output mask file with the wavelengths of each"+\
+                "identified etalon peak, as well as optional diagnostic plots."
+            )
 
-parser.add_argument("files")
-parser.add_argument("-v", "--verbose",
-                    action="store_true")  # on/off flag
-"""
+# parser.add_argument("--files")
+parser.add_argument("-d", "--date", type=int, default=15)
+parser.add_argument("-m", "--month", type=int, default=5)
+parser.add_argument("-y", "--year", type=int, default=2024)
+parser.add_argument("-t", "--timesofday", type=str,
+                    choices=TIMESOFDAY, default="morn")
+parser.add_argument("-o", "--orderlets", type=str,
+                    choices=ORDERLETS, default="SCI2")
+parser.add_argument("--outdir", type=str, default="/scr/jpember/polly_outputs")
+parser.add_argument("--spectrum_plot", type=bool, default=False)
+parser.add_argument("--fsr_plot", type=bool, default=True)
+parser.add_argument("--fit_plot", type=bool, default=True)
+parser.add_argument("-v", "--verbose", action="store_true")  # on/off flag
 
 
 if __name__ == "__main__":
     
-    # logging.basicConfig(filename="/scr/jpember/test.log", level=logging.INFO)
+    args = parser.parse_args()
+    OUTDIR: str = args.outdir
     
-    OUTDIR: str = "/scr/jpember/polly_outputs"
-
-    ORDERLETS : list[str] = [
-        "SCI1",
-        "SCI2",
-        "SCI3",
-        "CAL",
-        # "SKY"
-        ]
+    DATE = f"{args.year}{args.month:02}{args.date:02}"
     
-    for DATE in [f"202405{x:02}" for x in range(1, 31)]:
-        for TIMEOFDAY in ["morn", "eve", "night"]:
-            for ORDERLET in ORDERLETS:
-                if not Path(f"{OUTDIR}/{DATE}_{TIMEOFDAY}_{ORDERLET}"+\
-                                            "_etalon_wavelengths.csv").exists():
-                    # try:
-                        main(DATE=DATE, TIMEOFDAY=TIMEOFDAY, ORDERLET=ORDERLET)
-                    # except Exception as e:
-                    #     print(e)
+    main(
+        DATE=DATE,
+        timesofday=args.timesofday,
+        orderlets=args.orderlets,
+        spectrum_plot = args.spectrum_plot,
+        fsr_plot = args.fsr_plot,
+        fit_plot = args.fit_plot,
+        )

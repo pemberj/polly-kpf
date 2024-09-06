@@ -220,6 +220,7 @@ def plot_deltas(
         
     ax.legend()
     ax.set_xlim(440, 880)
+    # ax.set_xlim(440, 500)
     ax.set_ylim(-1, 1)
         
     # ax.set_title(f"{mask.split('/')[-1]}", size=20)
@@ -248,16 +249,22 @@ def main() -> None:
     #     print(i, m)
     # return
     
-    # May 2024
+    # # May-June 2024
     # deltas = compute_deltas(
     #             reference_mask = masks[180],
     #             masks = masks[181:],
     #            )
     
-    # Oct 2023
+    # # Oct 2023
+    # deltas = compute_deltas(
+    #             reference_mask = masks[0],
+    #             masks = masks[1:30],
+    #            )
+    
+    # Nov 2023
     deltas = compute_deltas(
-                reference_mask = masks[0],
-                masks = masks[1:30],
+                reference_mask = masks[31],
+                masks = masks[32:62],
                )
     
     # print([np.transpose(d) for d in deltas.values()])
