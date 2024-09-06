@@ -1447,7 +1447,7 @@ class Spectrum:
     def save_peak_locations(
         self,
         filename: str,
-        orderlet: str | list[str],
+        orderlet: str | list[str] | None,
         ) -> Spectrum:
         """
         
