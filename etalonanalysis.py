@@ -647,7 +647,7 @@ class Order:
         """
         
         if self.spec is None or self.wave is None:
-            print(f"Issue with processing {self}")
+            print(f"{self.pp}Issue with processing order {self}")
             return self
         
         y = self.spec - np.nanmin(self.spec)
@@ -963,7 +963,7 @@ class Spectrum:
             if o.orderlet not in orderlets:
                 orderlets.append(o.orderlet)
                 
-        return orderlets
+        return sorted(orderlets)
 
 
     def orders(
@@ -1112,11 +1112,11 @@ class Spectrum:
             """
             Find the wavelength limits
             Loop through reference mask (should be sorted)
-            For any wavelengths in the range, create a Peak with that coarse wavelength,
-            also need to create slices of the underlying data?
+            For any wavelengths in the range, create a Peak with that coarse
+            wavelength, also need to create slices of the underlying data?
             
-            Maybe it's best done at the Order level, but I just pass the relevant
-            peak wavelengths down.
+            Maybe it's best done at the Order level, but I just pass the
+            relevant peak wavelengths down.
             
             TODO
             """
@@ -1158,14 +1158,15 @@ class Spectrum:
             
             _orders = []
             for ol in self.orderlets_to_load:
-                print(f"{self.pp}Loading flux values from list of files...",
-                    end="")
+                print(f"{self.pp}Loading {ol} flux values "+\
+                      f"from a list of {len(self.spec_file)} files...", end="")
                 spec_green = np.median([fits.getdata(f,
                     f"GREEN_{_orderlet_name(ol)}_FLUX{_orderlet_index(ol)}")\
                                             for f in self.spec_file], axis=0)
                 spec_red = np.median([fits.getdata(f,
                     f"RED_{_orderlet_name(ol)}_FLUX{_orderlet_index(ol)}")\
                                             for f in self.spec_file], axis=0)
+                print(f"{OKGREEN} DONE{ENDC}")
                 
                 try:
                     assert all([fits.getval(f, "SCI-OBJ") ==\
@@ -1215,8 +1216,6 @@ class Spectrum:
                     _orders.append(Order(orderlet=ol, wave=None, spec=s, i=i))
                 
             self._orders = _orders
-                
-            print(f"{OKGREEN} DONE{ENDC}")
             
         else: # self.spec_file is something else entirely
             raise NotImplementedError(
@@ -1235,25 +1234,31 @@ class Spectrum:
             # Specifically look for "eve" WLS file
             wls_file = f"/data/kpf/masters/{self.date}/kpf_{self.date}_"+\
                         "master_WLS_autocal-lfc-all-eve_L1.fits"
-        # Otherwise, look for the same time of day WLS file ("morn" or "eve")
-        wls_file = f"/data/kpf/masters/{self.date}/kpf_{self.date}_"+\
-                   f"master_WLS_autocal-lfc-all-{self.timeofday}_L1.fits"
+        else:
+            # Otherwise, look for the same time of day WLS file
+            # (matching 'morn' or 'eve')
+            wls_file = f"/data/kpf/masters/{self.date}/kpf_{self.date}_"+\
+                    f"master_WLS_autocal-lfc-all-{self.timeofday}_L1.fits"
         
         try:
             assert "lfc" in fits.getval(wls_file, "OBJECT").lower()
         except AssertionError:
-            print(f"{self.pp}{WARNING}'lfc' not found in {self.timeofday} "+\
-                  f"WLS file 'OBJECT' value!{ENDC}")
-            return
+            raise AssertionError(
+                f"{self.pp}{FAIL}'lfc' not found in {self.timeofday} "+\
+                f"WLS file 'OBJECT' value!{ENDC}"
+                )
         except FileNotFoundError:
-            print(f"{self.pp}{WARNING}{self.timeofday} WLS file "+\
-                  f"not found{ENDC}")
-            return
+            raise FileNotFoundError(
+                f"{self.pp}{FAIL}{self.timeofday} WLS file not found{ENDC}"
+                )
             
         if wls_file:
-            print(f"{self.pp}{OKBLUE}Using WLS file:"+\
+            print(f"{self.pp}{OKBLUE}Using WLS file: "+\
                   f"{wls_file.split('/')[-1]}{ENDC}")
             self.wls_file = wls_file
+        else:
+            # Use the WLS embedded in the spec_file?
+            self.wls_file = self.spec_file
     
     
     def load_wls(self) -> Spectrum:
@@ -1363,7 +1368,6 @@ class Spectrum:
                         ncols=100
                         ):
                 o.fit_peaks(type=type)
-            # print(f"{pp}{OKGREEN}DONE{ENDC}")
                 
         return self
         
@@ -1378,12 +1382,12 @@ class Spectrum:
         appearing in different echelle orders, are selected so that only one
         remains. To do this, all Orders (and all Peaks) have an order index, so
         we can tell which order a peak was located in. So I just loop through
-        all peaks, and if two fall within the wavelength `window` AND have
+        all peaks, and if two fall within the wavelength `window' AND have
         different order indexes, I remove the one that is further from its
-        order's mean wavelength (`distance_from_order_center` is also stored
+        order's mean wavelength (`distance_from_order_center' is also stored
         inside each Peak).
         
-        `window` is in wavelength units of Angstroms
+        `window' is in wavelength units of Angstroms
         """
         
         if isinstance(orderlet, str):
@@ -1401,7 +1405,7 @@ class Spectrum:
             peaks = self.peaks(orderlet = ol)
             
             if not peaks:
-                print(f"{self.pp}{WARNING}No peaks found{ENDC}")
+                print(f"\n{self.pp}{WARNING}No peaks found{ENDC}")
                 return self
             
             peaks = sorted(peaks, key=attrgetter("wl"))
@@ -1480,7 +1484,7 @@ class Spectrum:
         assert orderlet in self.orderlets
                 
         if ax is None:
-            fig = plt.figure(figsize = (20, 4))
+            fig = plt.figure(figsize = (12, 4))
             ax = fig.gca()
             
         if ax.get_xlim() == (0.0, 1.0):
@@ -1554,7 +1558,7 @@ class Spectrum:
         assert orderlet in self.orderlets
         
         if ax is None:
-            fig = plt.figure(figsize = (20, 4))
+            fig = plt.figure(figsize = (12, 4))
             ax = fig.gca()
             
         if ax.get_xlim() == (0.0, 1.0):
@@ -1564,9 +1568,9 @@ class Spectrum:
         
         wls = np.array([p.wl for p in self.filtered_peaks[orderlet]])
         nanmask = ~np.isnan(wls)
-        wls = wls[nanmask]        
+        wls = wls[nanmask]
         
-        delta_nu_FSR = self.delta_nu_FSR(unit = u.GHz)
+        delta_nu_FSR = self.delta_nu_FSR(orderlet = orderlet, unit = u.GHz)
         estimate_FSR = np.nanmedian(delta_nu_FSR)
         # Remove last wls value to make it the same length as FSR array
         wls = wls[:-1]
@@ -1585,9 +1589,12 @@ class Spectrum:
             label = f"{name}Polynomial fit"
         
         ax.plot(wls/10, model(wls), label=label, linestyle="--")
-            
-        # Remove >= 250MHz outliers from model
-        mask = np.where(np.abs(delta_nu_FSR - model(wls)) <= 0.25)
+        
+        try:
+            # Remove >= 250MHz outliers from model
+            mask = np.where(np.abs(delta_nu_FSR - model(wls)) <= 0.25)
+        except ValueError: # eg. operands could not be broadcast together
+            ...
         
         # plot as a function of wavelength in nanometers
         ax.scatter(wls[mask]/10, delta_nu_FSR[mask], marker=".", alpha=0.2,
