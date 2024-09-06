@@ -56,6 +56,8 @@ def main(
     s.filter_peaks(window=0.05)
     
     
+    Path(f"{OUTDIR}").mkdir(parents=True, exist_ok=True)
+    
     # Green arm - orders 0, 17, 34
     fig, axs = plt.subplots(3, 3, figsize=(12, 12))
     
@@ -65,10 +67,7 @@ def main(
         o.peaks[o.num_peaks//2].plot_fit(ax=axs[i][1])
         o.peaks[o.num_peaks-1].plot_fit(ax=axs[i][2])
     
-    # Make directory if it does not exist
-    Path(f"{OUTDIR}").mkdir(parents=True, exist_ok=True)
-    plt.savefig(f"{OUTDIR}/"+\
-                f"{date}_fits_green.png")
+    plt.savefig(f"{OUTDIR}/{date}_fits_green.png")
     plt.close()
     
     
@@ -81,10 +80,7 @@ def main(
         o.peaks[o.num_peaks//2].plot_fit(ax=axs[i][1])
         o.peaks[o.num_peaks-1].plot_fit(ax=axs[i][2])
     
-    # Make directory if it does not exist
-    Path(f"{OUTDIR}").mkdir(parents=True, exist_ok=True)
-    plt.savefig(f"{OUTDIR}/"+\
-                f"{date}_fits_red.png")
+    plt.savefig(f"{OUTDIR}/{date}_fits_red.png")
     plt.close()
 
 

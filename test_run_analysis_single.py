@@ -123,10 +123,21 @@ if __name__ == "__main__":
     args = parser.parse_args()
     OUTDIR = args.outdir
     
+    test_filename = "/data/kpf/masters/20240515/"+\
+                    "kpf_20240515_master_WLS_autocal-etalon-all-eve_L1.fits"
+    
     main(
-        filename = args.filename,
-        orderlets = args.orderlets,
-        spectrum_plot = args.spectrum_plot,
-        fsr_plot = args.fsr_plot,
-        fit_plot = args.fit_plot,
+        filename = test_filename,
+        orderlets = "SCI2",
+        spectrum_plot = False,
+        fsr_plot = True,
+        fit_plot = True,
         )
+    
+    # main(
+    #     filename = args.filename,
+    #     orderlets = args.orderlets,
+    #     spectrum_plot = args.spectrum_plot,
+    #     fsr_plot = args.fsr_plot,
+    #     fit_plot = args.fit_plot,
+    #     )

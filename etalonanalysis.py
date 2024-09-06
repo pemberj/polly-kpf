@@ -884,10 +884,10 @@ class Spectrum:
     _orders: list[Order] = field(default_factory=list)
 
     # Hold basic metadata from the FITS file
-    date:    str | None = None # DATE-OBS in FITS header (without dashes), eg. 20240131
-    sci_obj: str | None = None # SCI-OBJ in FITS header
-    cal_obj: str | None = None # CAL-OBJ in FITS header
-    object:  str | None = None # OBJECT in FITS header
+    date:       str | None = None # DATE-OBS in FITS header (without dashes), eg. 20240131
+    sci_obj:    str | None = None # SCI-OBJ in FITS header
+    cal_obj:    str | None = None # CAL-OBJ in FITS header
+    object:     str | None = None # OBJECT in FITS header
 
     filtered_peaks: dict[str, list[Peak]] | None = None
 
@@ -898,7 +898,6 @@ class Spectrum:
         
         if self.orderlets_to_load is None:
             self.orderlets_to_load = ["SCI1", "SCI2", "SCI3", "CAL", "SKY"]
-            print(f"{self.orderlets_to_load = }")
         
         if self._orders:
             ...
@@ -948,6 +947,11 @@ class Spectrum:
                           f" and {len(self.peaks(orderlet = ol))} total Peaks"
         
         return out_string
+    
+    
+    @property
+    def timeofday(self) -> str:
+        return self.object.split("-")[-1]
     
     
     @property
@@ -1480,12 +1484,14 @@ class Spectrum:
         ) -> plt.Axes:
         """
         """
+        print(f"{self.pp}Plotting {orderlet} spectrum...", end="")
         
         assert orderlet in self.orderlets
                 
         if ax is None:
             fig = plt.figure(figsize = (12, 4))
             ax = fig.gca()
+            ax.set_title(f"{orderlet} {self.date} {self.timeofday}", size=20)
             
         if ax.get_xlim() == (0.0, 1.0):
             ax.set_xlim(440, 880)
@@ -1515,7 +1521,7 @@ class Spectrum:
         ax.set_xlabel("Wavelength [nm]")
         ax.set_ylabel("Flux")
         
-        # plt.show()
+        print(f"{OKGREEN} DONE{ENDC}")
 
         return self
     
@@ -1555,11 +1561,14 @@ class Spectrum:
         name: str = "",
         ) -> Spectrum:
         
+        print(f"{self.pp}Plotting {orderlet} Etalon FSR...", end="")
+        
         assert orderlet in self.orderlets
         
         if ax is None:
             fig = plt.figure(figsize = (12, 4))
             ax = fig.gca()
+            ax.set_title(f"{orderlet} {self.date} {self.timeofday}", size=20)
             
         if ax.get_xlim() == (0.0, 1.0):
             ax.set_xlim(440, 880) # Default xlims
@@ -1604,13 +1613,35 @@ class Spectrum:
         ax.set_xlabel("Wavelength [nm]", size=16)
         ax.set_ylabel("Etalon $\Delta\\nu_{FSR}$ [GHz]", size=16)
         
-        # plt.show()
+        print(f"{OKGREEN} DONE{ENDC}")
         
         return self
     
     
-    def plot_peak_fit_quality(self) -> Spectrum:
+    def plot_peak_fits(self, orderlet: str) -> Spectrum:
         
+        print(f"{self.pp}Plotting fits of {orderlet} etalon peaks...", end="")
+        
+        assert orderlet in self.orderlets
+        
+        fig, axs = plt.subplots(6, 3, figsize=(9, 18))
+        
+        # Green arm - orders 0, 17, 34
+        for i, order_i in enumerate([0, 17, 34]):
+            o = self.orders(orderlet=orderlet)[order_i]
+            o.peaks[0].plot_fit(ax=axs[i][0])
+            o.peaks[o.num_peaks//2].plot_fit(ax=axs[i][1])
+            o.peaks[o.num_peaks-1].plot_fit(ax=axs[i][2])
+        
+        # Red arm - orders 35, 51, 66
+        for i, order_i in enumerate([35, 51, 66], start=3):
+            o = self.orders(orderlet=orderlet)[order_i]
+            o.peaks[0].plot_fit(ax=axs[i][0])
+            o.peaks[o.num_peaks//2].plot_fit(ax=axs[i][1])
+            o.peaks[o.num_peaks-1].plot_fit(ax=axs[i][2])
+            
+        print(f"{OKGREEN} DONE{ENDC}")
+
         return self
     
     
