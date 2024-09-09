@@ -876,7 +876,7 @@ class Spectrum:
     
     spec_file: str | list[str] | None = None
     wls_file: str | None = None
-    orderlets_to_load: list[str] | None = None
+    orderlets_to_load: str | list[str] | None = None
     
     reference_mask: str | None = None
     reference_peaks: list[float] | None = None
@@ -895,6 +895,9 @@ class Spectrum:
     
     
     def __post_init__(self):
+        
+        if isinstance(self.orderlets_to_load, str):
+            self.orderlets_to_load = [self.orderlets_to_load]
         
         if self.orderlets_to_load is None:
             self.orderlets_to_load = ["SCI1", "SCI2", "SCI3", "CAL", "SKY"]
