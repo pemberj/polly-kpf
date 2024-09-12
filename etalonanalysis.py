@@ -392,6 +392,11 @@ class Peak:
         x: ArrayLike,
         about_zero: bool = False,
         ) -> ArrayLike | None:
+        """
+        A function to evaluate the function fit to the peak across a wavelength
+        array. Used for computing residuals, and for plotting the fit across a
+        finer wavelength grid than the original pixels.
+        """
         
         if about_zero:
             center = 0
