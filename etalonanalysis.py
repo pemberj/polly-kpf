@@ -1606,6 +1606,8 @@ class Spectrum:
             ax.plot(o.wave[mask]/10., o.spec_residuals[mask],
                                             lw=0.5, color=Col(wvl_norm))
         ax.plot(0, 0, color="k", lw=1.5)
+        
+        ax.axhline(y=0, ls="--", color="k", alpha=0.25, zorder=-1)
 
         if plot_peaks:
             if self.filtered_peaks[orderlet] is not None:
