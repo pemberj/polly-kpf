@@ -193,6 +193,8 @@ class Peak:
     boxhalfwidth: float | None = None
     offset: float | None = None
     
+    std_dev: list | None = None
+    
     
     def __post_init__(self):
         # Set order_i and orderlet from parent Order
@@ -272,13 +274,14 @@ class Peak:
         x0 = np.mean(self.wavelet)
         x = self.wavelet - x0 # Centre about zero
         mean_dx = np.mean(np.diff(x))
-        y = self.speclet
+        maxy = max(self.speclet)
+        y = self.speclet / maxy
         
-                   # amplitude,  center,      sigma,        offset
-        p0 =        [max(y)/2,   0,        2.5 * mean_dx,   0     ]
+                   # amplitude,  center,          sigma,        offset
+        p0 =        [max(y)/2,   0,            2.5 * mean_dx,   min(y)]
         bounds = [
-                    [0,         -mean_dx,  0,              -np.inf],
-                    [max(y),     mean_dx,  10 * mean_dx,    np.inf]
+                    [0,         -2 * mean_dx,  0,              -np.inf],
+                    [max(y),     2 * mean_dx,  10 * mean_dx,    np.inf]
                 ]
         
         try:
@@ -303,6 +306,7 @@ class Peak:
         # In case another function fit had already defined self.boxhalfwidth
         self.boxhalfwidth = None
         self.offset = offset
+        self.std_dev = np.sqrt(np.diag(cov))
             
             
     def _fit_conv_gauss_tophat(self) -> None:
@@ -324,10 +328,10 @@ class Peak:
         y = self.speclet / maxy
         
              # center,        amp,          sigma,       boxhalfwidth,  offset
-        p0 = [0,            max(y) / 2,  2.5 * mean_dx,  3 * mean_dx,   0     ]
+        p0 = [0,            max(y) / 2,  2.5 * mean_dx,  3 * mean_dx,   min(y)]
         bounds = [
-            [-mean_dx * 2,  0,           0,              0,            -np.inf],
-            [ mean_dx * 2,  2 * max(y),  10 * mean_dx,   6 * mean_dx,   np.inf]
+            [-2 * mean_dx,  0,           0,              0,            -np.inf],
+            [ 2 * mean_dx,  2 * max(y),  10 * mean_dx,   6 * mean_dx,   np.inf]
                 ]
         try:
             p, cov = curve_fit(
@@ -353,6 +357,7 @@ class Peak:
         self.sigma = sigma
         self.boxhalfwidth = boxhalfwidth
         self.offset = offset * maxy
+        self.std_dev = np.sqrt(np.diag(cov))
 
 
     def remove_fit(self) -> Peak:
