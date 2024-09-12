@@ -1681,57 +1681,23 @@ class Spectrum:
     
     def data2D(
         self,
-        orderlet: str | list[str] | None = None,
+        orderlet: str,
+        data: str = "spec", # spec, wave, spec_fit, spec_residuals
         ) -> ArrayLike | dict[str: ArrayLike]:
         """
-        A method that returns the full raw data array for each orderlet.
+        A method that returns a full raw data array for a single orderlet.
         
-        The output format if more than one orderlet is specified AND available:
-        
-        {
-            "SCI1" :
-            [
-                spec_array (shape=(67, 4080)),
-                wave_array (shape=(67, 4080))
-            ]
-            
-            "SCI2" :
-            
-            ...
-        }
-        
-        If only a single orderlet is specified, or None is specified and only a
-        single orderlet is available in the Spectrum object, the output is not
-        a dictionary, but just the array object alone:
-        
-            [
-                spec_array (shape=(67, 4080)),
-                wave_array (shape=(67, 4080))
-            ]
+        choices for data are `spec', `wave', `spec_fit', `spec_residuals'
         """
         
-        if isinstance(orderlet, str):
-            orderlet = [orderlet]
-        
-        if orderlet is None:
-            orderlet = self.orderlets
-        
-        out = {ol: np.array(
-                [
-                    np.array([o.spec for o in self.orders(orderlet=ol)]),
-                    np.array([o.wave for o in self.orders(orderlet=ol)]),
-                ]
-            )\
-                for ol in orderlet}
-        
-        if len(orderlet) == 1:
-            return out[orderlet[0]]
-        
-        return out
+        assert orderlet in self.orderlets
+        assert data in ["spec", "wave", "spec_fit", "spec_residuals"]
+                
+        return np.array([o.exec(data) for o in self.orders(orderlet=orderlet)])
         
 
     def save_config_file(self):
-        # TODO: complete this code
+        # TODO
         f"""
         date: {self.date}
         spec_file: {self.spec_file}
