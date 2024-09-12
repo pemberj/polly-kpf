@@ -693,6 +693,37 @@ class Order:
     def num_peaks(self) -> int:
         return len(self.peaks)
     
+    
+    @property
+    def spec_fit(self) -> ArrayLike:
+        """
+        This function stitches together all peak fits where they exist, leaving
+        `spec' values not coverd by any wavelengths untouched.
+        """
+        
+        spec_fit = self.spec.copy()
+        for p in self.peaks:
+            min_wl = min(p.wavelet)
+            max_wl = max(p.wavelet)
+
+            lowmask = min_wl <= self.wave
+            highmask = self.wave <= max_wl
+            mask = lowmask & highmask
+            
+            spec_fit[mask] = p.evaluate_fit(self.wave[mask])
+            
+        return spec_fit
+            
+            
+    @property
+    def spec_residuals(self) -> ArrayLike:
+        """
+        This function returns the full-order residuals between the original
+        `spec' array and the stitched `spec_fit' array of all of the peak fits.
+        """
+        
+        return self.spec - self.spec_fit
+    
 
     def has(self, prop: str) -> str:
         """String generation"""
