@@ -1570,6 +1570,57 @@ class Spectrum:
         return self
     
     
+    def plot_residuals(
+        self,
+        orderlet: str,
+        ax: plt.Axes | None = None,
+        plot_peaks: bool = True,
+        ) -> plt.Axes:
+        """
+        """
+        print(f"{self.pp}Plotting {orderlet} spectrum...", end="")
+        
+        assert orderlet in self.orderlets
+                
+        if ax is None:
+            fig = plt.figure(figsize = (12, 4))
+            ax = fig.gca()
+            ax.set_title(f"{orderlet} {self.date} {self.timeofday}\n"+\
+                          "Residuals after peak fitting", size=20)
+            
+        if ax.get_xlim() == (0.0, 1.0):
+            ax.set_xlim(440, 880)
+        xlims = ax.get_xlim()
+
+        # plot the full spectrum
+        Col = plt.get_cmap("Spectral")
+
+        # plot order by order
+        for o in self.orders(orderlet = orderlet):
+            wvl_mean_ord = np.nanmean(o.wave)
+            wvl_norm = 1. - ((wvl_mean_ord) - 4200.) / (7200. - 4200.)
+            bluemask = o.wave / 10. > xlims[0]
+            redmask  = o.wave / 10. < xlims[1]
+            mask = bluemask & redmask
+            ax.plot(o.wave[mask]/10., o.spec_residuals[mask], lw=1.5, color="k")
+            ax.plot(o.wave[mask]/10., o.spec_residuals[mask],
+                                            lw=0.5, color=Col(wvl_norm))
+        ax.plot(0, 0, color="k", lw=1.5)
+
+        if plot_peaks:
+            if self.filtered_peaks[orderlet] is not None:
+                for p in self.filtered_peaks[orderlet]:
+                    if p.wl/10. > xlims[0] and p.wl/10. < xlims[1]:
+                        ax.axvline(x = p.wl/10., color = "k", alpha = 0.1)
+
+        ax.set_xlabel("Wavelength [nm]")
+        ax.set_ylabel("Residuals (data $-$ fit)")
+        
+        print(f"{OKGREEN} DONE{ENDC}")
+
+        return self
+    
+    
     def delta_nu_FSR(
         self,
         orderlet: str | list[str] | None = None,
