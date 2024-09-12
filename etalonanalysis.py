@@ -1755,8 +1755,10 @@ class Spectrum:
         
         assert orderlet in self.orderlets
         assert data in ["spec", "wave", "spec_fit", "spec_residuals"]
-                
-        return np.array([o.exec(data) for o in self.orders(orderlet=orderlet)])
+        
+        return np.array(
+            [eval(f"o.{data}") for o in self.orders(orderlet=orderlet)]
+            )
         
 
     def save_config_file(self):
