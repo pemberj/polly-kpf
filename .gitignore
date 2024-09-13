@@ -2,6 +2,7 @@ test_peak_plots.py
 test_data2D.py
 fit_erf_to_ccf_simplified.py
 test_superGaussian.py
+test_fit_parameters.py
 voigt.py
 
 # draw.io temp files
