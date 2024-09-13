@@ -184,16 +184,21 @@ class Peak:
     orderlet: str | None = None
     order_i: int | None = None
     
-    center_wavelength: float | None = None
     distance_from_order_center: float | None = None
     
     fit_type: str | None = None
+    
+    center_wavelength: float | None = None
     amplitude: float | None = None
     sigma: float | None = None
     boxhalfwidth: float | None = None
     offset: float | None = None
     
-    std_dev: list | None = None
+    center_wavelength_stddev: float | None = None
+    amplitude_stddev: float | None = None
+    sigma_stddev: float | None = None
+    boxhalfwidth_stddev: float | None = None
+    offset_stddev: float | None = None
     
     
     def __post_init__(self):
@@ -306,7 +311,13 @@ class Peak:
         # In case another function fit had already defined self.boxhalfwidth
         self.boxhalfwidth = None
         self.offset = offset
-        self.std_dev = np.sqrt(np.diag(cov))
+        
+        stddev = np.sqrt(np.diag(cov))
+        self.amplitude_stddev = stddev[0]
+        self.center_wavelength_stddev = stddev[1]
+        self.sigma_stddev = stddev[2]
+        self.boxhalfwidth_stddev = None
+        self.offset_stddev = stddev[3]
             
             
     def _fit_conv_gauss_tophat(self) -> None:
@@ -357,7 +368,13 @@ class Peak:
         self.sigma = sigma
         self.boxhalfwidth = boxhalfwidth
         self.offset = offset * maxy
-        self.std_dev = np.sqrt(np.diag(cov))
+        
+        stddev = np.sqrt(np.diag(cov))
+        self.center_wavelength_stddev = stddev[0]
+        self.amplitude_stddev = stddev[1]
+        self.sigma_stddev = stddev[2]
+        self.boxhalfwidth_stddev = stddev[3]
+        self.offset_stddev = stddev[4]
 
 
     def remove_fit(self) -> Peak:
@@ -373,9 +390,34 @@ class Peak:
         self.boxhalfwidth = None
         self.offset = None
         
+        self.center_wavelength_stddev = None
+        self.amplitude_stddev = None
+        self.sigma_stddev = None
+        self.boxhalfwidth_stddev = None
+        self.offset_stddev = None
+        
         return self
-
-
+    
+    
+    @property
+    def fit_parameters(self) -> dict:
+        
+        return {
+            "fit_type": self.fit_type,
+            "center_wavelength": self.center_wavelength,
+            "amplitude": self.amplitude,
+            "sigma": self.sigma,
+            "boxhalfwidth": self.boxhalfwidth,
+            "offset": self.offset,
+            
+            "center_wavelength_stddev": self.center_wavelength_stddev,
+            "amplitude_stddev": self.amplitude_stddev,
+            "sigma_stddev": self.sigma_stddev,
+            "boxhalfwidth_stddev": self.boxhalfwidth_stddev,
+            "offset_stddev": self.offset_stddev,
+        }
+        
+        
     def output_parameters(self) -> str:
         """
         TODO
@@ -398,15 +440,15 @@ class Peak:
         finer wavelength grid than the original pixels.
         """
         
+        if self.fit_type is None:
+            return None
+        
         if about_zero:
             center = 0
         else:
             center = self.center_wavelength
         
-        if self.fit_type is None:
-            return None
-        
-        elif self.fit_type == "gaussian":
+        if self.fit_type == "gaussian":
             yfit = _gaussian(
                 x = x,
                 amplitude = self.amplitude,
@@ -733,6 +775,25 @@ class Order:
         """
         
         return self.spec - self.spec_fit
+    
+    
+    @property
+    def fit_parameters(self) -> dict:
+        
+        return {
+            "fit_type": [p.fit_type for p in self.peaks],
+            "center_wavelength": [p.center_wavelength for p in self.peaks],
+            "amplitude": [p.amplitude for p in self.peaks],
+            "sigma": [p.sigma for p in self.peaks],
+            "boxhalfwidth": [p.boxhalfwidth for p in self.peaks],
+            "offset": [p.offset for p in self.peaks],
+            
+            "center_wavelength_stddev": [p.center_wavelength_stddev for p in self.peaks],
+            "amplitude_stddev": [p.amplitude_stddev for p in self.peaks],
+            "sigma_stddev": [p.sigma_stddev for p in self.peaks],
+            "boxhalfwidth_stddev": [p.boxhalfwidth_stddev for p in self.peaks],
+            "offset_stddev": [p.offset_stddev for p in self.peaks],
+        }
     
 
     def has(self, prop: str) -> str:
@@ -1740,6 +1801,48 @@ class Spectrum:
         print(f"{OKGREEN} DONE{ENDC}")
 
         return self
+    
+    
+    def fit_parameters(
+        self,
+        orderlet: str | list[str] | None = None,
+        ) -> dict:
+        
+        
+        if isinstance(orderlet, str):
+            assert orderlet in self.orderlets
+            orderlet = [orderlet]
+        
+        elif isinstance(orderlet, list):
+            for ol in orderlet:
+                assert ol in self.orderlets
+            
+        elif orderlet is None:
+            orderlet = self.orderlets
+        
+        fp = {
+            "fit_type": [],
+            "center_wavelength": [],
+            "amplitude": [],
+            "sigma": [],
+            "boxhalfwidth": [],
+            "offset": [],
+            
+            "center_wavelength_stddev": [],
+            "amplitude_stddev": [],
+            "sigma_stddev": [],
+            "boxhalfwidth_stddev": [],
+            "offset_stddev": [],
+        }
+        
+        for k in fp.keys():
+            fp[k] = [
+                        v for ol in orderlet
+                            for o in self.orders(orderlet=ol)
+                                for v in o.fit_parameters[k]
+                    ]
+                
+        return fp
     
     
     def data2D(
