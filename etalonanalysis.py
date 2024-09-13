@@ -298,9 +298,9 @@ class Peak:
                 bounds=bounds,
                 )
         except RuntimeError:
-            p = [np.nan] * len(p0)
+            p = cov = [np.nan] * len(p0)
         except ValueError:
-            p = [np.nan] * len(p0)
+            p = cov = [np.nan] * len(p0)
             
         amplitude, center, sigma, offset = p
         
@@ -319,7 +319,7 @@ class Peak:
         self.boxhalfwidth_stddev = None
         self.offset_stddev = stddev[3]
             
-            
+    
     def _fit_conv_gauss_tophat(self) -> None:
         """
         `scipy.optimize.curve_fit` wrapper, with initial guesses `p0` and
@@ -356,9 +356,9 @@ class Peak:
                 # xtol=1e-9,
                 )
         except RuntimeError:
-            p = [np.nan] * len(p0)
+            p = cov = [np.nan] * len(p0)
         except ValueError:
-            p = [np.nan] * len(p0)
+            p = cov = [np.nan] * len(p0)
         
         center, amplitude, sigma, boxhalfwidth, offset = p
         
@@ -1989,10 +1989,15 @@ def test() -> None:
     etalon_file = f"{DATAPATH}{DATE}/"+\
                   f"kpf_{DATE}_master_WLS_autocal-etalon-all-morn_L1.fits"
 
-    s = Spectrum(spec_file=etalon_file, wls_file=WLS_file)
+    s = Spectrum(
+        spec_file=etalon_file,
+        wls_file=WLS_file,
+        orderlets_to_load="SCI2",
+        )
 
-    s.locate_peaks()
-    s.fit_peaks()
+    s.locate_peaks(window_to_save=16)
+    s.fit_peaks(type="conv_gauss_tophat")
+    # s.fit_peaks(type="gaussian")
     s.filter_peaks(window=0.01)
     print(s)
     
