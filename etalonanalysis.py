@@ -180,6 +180,7 @@ class Peak:
     coarse_wavelength: float
     speclet: ArrayLike
     wavelet: ArrayLike
+    starting_pixel: int | None = None
     
     orderlet: str | None = None
     order_i: int | None = None
@@ -722,6 +723,7 @@ class Order:
                 self.spec[_p - window_to_save//2:_p + window_to_save//2 + 1],
                     wavelet =\
                 self.wave[_p - window_to_save//2:_p + window_to_save//2 + 1],
+                    starting_pixel = _p - window_to_save//2,
                     distance_from_order_center =\
                                         abs(self.wave[_p] - self.mean_wave),
                 )
