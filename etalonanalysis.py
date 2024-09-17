@@ -1184,6 +1184,9 @@ class Spectrum:
                 for p in o.peaks:
                     result.append(p)
                     
+        if not result:
+            return None
+                    
         return result
     
 
@@ -1537,7 +1540,7 @@ class Spectrum:
             
             peaks = self.peaks(orderlet = ol)
             
-            if not peaks:
+            if peaks is None:
                 print(f"\n{self.pp}{WARNING}No peaks found{ENDC}")
                 return self
             
