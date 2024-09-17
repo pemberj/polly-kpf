@@ -2027,11 +2027,9 @@ def test() -> None:
         orderlets_to_load="SCI2",
         )
 
-    s.locate_peaks(window_to_save=16)
-    s.fit_peaks(type="conv_gauss_tophat")
-    # s.fit_peaks(type="gaussian")
-    s.filter_peaks(window=0.01)
-    print(s)
+    s.locate_peaks()
+    s.fit_peaks()
+    s.filter_peaks()
     
     # s.save_peak_locations(f"./etalon_wavelengths_{orderlet}.csv")
 
