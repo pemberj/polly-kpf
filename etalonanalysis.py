@@ -820,7 +820,8 @@ class Order:
             "boxhalfwidth": [p.boxhalfwidth for p in self.peaks],
             "offset": [p.offset for p in self.peaks],
             
-            "center_wavelength_stddev": [p.center_wavelength_stddev for p in self.peaks],
+            "center_wavelength_stddev":
+                [p.center_wavelength_stddev for p in self.peaks],
             "amplitude_stddev": [p.amplitude_stddev for p in self.peaks],
             "sigma_stddev": [p.sigma_stddev for p in self.peaks],
             "boxhalfwidth_stddev": [p.boxhalfwidth_stddev for p in self.peaks],
@@ -1023,7 +1024,8 @@ class Spectrum:
     _orders: list[Order] = field(default_factory=list)
 
     # Hold basic metadata from the FITS file
-    date:       str | None = None # DATE-OBS in FITS header (without dashes), eg. 20240131
+    date:       str | None = None
+                        # DATE-OBS in FITS header (without dashes), eg. 20240131
     sci_obj:    str | None = None # SCI-OBJ in FITS header
     cal_obj:    str | None = None # CAL-OBJ in FITS header
     object:     str | None = None # OBJECT in FITS header
