@@ -590,6 +590,12 @@ class Peak:
                f"{self.has('wavelet')} wavelet, "+\
                f"{self.has('fit')} fit: "+\
                f"center_wavelength {self.center_wavelength:.3f})"
+               
+               
+    def __contains__(self, wl: float) -> bool:
+        
+        return min(self.wavelet) <= wl <= max(self.wavelet)
+        
  
 
 @dataclass
@@ -837,6 +843,11 @@ class Order:
         return f"\nOrder(orderlet={self.orderlet}, i={self.i}, "+\
                f"{self.has('spec')} spec, {self.has('wave')} wave, "+\
                f"{len(self.peaks)} peaks)"
+               
+               
+    def __contains__(self, wl: float) -> bool:
+        
+        return min(self.wave) <= wl <= max(self.wave)
 
 
 @dataclass
