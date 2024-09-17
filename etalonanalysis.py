@@ -184,17 +184,17 @@ class Peak:
     
     orderlet: str | None = None
     order_i: int | None = None
-    
     distance_from_order_center: float | None = None
     
+    # Fitting results
     fit_type: str | None = None
-    
+    # Fit parameters
     center_wavelength: float | None = None
     amplitude: float | None = None
     sigma: float | None = None
     boxhalfwidth: float | None = None
     offset: float | None = None
-    
+    # Fit errors
     center_wavelength_stddev: float | None = None
     amplitude_stddev: float | None = None
     sigma_stddev: float | None = None
@@ -211,10 +211,13 @@ class Peak:
     @property
     def parent(self) -> Order:
         """
-        Return the Order to which this Peak belongs
+        Return the Order to which this Peak belongs.
         """
         
-        return self.parent_ref()
+        try:
+            return self.parent_ref()
+        except NameError:
+            return None
     
     
     @property
@@ -664,7 +667,10 @@ class Order:
         Return the Spectrum to which this Order belongs
         """
         
-        return self.parent_ref()
+        try:
+            return self.parent_ref()
+        except NameError:
+            return None
     
     
     @property
