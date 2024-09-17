@@ -915,7 +915,7 @@ class Spectrum:
             
         timeofday: str
             Returns the time of day of the `specfile' FITS file
-            Possible values: "morn", "eve", "night"
+            Possible values: "morn", "eve", "night", "midnight"
             
         summary: str
             Create a text summary of the Spectrum
@@ -958,7 +958,7 @@ class Spectrum:
             /data/kpf/masters/ directory for the same date as the `spec_file',
             and finds the corresponding wavelength solution file. If the
             `spec_file' was taken at "night" (from OBJECT keyword string), the
-            corresponding "eve" WLS file is located.
+            corresponding "eve" WLS file is located, likewise for "midnight".
         
         load_wls
             Loads the `wls_file' file, and stores its wavelength data per-order
@@ -1180,7 +1180,7 @@ class Spectrum:
 
     @property
     def timeofday(self) -> str:
-        # morn, eve, night
+        # morn, eve, night, midnight
         return self.object.split("-")[-1]
     
     
@@ -1384,9 +1384,9 @@ class Spectrum:
     
     def find_wls_file(self) -> str:
         
-        wls_file: str = None
+        wls_file: str = ""
         
-        if self.timeofday == "night":
+        if self.timeofday in ["night", "midnight"]:
             # Specifically look for "eve" WLS file
             wls_file = f"/data/kpf/masters/{self.date}/kpf_{self.date}_"+\
                         "master_WLS_autocal-lfc-all-eve_L1.fits"
