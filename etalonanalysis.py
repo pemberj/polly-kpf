@@ -545,6 +545,24 @@ class Peak:
             plt.show()
         
         return None
+    
+    
+    def is_close_to(self, other: Peak, window: float = 0.005) -> bool:
+        """
+        Checks if a Peak is within a window of another Peak. Used for filtering
+        identical peaks (same wavelength) from neighbouring orders (m, m+1).
+        
+        Args:
+            other (Self): _description_
+            window (float, optional): _description_. Defaults to 0.01.
+
+        Returns:
+            bool: _description_
+        """
+        if abs(self.center_wavelength - other.center_wavelength) <= window:
+            return True
+        
+        return False
  
  
     def has(self, prop: str) -> str:
@@ -993,7 +1011,7 @@ class Spectrum:
     cal_obj:    str | None = None # CAL-OBJ in FITS header
     object:     str | None = None # OBJECT in FITS header
 
-    filtered_peaks: dict[str, list[Peak]] | None = None
+    filtered_peaks: dict[str, list[Peak]] = field(default_factory=dict)
 
     pp: str = "" # Print prefix
     
@@ -1008,6 +1026,9 @@ class Spectrum:
         
         if self._orders:
             ...
+            
+        for ol in self.orderlets_to_load:
+            self.filtered_peaks[ol] = None
         
         else:
             if self.spec_file:
@@ -1157,6 +1178,8 @@ class Spectrum:
         
         result = []
         for ol in orderlet:
+            if self.filtered_peaks[ol] is not None:
+                return self.filtered_peaks[ol]
             for o in self.orders(orderlet = ol):
                 for p in o.peaks:
                     result.append(p)
@@ -1511,7 +1534,6 @@ class Spectrum:
         
             print(f"{self.pp}Filtering {ol} peaks to remove "+\
                    "identical peaks appearing in adjacent orders...", end="")
-            need_new_line = True
             
             peaks = self.peaks(orderlet = ol)
             
@@ -1521,31 +1543,17 @@ class Spectrum:
             
             peaks = sorted(peaks, key=attrgetter("wl"))
             
-            rejected = []
+            to_keep = []
             for (p1, p2) in zip(peaks[:-1], peaks[1:]):
-                if abs(p1.wl - p2.wl) < window:
-                    if p2.i == p1.i:
-                        if need_new_line:
-                            print("\n", end="")
-                            need_new_line = False
-                        print(f"{self.pp}{WARNING}Double-peaks identified at "+\
-                              f"{p1.wl} / {p2.wl} from the same order "+\
-                              f"cutoff is too large?{ENDC}")
-                        continue
-                    try:
-                        if p1.d < p2.d:
-                            rejected.append(p2)
-                            peaks.remove(p2)
-                        else:
-                            rejected.append(p1)
-                            peaks.remove(p1)
-                    except ValueError:
-                        pass
-                        
-            if self.filtered_peaks is None:
-                self.filtered_peaks = {}
+                if p1.i == p2.i:
+                    continue
+                if p1.is_close_to(p2, window=window):
+                    if p1.d < p2.d:
+                        to_keep.append(p1)
+                    else:
+                        to_keep.append(p2)
             
-            self.filtered_peaks[ol] = peaks
+            self.filtered_peaks[ol] = to_keep
             print(f"{OKGREEN} DONE{ENDC}")
                 
         return self
