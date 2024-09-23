@@ -1126,13 +1126,7 @@ class Spectrum:
         orderlets that the data corresponds to.
         """
         
-        orderlets: list[str] = []
-        
-        for o in self.orders():
-            if o.orderlet not in orderlets:
-                orderlets.append(o.orderlet)
-                
-        return sorted(orderlets)
+        return np.unique([o.orderlet for o in self.orders()])
 
 
     def orders(
@@ -2063,12 +2057,14 @@ def test() -> None:
     s = Spectrum(
         spec_file=etalon_file,
         wls_file=WLS_file,
-        orderlets_to_load="SCI2",
+        # orderlets_to_load="SCI2",
         )
+    
+    print(s.orderlets)
 
-    s.locate_peaks()
-    s.fit_peaks()
-    s.filter_peaks()
+    # s.locate_peaks()
+    # s.fit_peaks()
+    # s.filter_peaks()
     
     # s.save_peak_locations(f"./etalon_wavelengths_{orderlet}.csv")
 
