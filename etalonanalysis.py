@@ -583,7 +583,16 @@ class Peak:
 
     def __repr__(self) -> str:
         
-        return f"\nPeak(order_i={self.i}, "+\
+        return f"Peak("+\
+               f"order_i={self.order_i:.0f}, "+\
+               f"coarse_wavelength={self.coarse_wavelength:.3f}, "+\
+               f"speclet={self.speclet}, "+\
+               f"wavelet={self.wavelet})"
+
+
+    def __str__(self) -> str:
+        
+        return f"\nPeak("+\
                f"order_i {self.order_i:.0f}, "+\
                f"coarse_wavelength {self.coarse_wavelength:.3f}, "+\
                f"{self.has('speclet')} speclet, "+\
@@ -591,7 +600,19 @@ class Peak:
                f"{self.has('fit')} fit: "+\
                f"center_wavelength {self.center_wavelength:.3f})"
                
-               
+
+    def __eq__(self, wl) -> bool:
+        return self.wl == wl           
+
+
+    def __lt__(self, wl: float) -> bool:
+        return self.wl < wl
+    
+    
+    def __gt__(self, wl: float) -> bool:
+        return self.wl > wl
+    
+    
     def __contains__(self, wl: float) -> bool:
         
         return min(self.wavelet) <= wl <= max(self.wavelet)
