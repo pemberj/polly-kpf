@@ -1144,7 +1144,8 @@ class Spectrum:
             if len(result) == 1:
                 return result[0]
             elif len(result) > 1:
-                print("More than one matching Order!")
+                print("More than one Order matching "+\
+                     f"orderlet={orderlet} and i={i}!")
                 print(result)
                 return result
             else:
