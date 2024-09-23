@@ -1211,7 +1211,7 @@ class Spectrum:
         result = []
         for ol in orderlet:
             if self.filtered_peaks[ol] is not None:
-                return self.filtered_peaks[ol]
+                result.append(self.filtered_peaks[ol])
             for o in self.orders(orderlet = ol):
                 for p in o.peaks:
                     result.append(p)
