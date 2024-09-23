@@ -1460,7 +1460,7 @@ class Spectrum:
             
             for ol in orderlet:
         
-                print(f"{self.pp}Locating {ol} peaks...", end="")
+                print(f"{self.pp}Locating {ol:<4} peaks...", end="")
                 for o in self.orders(orderlet = ol):
                     o.locate_peaks(
                         fractional_height = fractional_height,
