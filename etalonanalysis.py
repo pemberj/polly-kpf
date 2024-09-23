@@ -183,23 +183,23 @@ class Peak:
     starting_pixel: int | None = None
     
     orderlet: str | None = None
-    order_i: int | None = None
+    order_i:  int | None = None
     distance_from_order_center: float | None = None
     
     # Fitting results
     fit_type: str | None = None
     # Fit parameters
     center_wavelength: float | None = None
-    amplitude: float | None = None
-    sigma: float | None = None
-    boxhalfwidth: float | None = None
-    offset: float | None = None
+    amplitude:         float | None = None
+    sigma:             float | None = None
+    boxhalfwidth:      float | None = None
+    offset:            float | None = None
     # Fit errors
     center_wavelength_stddev: float | None = None
-    amplitude_stddev: float | None = None
-    sigma_stddev: float | None = None
-    boxhalfwidth_stddev: float | None = None
-    offset_stddev: float | None = None
+    amplitude_stddev:         float | None = None
+    sigma_stddev:             float | None = None
+    boxhalfwidth_stddev:      float | None = None
+    offset_stddev:            float | None = None
     
     
     def __post_init__(self):
@@ -1046,7 +1046,7 @@ class Spectrum:
     """
     
     spec_file: str | list[str] | None = None
-    wls_file: str | None = None
+    wls_file:  str |             None = None
     orderlets_to_load: str | list[str] | None = None
     
     reference_mask: str | None = None
@@ -1055,11 +1055,11 @@ class Spectrum:
     _orders: list[Order] = field(default_factory=list)
 
     # Hold basic metadata from the FITS file
-    date:       str | None = None
+    date:    str | None = None
                         # DATE-OBS in FITS header (without dashes), eg. 20240131
-    sci_obj:    str | None = None # SCI-OBJ in FITS header
-    cal_obj:    str | None = None # CAL-OBJ in FITS header
-    object:     str | None = None # OBJECT in FITS header
+    sci_obj: str | None = None # SCI-OBJ in FITS header
+    cal_obj: str | None = None # CAL-OBJ in FITS header
+    object:  str | None = None # OBJECT in FITS header
 
     filtered_peaks: dict[str, list[Peak]] = field(default_factory=dict)
 
