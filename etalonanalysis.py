@@ -1240,19 +1240,16 @@ class Spectrum:
         ) -> int:
         
         if isinstance(orderlet, str):
-            orderlet = [orderlet]
+            sum(1 for o in self.orders(orderlet=orderlet) for p in o.peaks\
+                                           if not np.isnan(p.center_wavelength))
         
         if orderlet is None:
             orderlet = self.orderlets
 
-        total = 0
-        
-        for ol in orderlet:
-            total += sum(1 for o in self.orders(orderlet=ol) for p in o.peaks\
-                                        if not np.isnan(p.center_wavelength))
+        return {ol: sum(1 for o in self.orders(orderlet=ol)
+                        for p in o.peaks if not np.isnan(p.center_wavelength))\
+                                                             for ol in orderlet}
             
-        return total
-    
     
     def parse_reference_mask(self) -> Spectrum:
         
