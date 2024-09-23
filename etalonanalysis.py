@@ -1172,26 +1172,6 @@ class Spectrum:
 
 
     @property
-    def summary(self) -> str:
-        """
-        Create a short summary string of the object
-        """
-        
-        counts = {}
-        
-        for i, ol in enumerate(self.orderlets):
-            counts[ol] = len(self.orders(orderlet=ol))
-        
-        return f"Spectrum object"+\
-               f" - spec_file={self.spec_file}\n"+\
-               f" - wls_file={self.wls_file}\n"+\
-               f" - object={self.object}"+\
-               f" - reference_mask={self.reference_mask}\n"+\
-               f"Orderlets: {self.orderlets}\n"+\
-               f"Counts: {counts}"
-
-
-    @property
     def timeofday(self) -> str:
         # morn, eve, night, midnight
         return self.object.split("-")[-1]
