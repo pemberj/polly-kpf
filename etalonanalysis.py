@@ -860,11 +860,21 @@ class Order:
             else: return "[x]"
     
 
-    def __repr__(self) -> str:
+    def __str__(self) -> str:
         
-        return f"\nOrder(orderlet={self.orderlet}, i={self.i}, "+\
+        return f"Order(orderlet={self.orderlet}, i={self.i}, "+\
                f"{self.has('spec')} spec, {self.has('wave')} wave, "+\
                f"{len(self.peaks)} peaks)"
+
+
+    def __repr__(self) -> str:
+        
+        return f"Order("+\
+               f"orderlet={self.orderlet}, i={self.i}, "+\
+               f"spec={self.spec}, "+\
+               f"wave={self.wave})\n"+\
+               f"`spec` from {self.parent.spec_file}"+\
+               f"`wave` from {self.parent.wave_file}"
                
                
     def __contains__(self, wl: float) -> bool:
