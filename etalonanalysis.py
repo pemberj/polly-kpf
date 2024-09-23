@@ -1225,17 +1225,13 @@ class Spectrum:
     def num_located_peaks(self, orderlet: str | list[str] | None = None) -> int:
         
         if isinstance(orderlet, str):
-            orderlet = [orderlet]
+            return sum(len(o.peaks) for o in self.orders(orderlet=orderlet))
         
         if orderlet is None:
             orderlet = self.orderlets
         
-        total = 0
-        
-        for ol in orderlet:
-            total += sum(len(o.peaks) for o in self.orders(orderlet=ol))
-            
-        return total
+        return {ol: sum(len(o.peaks) for o in self.orders(orderlet=ol))\
+                                                             for ol in orderlet}
 
 
     def num_successfully_fit_peaks(
@@ -2063,7 +2059,10 @@ def test() -> None:
     
     print(s.orderlets)
 
-    # s.locate_peaks()
+    s.locate_peaks()
+    
+    print(s.num_located_peaks())
+    
     # s.fit_peaks()
     # s.filter_peaks()
     
