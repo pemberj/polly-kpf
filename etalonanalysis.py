@@ -1112,19 +1112,6 @@ class Spectrum:
             raise TypeError(
                 f"{self.pp}Can only add two Spectrum objects together"
                 )
-            
-            
-    def __repr__(self) -> str:
-        
-        out_string =\
-            f"Spectrum {self.spec_file} with {len(self.orderlets)} orderlets:"
-        
-        for ol in self.orderlets:
-            out_string += f"\n - {ol}:"+\
-                          f"{len(self.orders(orderlet = ol))} Orders"+\
-                          f" and {len(self.peaks(orderlet = ol))} total Peaks"
-        
-        return out_string
     
     
     @property
@@ -1935,6 +1922,27 @@ class Spectrum:
         wls_file: {self.wls_file}
         orderlet: {self.orderlets}
         """
+        
+        
+    def __str__(self) -> str:
+        
+        out_string =\
+            f"Spectrum {self.spec_file} with {len(self.orderlets)} orderlets:"
+        
+        for ol in self.orderlets:
+            out_string += f"\n - {ol}:"+\
+                          f"{len(self.orders(orderlet = ol))} Orders"+\
+                          f" and {len(self.peaks(orderlet = ol))} total Peaks"
+        
+        return out_string
+        
+        
+    def __repr__(self) -> str:
+        
+        return f"Spectrum("+\
+               f"spec_file={self.spec_file}, "+\
+               f"wave_file={self.wave_file}, "+\
+               f"orderlets_to_load={self.orderlets_to_load})"
 
 
 def _fit_spline(
