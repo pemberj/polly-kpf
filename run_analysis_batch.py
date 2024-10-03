@@ -31,7 +31,10 @@ from __future__ import annotations
 from pathlib import Path
 from glob import glob
 import argparse
+import re
+
 from astropy.io import fits
+
 from matplotlib import pyplot as plt
 
 try:
@@ -63,19 +66,13 @@ ORDERLETS : list[str] = [
 
 def main(
     DATE: str,
-    timesofday: str | None,
-    orderlets: str | list[str] | None,
+    timesofday: str | list[str],
+    orderlets: str | list[str],
     spectrum_plot: bool,
     fsr_plot: bool,
     fit_plot: bool,
-    ) -> None:
-    
-    if isinstance(orderlets, str): orderlets = [orderlets]
-    elif orderlets is None: orderlets = ORDERLETS
-    
-    if isinstance(timesofday, str): timesofday = [timesofday]
-    elif timesofday is None: timesofday = TIMESOFDAY
-    
+    masters: bool,
+    ) -> None:    
     
     Path(f"{OUTDIR}/masks/").mkdir(parents=True, exist_ok=True)
     if spectrum_plot:
@@ -89,18 +86,26 @@ def main(
     
         pp = f"{f'[{DATE} {t:>5}]':<20}" # Print/logging line prefix
         
-        spec_files = find_L1_etalon_files(DATE, t)
+        spec_files = find_L1_etalon_files(
+            DATE=DATE, TIMEOFDAY=t, masters=masters
+            )
         
         if not spec_files:
             print(f"{pp}{FAIL}No files for {DATE} {t}{ENDC}")
-            return
+            continue
+        
+        if VERBOSE:
+            if isinstance(spec_files, str):
+                print(f"{pp}{OKBLUE}File: {spec_files}{ENDC}")
+            elif isinstance(spec_files, list):
+                print(f"{pp}{OKBLUE}Files: {spec_files}{ENDC}")            
 
         s = Spectrum(
             spec_file = spec_files,
             wls_file = None, # It will try to find the corresponding WLS file
             orderlets_to_load = orderlets,
             pp = pp,
-            )        
+            )
         s.locate_peaks(fractional_height=0.01, window_to_save=14)
         s.fit_peaks(type="conv_gauss_tophat")
         s.filter_peaks(window=0.1)
@@ -138,7 +143,11 @@ def main(
                 plt.close()
             
         
-def find_L1_etalon_files(DATE: str, TIMEOFDAY: str) -> dict[str, list[str]]:
+def find_L1_etalon_files(
+    DATE: str,
+    TIMEOFDAY: str,
+    masters: bool,
+    ) -> str | list[str]:
     """
     Locates relevant L1 files for a given date and time of day. At the moment
     it loops through all files and looks at the "OBJECT" keyword in their
@@ -151,6 +160,31 @@ def find_L1_etalon_files(DATE: str, TIMEOFDAY: str) -> dict[str, list[str]]:
      - Use a database lookup (on shrek) to select files
     """
     
+    if masters:
+        files = glob(
+            f"/data/kpf/masters/{DATE}/"+\
+               f"kpf_{DATE}_master_arclamp_"+\
+            #    f"kpf_{DATE}_master_WLS_"+\
+                   f"autocal-etalon-all-{TIMEOFDAY}_L1.fits"
+               )
+        try:
+            assert len(files) == 1
+        except AssertionError:
+            print(f"{len(f)} files found for {DATE} {TIMEOFDAY}...")
+            return None
+
+        with open(files[0], mode="rb") as _f:
+            try:
+                object = fits.getval(_f, "OBJECT")
+                if "etalon" in object.lower():
+                    return files[0]
+            except FileNotFoundError as e:
+                print(e)
+                return None
+            except OSError as e:
+                print(e)
+                return None
+            
     all_files: list[str] = glob(f"/data/kpf/L1/{DATE}/*.fits")
     
     out_files: list[str] = []
@@ -165,41 +199,105 @@ def find_L1_etalon_files(DATE: str, TIMEOFDAY: str) -> dict[str, list[str]]:
     return out_files
 
 
+def parse_num_list(string_list: str) -> list[int]:
+    """
+    Adapted from Julian Stürmer's PyEchelle code
+    
+    Converts a string specifying a range of numbers (e.g. '1-3') into a list of
+    these numbers ([1,2,3])
+    """
+
+    m = re.match(r"(\d+)(?:-(\d+))?$", string_list)
+    if not m:
+        raise argparse.ArgumentTypeError(
+            f"'{string_list}' is not a range or number."+\
+            f"Expected forms like '1-12' or '6'."
+            )
+    
+    start = m.group(1)
+    end = m.group(2) or start
+    
+    return list(range(int(start), int(end) + 1))
+
+
+def parse_timesofday(timesofday: str) -> list:
+    if (timesofday == "all") or (timesofday is None):
+        return TIMESOFDAY
+    
+    elif "," in timesofday:
+        return timesofday.split(sep=",")
+    
+    else:
+        return timesofday
+
+
+def parse_orderlets(orderlets: str) -> list:
+    
+    if (orderlets == "all") or (orderlets is None):
+        return ORDERLETS
+    
+    elif "," in orderlets:
+        return orderlets.split(sep=",")
+    
+    else:
+        return orderlets
+
+
 parser = argparse.ArgumentParser(
-            prog="polly run_analysis_batch",
-            description="A utility to process KPF etalon data from multiple"+\
+            prog = "polly run_analysis_batch",
+            description = "A utility to process KPF etalon data from multiple"+\
                 "L1 files specified by observation date and time of day."+\
                 "Produces an output mask file with the wavelengths of each"+\
-                "identified etalon peak, as well as optional diagnostic plots."
+                "identified etalon peak, as well as optional diagnostic plots.",
+            formatter_class = argparse.ArgumentDefaultsHelpFormatter,
             )
 
 # parser.add_argument("--files")
-parser.add_argument("-d", "--date", type=int, default=15)
-parser.add_argument("-m", "--month", type=int, default=5)
-parser.add_argument("-y", "--year", type=int, default=2024)
-parser.add_argument("-t", "--timesofday", type=str,
-                    choices=TIMESOFDAY, default="morn")
-parser.add_argument("-o", "--orderlets", type=str,
-                    choices=ORDERLETS, default="SCI2")
-parser.add_argument("--outdir", type=str, default="/scr/jpember/polly_outputs")
-parser.add_argument("--spectrum_plot", type=bool, default=False)
-parser.add_argument("--fsr_plot", type=bool, default=True)
-parser.add_argument("--fit_plot", type=bool, default=True)
-parser.add_argument("-v", "--verbose", action="store_true")  # on/off flag
+file_selection = parser.add_argument_group("File Selection")
+file_selection.add_argument("-y", "--year",  type=parse_num_list,
+                            required=False, default="2023-2024")
+file_selection.add_argument("-m", "--month", type=parse_num_list,
+                            required=False, default="1-12")
+file_selection.add_argument("-d", "--date",  type=parse_num_list,
+                            required=False, default="1-31")
+file_selection.add_argument("-t", "--timesofday", type=parse_timesofday,
+                            choices=[*TIMESOFDAY, "all"],
+                            required=False, default="all")
+file_selection.add_argument("-o", "--orderlets", type=parse_orderlets,
+                            choices=[*ORDERLETS, "all"],
+                            required=False, default="all")
+
+parser.add_argument("--outdir", type=lambda p: Path(p).absolute(),
+                    default="/scr/jpember/polly_outputs")
+
+plots = parser.add_argument_group("Plots")
+plots.add_argument("--spectrum_plot", type=bool, default=False)
+plots.add_argument("--fsr_plot",      type=bool, default=True )
+plots.add_argument("--fit_plot",      type=bool, default=True )
+
+parser.add_argument("--masters", action="store_true", default=False)
+parser.add_argument("-v", "--verbose", action="store_true", default=False)
 
 
 if __name__ == "__main__":
     
     args = parser.parse_args()
     OUTDIR: str = args.outdir
+    VERBOSE: bool = args.verbose
     
-    DATE = f"{args.year}{args.month:02}{args.date:02}"
-    
-    main(
-        DATE=DATE,
-        timesofday=args.timesofday,
-        orderlets=args.orderlets,
-        spectrum_plot = args.spectrum_plot,
-        fsr_plot = args.fsr_plot,
-        fit_plot = args.fit_plot,
-        )
+    for y in args.year:
+        for m in args.month:
+            for d in args.date:
+                
+                DATE = f"{y}{m:02}{d:02}"
+                
+                main(
+                    DATE = DATE,
+                    timesofday = args.timesofday,
+                    orderlets = args.orderlets,
+                    spectrum_plot = args.spectrum_plot,
+                    fsr_plot = args.fsr_plot,
+                    fit_plot = args.fit_plot,
+                    
+                    masters = args.masters,
+                    )
