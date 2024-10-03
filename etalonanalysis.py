@@ -53,21 +53,27 @@ Peak
 from __future__ import annotations
 from dataclasses import dataclass, field
 from operator import attrgetter
+import logging
 import weakref
 from typing import Callable
+
 # tqdm progress bars
 from tqdm import tqdm
+
 # NumPy
 import numpy as np
 from numpy.typing import ArrayLike
+
 # AstroPy
 from astropy.io import fits
 from astropy import units as u
 from astropy import constants
+
 # SciPy
 from scipy.signal import find_peaks
 from scipy.optimize import curve_fit
 from scipy.interpolate import splrep, BSpline
+
 # Matplotlib
 from matplotlib import pyplot as plt
 import matplotlib.patheffects as pe
@@ -77,6 +83,10 @@ try:
 except ImportError:
     from plotStyle import plotStyle
 plt.style.use(plotStyle)
+
+
+logger = logging.getLogger("Polly")
+logger.setLevel(level=logging.INFO)
 
 
 HEADER  = '\033[95m'
