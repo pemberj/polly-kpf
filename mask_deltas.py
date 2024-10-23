@@ -11,11 +11,15 @@ from glob import glob
 from collections import namedtuple
 from typing import Callable
 from dataclasses import dataclass, field
-import numpy as np
-from numpy.typing import ArrayLike
 from math import factorial
 from datetime import datetime
+
+import numpy as np
+from numpy.typing import ArrayLike
+
 from astropy import units as u
+from astropy.units import Quantity
+
 from matplotlib import pyplot as plt
 
 try:
@@ -24,12 +28,8 @@ except ImportError:
     from plotStyle import plotStyle
 plt.style.use(plotStyle)
 
-from astropy import units as u
-# from astropy import constants
-# from scipy.interpolate import splrep, BSpline, UnivariateSpline
 
-
-# A simple named tuple to collect mask details and have them accessible by name
+# A simple named tuple "class" for accessing mask details by field name
 Mask = namedtuple("Mask", ["date", "timeofday", "orderlet"])
 
 
@@ -454,7 +454,7 @@ def main() -> None:
             masks = masks,
             )
                 for reference_wavelength, local_spacing
-                in zip(reference_wavelengths[::100], local_spacings[::100])
+                in zip(reference_wavelengths[::], local_spacings[::])
         ]
 
     fig = plt.figure(figsize=(12, 10))
