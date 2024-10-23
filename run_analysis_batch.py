@@ -273,7 +273,7 @@ file_selection.add_argument("-o", "--orderlets", type=parse_orderlets,
                             required=False, default="all")
 
 parser.add_argument("--outdir", type=lambda p: Path(p).absolute(),
-                    default="/scr/jpember/polly_outputs/masks")
+                    default="/scr/jpember/polly_outputs")
 
 plots = parser.add_argument_group("Plots")
 plots.add_argument("--spectrum_plot", type=bool, default=False)
