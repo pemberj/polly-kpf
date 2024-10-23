@@ -1,26 +1,16 @@
 """
 A script to calculate differences between previously computed lists of etalon
 line wavelengths.
-
-The structure of the 'deltas' object passed between functions:
-
-{
-    "reference_mask_name": None,
-    "mask_1_name": [(wl_1, delta_wl_1), (wl_2, delta_wl_2), ... ],
-    "mask_2_name": [(wl_1, delta_wl_1), (wl_2, delta_wl_2), ... ],
-    ...
-}
-
-TODO:
- - Enable searching by date range to generate the list of masks
 """
 
 
 
 from __future__ import annotations
 
-# import argparse
 from glob import glob
+from collections import namedtuple
+from typing import Callable
+from dataclasses import dataclass, field
 import numpy as np
 from numpy.typing import ArrayLike
 from math import factorial
@@ -39,9 +29,121 @@ from astropy import units as u
 # from scipy.interpolate import splrep, BSpline, UnivariateSpline
 
 
-MASKS_DIR: str = "/scr/jpember/polly_outputs"
-OUTPUT_DIR: str = "/scr/jpember/temp"
+# A simple named tuple to collect mask details and have them accessible by name
+Mask = namedtuple("Mask", ["date", "timeofday", "orderlet"])
 
+
+@dataclass
+class PeakDrift:
+    
+    reference_mask: str # Filename of the reference mask
+    reference_wavelength: float # Starting wavelength of the single peak to track
+    local_spacing: float # Local distance between wavelengths in reference mask
+    
+    masks: list[str] # List of filenames to search
+    
+    # After initialisation, the single peak will be tracked as it appears in
+    # each successive mask. The corresponding wavelengths at which it is found
+    # will populate the `wavelengths` list.
+    wavelengths: list[float] = field(default_factory=list)
+    valid: ArrayLike | None = None
+    
+    fit: Callable | None = None
+    fit_slope: float | None = None
+
+    def __post_init__(self):
+        self.track_drift()
+        
+        
+    @property
+    def dates(self) -> list[str]:
+        
+        if self.wavelengths:
+            valid_masks = list(np.array(self.masks)[self.valid])
+        
+        else:
+            valid_masks = self.masks
+
+        return [parse_filename(m).date for m in valid_masks]
+
+    
+    @property
+    def smoothed_wavelengths(self) -> list[float]:
+        wls = np.array(self.wavelengths)[self.valid]
+        return savitzky_golay(y=wls, window_size=21, order=3)
+    
+        
+    @property
+    def deltas(self) -> list[float]:
+        wls = np.array(self.wavelengths)[self.valid]
+        return wls - self.reference_wavelength
+    
+    
+    @property
+    def smoothed_deltas(self) -> list[float]:
+        return savitzky_golay(y=self.deltas, window_size=21, order=3)
+
+
+    def track_drift(self) -> None:
+        """
+        Starting with the reference wavelength, track the position of the
+        matching peak in successive masks. This function uses the last
+        successfully found peak wavelength as the centre of the next search
+        window, so can track positions even if they greatly exceed any
+        reasonable search window over time.
+        """
+        
+        last_wavelength: float = None
+        
+        # print(f"{self.reference_wavelength:.3g}\t", end="")
+        
+        for m in self.masks:
+            
+            with open(m, "r") as f:
+                peaks = np.array([float(line.strip().split()[0])
+                                                for line in f.readlines()[1:]])
+                
+            if last_wavelength is None:
+                last_wavelength = self.reference_wavelength
+     
+            try:
+                # Find the peak in the mask that is closest in wavelength
+                # to the reference peak
+                closest_index =\
+                    np.nanargmin(np.abs(peaks - last_wavelength))
+            except ValueError as e:
+                # What would give us a ValueError here?
+                closest_index = -1
+            
+            wavelength = peaks[closest_index]
+            delta = last_wavelength - wavelength
+
+            # Check if the new peak is within a search window around the last
+            # TODO: Maybe define this search window differently? Unclear if needed.
+            if abs(delta) <= self.local_spacing / 50:
+                self.wavelengths.append(wavelength)
+                last_wavelength = wavelength
+            else:
+                # No peak found within the window!
+                self.wavelengths.append(None)
+                # Don't update last_wavelength: we will keep searching at the
+                # same wavelength as previously.
+            
+        
+        self.valid = np.where(self.wavelengths)[0]    
+        
+    
+    def linear_fit(self) -> None:
+        """
+        - Fit the tracked drift with a linear function
+        - Assign self.fit with a Callable function
+        - Assign self.fit_slope with the slope of that function in relevant
+          units. picometers per day? Millimetres per second radial velocity per
+          day?
+        """
+        
+        ...
+        
 
 def savitzky_golay(
     y: ArrayLike,
@@ -100,6 +202,7 @@ def savitzky_golay(
         raise TypeError("window_size size must be a positive odd number")
     if window_size < order + 2:
         raise TypeError("window_size is too small for the polynomials order")
+    
     order_range = range(order+1)
     half_window = (window_size -1) // 2
     # precompute coefficients
@@ -116,12 +219,11 @@ def savitzky_golay(
     return np.convolve(m[::-1], y, mode='valid')
 
 
-
-def compute_deltas(
+def deltas_vector(
     reference_mask: str,
-    masks: list[str]
-    ) -> dict[str, list[tuple[float]]]:
-    
+    mask: str,
+    intermediate_mask: str = None,
+    ) -> list[tuple[float]]:
     
     with open(reference_mask, "r") as f:
         reference_peaks =\
@@ -131,46 +233,55 @@ def compute_deltas(
             
     peak_spacing = np.diff(reference_peaks)
 
-    deltas: dict[str, list[float]] = {}
-    for mask in masks:
-        print(f"{mask} ", end="")
-        with open(mask, "r") as f:
-            peaks =\
-                [float(line.strip().split()[0]) for line in f.readlines()[1:]]
-                
-        deltas[mask] = []
-        for i, peak in enumerate(peaks):
-            try:
-                local_spacing = peak_spacing[i]
-            except IndexError:
-                try:
-                    local_spacing = peak_spacing[i-1]
-                except IndexError:
-                    local_spacing = 0
-                
-            distances = np.abs(reference_peaks - peak)
-            # print(np.min(distances))
-            
-            try:
-                closest_index = np.nanargmin(distances)
-            except ValueError as e:
-                # print(e)
-                print(".", end="")
-                closest_index = -1
-            # print(f"{closest_index = }")
-            
-            reference_peak = reference_peaks[closest_index]
-                
-            delta = reference_peak - peak
+    deltas: list[float] = []
+    
+    print(f"{mask} ", end="")
+    with open(mask, "r") as f:
+        peaks =\
+            [float(line.strip().split()[0]) for line in f.readlines()[1:]]
 
-            # Check that we are in fact looking at the same peak!
-            if abs(delta) <= local_spacing / 10:        
-                deltas[mask].append((reference_peak, delta))
-            else:
-                #print("Nearest peak not sufficiently close to reference peak!")
-                #print(f"{reference_peak = }, {peak = }")
-                deltas[mask].append((reference_peak, None)) 
-        print()
+    for i, peak in enumerate(peaks):
+        try:
+            local_spacing = peak_spacing[i]
+        except IndexError:
+            try:
+                local_spacing = peak_spacing[i-1]
+            except IndexError:
+                local_spacing = 0
+            
+        distances = np.abs(reference_peaks - peak)
+        
+        try:
+            # Find the closest reference peak in wavelength
+            closest_index = np.nanargmin(distances)
+        except ValueError as e:
+            # print(e)
+            # Print a dot for any missing peaks
+            print(".", end="")
+            closest_index = -1
+        
+        reference_peak = reference_peaks[closest_index]    
+        delta = reference_peak - peak
+
+        # Check that we are in fact looking at the same peak!
+        if abs(delta) <= local_spacing / 100:
+            deltas.append((reference_peak, delta))
+        else:
+            # Print a comma for any peak out of range
+            print(",", end="")
+            deltas.append((reference_peak, None)) 
+    print()
+            
+    return deltas
+
+
+def compute_deltas(
+    reference_mask: str,
+    masks: list[str],
+    ) -> dict[str, list[tuple[float]]]:
+
+    deltas: dict[str, list[float]] =\
+        {mask: deltas_vector(reference_mask, mask) for mask in masks}
             
     return deltas
     
@@ -180,6 +291,8 @@ def plot_deltas(
     reference_mask: str = None, # File path
     ax: plt.axes = None,
     smoothed: bool = True,
+    xlim: tuple[float] = (440, 880),
+    ylim: tuple[float] = (-1, 1),
     ) -> None:
     
     for mask, _deltas in deltas.items():
@@ -193,6 +306,8 @@ def plot_deltas(
         if ax is None:
             fig = plt.figure(figsize = (12, 8))
             ax = fig.gca()
+            ax.set_xlim(xlim)
+            ax.set_ylim(ylim)
         
         if smoothed:
             
@@ -219,59 +334,142 @@ def plot_deltas(
         ax.plot(0, 0, lw=0, label=f"Reference: {mask.split('/')[-1]}")
         
     ax.legend()
-    ax.set_xlim(440, 880)
-    # ax.set_xlim(440, 500)
-    ax.set_ylim(-1, 1)
+
         
     # ax.set_title(f"{mask.split('/')[-1]}", size=20)
     ax.set_xlabel("Wavelength [nm]", size=16)
     ax.set_ylabel("Wavelength offset from\nreference mask [pm]", size=16)
 
     plt.savefig(f"{OUTPUT_DIR}/_temp.png")
+    
+    
+def parse_date_string(datestr: str) -> datetime:
+    
+    # Handle dates like "2024-12-31"
+    if "-" in datestr:
+        datestr = "".join(datestr.split("-"))
+    # Now it should be "20241231"
+
+    year = int(datestr[:4])
+    month = int(datestr[4:6])
+    day = int(datestr[6:])
+    
+    return datetime(year=year, month=month, day=day)
 
 
-def parse_filename(path: str) -> datetime:
-    filename = path.split("/")[-1]
+def parse_filename(filename: str | list[str]) -> tuple[datetime, str, str]:
     
-    date, timeofday, orderlet = filename.split("_")[:3]
+    if isinstance(filename, list):
+        return [parse_filename(f) for f in filename]
     
-    # return datetime.fromtxt(date) ???
+    filename = filename.split("/")[-1]
+    datestr, timeofday, orderlet, *_ = filename.split("_")[:3]
+    date = parse_date_string(datestr)
     
-    # TODO: return a useful datetime or just date object
+    return Mask(date=date, timeofday=timeofday, orderlet=orderlet)
     
     
+def find_mask(
+    date: str,
+    masks: list[str],
+    timeofday: str = "eve",
+    orderlet: str = "SCI2",
+    ) -> str:
+    
+    date = parse_date_string(date)
+    
+    for m in masks:
+        mdate, mtimeofday, morderlet = parse_filename(m)
+        if mdate == date and mtimeofday == timeofday and morderlet == orderlet:
+            return m
+        
+    
+def select_masks(
+    masks: list[str],
+    min_date: datetime | None = None,
+    max_date: datetime | None = None,
+    timeofday: str | None = None,
+    orderlet: str | None = None,
+    ) -> list[str]:
+    
+    assert orderlet in ["SCI1", "SCI2", "SCI3", "CAL", "SKY", None]
+    assert timeofday in ["morn", "day", "eve", "night", "midnight", None] # ????
+    
+    valid_masks = masks
+    
+    if min_date:
+        valid_masks =\
+            [m for m in valid_masks if parse_filename(m).date >= min_date]
+        
+    if max_date:
+        valid_masks =\
+            [m for m in valid_masks if parse_filename(m).date <= max_date]
+    
+    if timeofday:
+        valid_masks =\
+            [m for m in valid_masks if parse_filename(m).timeofday == timeofday]
+        
+    if orderlet:
+        valid_masks =\
+            [m for m in valid_masks if parse_filename(m).orderlet == orderlet]
+    
+    return valid_masks
 
+    
 def main() -> None:
     
-    masks = sorted(glob(f"{MASKS_DIR}/*morn_SCI2*.csv"))
+    global MASKS_DIR
+    global OUTPUT_DIR
     
-    # for i, m in enumerate(masks):
-    #     print(i, m)
-    # return
+    MASKS_DIR  = "/scr/jpember/polly_outputs/masks"
+    OUTPUT_DIR = "/scr/jpember/temp"
     
-    # # May-June 2024
-    # deltas = compute_deltas(
-    #             reference_mask = masks[180],
-    #             masks = masks[181:],
-    #            )
+    masks = sorted(glob(f"{MASKS_DIR}/*SCI2*.csv"))
     
-    # # Oct 2023
-    # deltas = compute_deltas(
-    #             reference_mask = masks[0],
-    #             masks = masks[1:30],
-    #            )
+    masks = select_masks(
+        masks = masks,
+        min_date = datetime(2024, 3, 1),
+        orderlet = "SCI2",
+        timeofday = "eve",
+        )
     
-    # Nov 2023
-    deltas = compute_deltas(
-                reference_mask = masks[31],
-                masks = masks[32:62],
-               )
+    # from pprint import pprint
+    # pprint(masks)
     
-    # print([np.transpose(d) for d in deltas.values()])
+    reference_mask = find_mask(date="20240301", masks=masks)
     
-    plot_deltas(deltas)
 
+    with open(reference_mask, "r") as f:
+        reference_wavelengths = np.array(
+            [float(line.strip().split()[0]) for line in f.readlines()[1:]]
+            )
+        
+    local_spacings = np.diff(reference_wavelengths)
+        
+    drifts = [
+        PeakDrift(
+            reference_mask = reference_mask,
+            reference_wavelength = reference_wavelength,
+            local_spacing = local_spacing,
+            masks = masks,
+            )
+                for reference_wavelength, local_spacing
+                in zip(reference_wavelengths[::100], local_spacings[::100])
+        ]
 
+    fig = plt.figure(figsize=(12, 10))
+    ax = fig.gca()
+        
+    for d in drifts[::]:
+        ax.plot(d.dates, 1_000 * d.deltas, alpha=0.25)
+        
+    ax.set_ylim(-0.5, 1)
+    ax.set_ylabel("Drift from reference wavelength [pm]")
+    
+    ax.set_xlabel("Time")
+        
+    plt.savefig(f"{OUTPUT_DIR}/_temp.png")
+    plt.close()
 
 
 if __name__ == "__main__":
