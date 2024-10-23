@@ -49,14 +49,22 @@ class PeakDrift:
     valid: ArrayLike | None = None
     
     fit: Callable | None = None
+    fit_err: list[float] | None = None
     fit_slope: float | None = None
+    fit_slope_err: float | None = None
+
 
     def __post_init__(self):
         self.track_drift()
         
         
     @property
-    def dates(self) -> list[str]:
+    def reference_date(self) -> datetime:
+        return parse_filename(self.reference_mask).date
+
+        
+    @property
+    def dates(self) -> list[datetime]:
         
         if self.wavelengths:
             valid_masks = list(np.array(self.masks)[self.valid])
@@ -129,7 +137,7 @@ class PeakDrift:
                 # Don't update last_wavelength: we will keep searching at the
                 # same wavelength as previously.
             
-        
+        # Assign self.valid as a mask where wavelengths were successfully found
         self.valid = np.where(self.wavelengths)[0]    
         
     
@@ -142,7 +150,29 @@ class PeakDrift:
           day?
         """
         
-        ...
+        if not self.wavelengths:
+            print("No valid wavelengths found. Run PeakDrift.track_drift() first.")
+            return
+        
+        ref_wl = self.reference_wavelength * u.Angstrom
+        wls = self.wavelengths * u.Angstrom
+        deltas = (wls - ref_wl)
+        
+        d0 = self.reference_date
+        days = [(d - d0).days for d in self.dates]
+        
+        p, cov = np.polyfit(x = days, y = deltas, deg = 1, cov = True)
+        
+        print(f"{ref_wl = }")
+        print(f"{p = }")
+        print(f"{cov = }")
+        
+        self.fit = np.poly1d(p)
+        self.fit_err = np.sqrt(np.diag(cov))
+        self.fit_slope = p[0]
+        self.fit_slope_err = self.fit_err[0]
+        
+        return
         
 
 def savitzky_golay(
