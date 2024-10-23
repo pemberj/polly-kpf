@@ -100,12 +100,17 @@ def main(
             elif isinstance(spec_files, list):
                 print(f"{pp}{OKBLUE}Files: {spec_files}{ENDC}")            
 
-        s = Spectrum(
-            spec_file = spec_files,
-            wls_file = None, # It will try to find the corresponding WLS file
-            orderlets_to_load = orderlets,
-            pp = pp,
-            )
+        try:
+            s = Spectrum(
+                spec_file = spec_files,
+                wls_file = None, # It will try to find the corresponding WLS file
+                orderlets_to_load = orderlets,
+                pp = pp,
+                )
+        except Exception as e:
+            print(e)
+            continue
+        
         s.locate_peaks(fractional_height=0.01, window_to_save=14)
         s.fit_peaks(type="conv_gauss_tophat")
         s.filter_peaks(window=0.1)
@@ -170,7 +175,7 @@ def find_L1_etalon_files(
         try:
             assert len(files) == 1
         except AssertionError:
-            print(f"{len(f)} files found for {DATE} {TIMEOFDAY}...")
+            print(f"{len(files)} files found for {DATE} {TIMEOFDAY}...")
             return None
 
         with open(files[0], mode="rb") as _f:
@@ -268,7 +273,7 @@ file_selection.add_argument("-o", "--orderlets", type=parse_orderlets,
                             required=False, default="all")
 
 parser.add_argument("--outdir", type=lambda p: Path(p).absolute(),
-                    default="/scr/jpember/polly_outputs")
+                    default="/scr/jpember/polly_outputs/masks")
 
 plots = parser.add_argument_group("Plots")
 plots.add_argument("--spectrum_plot", type=bool, default=False)
