@@ -85,8 +85,8 @@ except ImportError:
 plt.style.use(plotStyle)
 
 
-logger = logging.getLogger("Polly").setLevel(logging.INFO)
-logging.basicConfig()
+logger = logging.getLogger("Polly")
+logger.setLevel(logging.INFO)
 
 
 HEADER  = '\033[95m'
@@ -1314,7 +1314,7 @@ class Spectrum:
             self._orders = _orders
                 
             # print(f"{OKGREEN} DONE{ENDC}")
-            logger.info(f"DONE")
+            logger.info("DONE")
         
         elif isinstance(self.spec_file, list):
             
@@ -1332,7 +1332,7 @@ class Spectrum:
                     f"RED_{_orderlet_name(ol)}_FLUX{_orderlet_index(ol)}")\
                                             for f in self.spec_file], axis=0)
                 # print(f"{OKGREEN} DONE{ENDC}")
-                logger.info(f"DONE")
+                logger.info("DONE")
                 
                 try:
                     assert all([fits.getval(f, "SCI-OBJ") ==\
