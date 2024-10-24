@@ -219,6 +219,11 @@ class Peak:
     
     
     @property
+    def pixlet(self) -> list[int]:
+        return [self.starting_pixel + i for i in range(len(self.wavelet))]
+    
+    
+    @property
     def parent(self) -> Order:
         """
         Return the Order to which this Peak belongs.
@@ -263,24 +268,31 @@ class Peak:
         return self.sigma * (2 * np.sqrt(2 * np.log(2)))
     
     
-    def fit(self, type: str = "conv_gauss_tophat") -> Peak:
+    def fit(
+        self,
+        type: str = "conv_gauss_tophat",
+        space: str = "wavelength",
+        ) -> Peak:
         
-        if type.lower() not in ["gaussian", "conv_gauss_tophat"]:
+        if type not in ["gaussian", "conv_gauss_tophat"]:
+            raise NotImplementedError
+        
+        if space not in ["wavelength", "pixel"]:
             raise NotImplementedError
         
         else:
             self.fit_type = type
             
             if type.lower() == "gaussian":
-                self._fit_gaussian()
+                self._fit_gaussian(space=space)
             
             elif type.lower() == "conv_gauss_tophat":
-                self._fit_conv_gauss_tophat()
+                self._fit_conv_gauss_tophat(space=space)
                 
         return self
         
         
-    def _fit_gaussian(self) -> None:
+    def _fit_gaussian(self, space: str = "wavelength") -> None:
         """
         `scipy.optimize.curve_fit` wrapper, with initial guesses `p0` and
         bounds `bounds` coming from properties of the data themselves
@@ -290,9 +302,16 @@ class Peak:
         See top-level `_gaussian` for function definition
         """
         
-        x0 = np.mean(self.wavelet)
-        x = self.wavelet - x0 # Centre about zero
-        mean_dx = np.mean(np.diff(x))
+        if space == "wavelength":
+            x0 = np.mean(self.wavelet)
+            x = self.wavelet - x0 # Centre about zero
+            mean_dx = np.mean(np.diff(x))
+            
+        elif space == "pixel":
+            x0 = np.mean(self.pixlet)
+            x = self.pixlet - x0 # Centre about zero
+            mean_dx = 1
+            
         maxy = max(self.speclet)
         y = self.speclet / maxy
         
@@ -318,8 +337,14 @@ class Peak:
             
         amplitude, center, sigma, offset = p
         
+        if space == "wavelength":
+            center_wavelength = x0 + center
+        elif space == "pixel":
+            center_wavelength = np.interp(center, x, self.wavelet)
+            # TODO: Make the same conversion for sigma & bowhalfwidth?
+        
         # Populate the fit parameters
-        self.center_wavelength = x0 + center
+        self.center_wavelength = center_wavelength
         self.amplitude = amplitude
         self.sigma = sigma
         # In case another function fit had already defined self.boxhalfwidth
@@ -334,7 +359,7 @@ class Peak:
         self.offset_stddev = stddev[3]
             
     
-    def _fit_conv_gauss_tophat(self) -> None:
+    def _fit_conv_gauss_tophat(self, space: str = "wavelength") -> None:
         """
         `scipy.optimize.curve_fit` wrapper, with initial guesses `p0` and
         bounds `bounds` coming from properties of the data themselves
@@ -345,9 +370,16 @@ class Peak:
         `fit_erf_to_ccf_simplified.py` module
         """
         
-        x0 = np.mean(self.wavelet)
-        x = self.wavelet - x0 # Centre about zero
-        mean_dx = abs(np.mean(np.diff(x)))
+        if space == "wavelength":
+            x0 = np.mean(self.wavelet)
+            x = self.wavelet - x0 # Centre about zero
+            mean_dx = abs(np.mean(np.diff(x)))
+            
+        elif space == "pixel":
+            x0 = np.mean(self.pixlet)
+            x = self.pixlet - x0 # Centre about zero
+            mean_dx = 1
+        
         maxy = max(self.speclet)
         # Normalise
         y = self.speclet / maxy
@@ -376,8 +408,14 @@ class Peak:
         
         center, amplitude, sigma, boxhalfwidth, offset = p
         
+        if space == "wavelength":
+            center_wavelength = x0 + center
+        elif space == "pixel":
+            center_wavelength = np.interp(center, x, self.wavelet)
+        # TODO: Make the same conversion for sigma & bowhalfwidth?
+        
         # Populate the fit parameters
-        self.center_wavelength = x0 + center
+        self.center_wavelength = center_wavelength
         self.amplitude = amplitude * maxy
         self.sigma = sigma
         self.boxhalfwidth = boxhalfwidth
