@@ -1203,8 +1203,6 @@ class Spectrum:
         
         result = []
         for ol in orderlet:
-            # TODO: Remove this line:
-            # result.append(self.filtered_peaks[ol])
             for o in self.orders(orderlet = ol):
                 for p in o.peaks:
                     result.append(p)
