@@ -236,8 +236,8 @@ class Peak:
     def wl(self) -> float:
         if self.center_wavelength:
             return self.center_wavelength
-        else:
-            return self.coarse_wavelength
+        
+        return self.coarse_wavelength
     
     
     @property
@@ -312,11 +312,11 @@ class Peak:
         maxy = max(self.speclet)
         y = self.speclet / maxy
         
-                   # amplitude,  center,          sigma,        offset
-        p0 =        [max(y)/2,   0,            2.5 * mean_dx,   min(y)]
+                # amplitude,     center,       sigma,           offset
+        p0 =        [0.5,        0,            2.5 * mean_dx,   min(y)]
         bounds = [
-                    [0,         -2 * mean_dx,  0,              -np.inf],
-                    [max(y),     2 * mean_dx,  10 * mean_dx,    np.inf]
+                    [0,         -5 * mean_dx,  0,              -np.inf],
+                    [2,          5 * mean_dx,  10 * mean_dx,    np.inf]
                 ]
         
         try:
@@ -340,7 +340,7 @@ class Peak:
             center_wavelength = x0 + center
         elif space == "pixel":
             center_wavelength = np.interp(center, x, self.wavelet)
-            # TODO: Make the same conversion for sigma & bowhalfwidth?
+        # TODO: Make the same conversion for sigma & bowhalfwidth?
         
         # Populate the fit parameters
         self.center_wavelength = center_wavelength
@@ -383,11 +383,11 @@ class Peak:
         # Normalise
         y = self.speclet / maxy
         
-             # center,        amp,          sigma,       boxhalfwidth,  offset
-        p0 = [0,            max(y) / 2,  2.5 * mean_dx,  3 * mean_dx,   min(y)]
+             # center,     amp,    sigma,        boxhalfwidth,  offset
+        p0 = [0,            1,  2.5 * mean_dx,   3 * mean_dx,   min(y)]
         bounds = [
-            [-2 * mean_dx,  0,           0,              0,            -np.inf],
-            [ 2 * mean_dx,  2 * max(y),  10 * mean_dx,   6 * mean_dx,   np.inf]
+            [-5 * mean_dx,  0,   0,              0,            -np.inf],
+            [ 5 * mean_dx,  10,  10 * mean_dx,   6 * mean_dx,   np.inf]
                 ]
         try:
             p, cov = curve_fit(
@@ -599,7 +599,7 @@ class Peak:
         return None
     
     
-    def is_close_to(self, other: Peak, window: float = 0.005) -> bool:
+    def is_close_to(self, other: Peak, window: float = 0.01) -> bool:
         """
         Checks if a Peak is within a window of another Peak. Used for filtering
         identical peaks (same wavelength) from neighbouring orders (m, m+1).
@@ -611,6 +611,7 @@ class Peak:
         Returns:
             bool: _description_
         """
+        
         if abs(self.center_wavelength - other.center_wavelength) <= window:
             return True
         
@@ -619,6 +620,7 @@ class Peak:
  
     def has(self, prop: str) -> str:
         """String generation"""
+        
         if prop == "speclet":
             if self.speclet is None: return "[ ]"
             else: return "[x]"
@@ -650,14 +652,9 @@ class Peak:
                f"center_wavelength {self.center_wavelength:.3f})"
                
 
-    def __eq__(self, other: Peak | float) -> bool:
-        
-        if isinstance(other, Peak):
-            return self.wl == other.wl
-        
-        elif isinstance(other, float):
-            return self.wl == other
-    
+    def __eq__(self, wl) -> bool:
+        return self.wl == wl           
+
 
     def __lt__(self, wl: float) -> bool:
         return self.wl < wl
@@ -1165,9 +1162,7 @@ class Spectrum:
                 [Order(i=o1.i, wave = o1.wave, spec = o1.spec + o2.spec)\
                             for o1, o2 in zip(self.orders(), other.orders())])
         else:
-            raise TypeError(
-                f"{self.pp}Can only add two Spectrum objects together"
-                )
+            raise TypeError("Can only add two Spectrum objects together")
     
     
     @property
