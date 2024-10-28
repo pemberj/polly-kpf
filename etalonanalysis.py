@@ -2159,39 +2159,4 @@ if __name__ == "__main__":
     
     logger.setLevel(logging.INFO)
     
-    # # create file handler which logs even debug messages
-    # formatter = logging.Formatter(
-    #     "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    #     )
-    # file_handler = logging.FileHandler(f"{__file__}.log")
-    # file_handler.setLevel(logging.DEBUG)
-    # file_handler.setFormatter(formatter)
-    # logger.addHandler(file_handler)
-
-    # # create console handler with a higher log level
-    # stdout_formatter = logging.Formatter("%(message)s")
-    # stdout = logging.StreamHandler()
-    # stdout.setLevel(logging.INFO)
-    # stdout.setFormatter(stdout_formatter)
-    # logger.addHandler(stdout)
-    
     test()
-    
-    
-    
-    # import cProfile
-    # import pstats
-    
-    # with cProfile.Profile() as pr:
-    #     test()
-        
-    # stats = pstats.Stats(pr)
-    # stats.sort_stats(pstats.SortKey.TIME)
-    # stats.print_stats(20)
-    # # stats.dump_stats("../etalonanalysis.prof")
-    
-    
-    # # Close the logging handlers
-    # for handler in logger.handlers:
-    #     handler.close()
-    #     logger.removeFilter(handler)
