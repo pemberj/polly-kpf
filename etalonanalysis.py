@@ -1087,7 +1087,7 @@ class Spectrum:
             ...
             
         for ol in self.orderlets_to_load:
-            self.filtered_peaks[ol] = None
+            self.filtered_peaks[ol] = []
         
         else:
             if self.spec_file:
@@ -1203,8 +1203,8 @@ class Spectrum:
         
         result = []
         for ol in orderlet:
-            if self.filtered_peaks[ol] is not None:
-                result.append(self.filtered_peaks[ol])
+            # TODO: Remove this line:
+            # result.append(self.filtered_peaks[ol])
             for o in self.orders(orderlet = ol):
                 for p in o.peaks:
                     result.append(p)
@@ -1223,8 +1223,9 @@ class Spectrum:
         if orderlet is None:
             orderlet = self.orderlets
         
-        return {ol: sum(len(o.peaks) for o in self.orders(orderlet=ol))\
-                                                             for ol in orderlet}
+        return {ol: sum(len(o.peaks)
+                    for o in self.orders(orderlet=ol))
+                                        for ol in orderlet}
 
 
     def num_successfully_fit_peaks(
@@ -1233,15 +1234,37 @@ class Spectrum:
         ) -> int:
         
         if isinstance(orderlet, str):
-            sum(1 for o in self.orders(orderlet=orderlet) for p in o.peaks\
-                                           if not np.isnan(p.center_wavelength))
+            return sum(1
+                       for o in self.orders(orderlet=orderlet)
+                       for p in o.peaks
+                            if not np.isnan(p.center_wavelength))
         
         if orderlet is None:
             orderlet = self.orderlets
 
-        return {ol: sum(1 for o in self.orders(orderlet=ol)
-                        for p in o.peaks if not np.isnan(p.center_wavelength))\
-                                                             for ol in orderlet}
+        return {ol: sum(1
+                        for o in self.orders(orderlet=ol)
+                        for p in o.peaks
+                            if not np.isnan(p.center_wavelength))
+                                                    for ol in orderlet}
+        
+        
+    def num_filtered_peaks(
+        self,
+        orderlet: str | list[str] | None = None,
+        ) -> int:
+        
+        if not self.filtered_peaks:
+            logger.warning("List of filtered peaks is empty. "+\
+                           "Call Spectrum.filter_peaks() first")
+        
+        if isinstance(orderlet, str):
+            return len(self.filtered_peaks[orderlet])
+        
+        if orderlet is None:
+            orderlet = self.orderlets
+
+        return {ol: len(self.filtered_peaks[ol]) for ol in orderlet}
             
     
     def parse_reference_mask(self) -> Spectrum:
@@ -1561,7 +1584,7 @@ class Spectrum:
     def filter_peaks(
         self,
         orderlet: str | list[str] | None = None,
-        window: float = 0.01
+        window: float = 0.1
         ) -> Spectrum:
         """
         Filter the peaks such that any peaks of a close enough wavelength, but
