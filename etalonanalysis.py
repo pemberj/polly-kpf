@@ -80,13 +80,11 @@ import matplotlib.patheffects as pe
 
 try:
     from polly.plotStyle import plotStyle
+    from polly.polly_logging import logger
 except ImportError:
     from plotStyle import plotStyle
+    from polly_logging import logger
 plt.style.use(plotStyle)
-
-
-logger = logging.getLogger("Polly")
-logger.setLevel(logging.INFO)
 
 
 HEADER  = '\033[95m'
@@ -762,7 +760,7 @@ class Order:
         
         if self.spec is None or self.wave is None:
             # print(f"{self.pp}Issue with processing order {self}")
-            logger.info(f"{self.pp}Issue with processing order {self}")
+            logger.info(f"Issue with processing order {self}")
             return self
         
         y = self.spec - np.nanmin(self.spec)
@@ -1262,8 +1260,8 @@ class Spectrum:
         if not self.orders():
             # print(f"{self.pp}{WARNING}No order data - first load data, then "+\
             #       f"apply reference mask{ENDC}")
-            logger.warning(f"{self.pp}No order data - first load data, then "+\
-                  f"apply reference mask")
+            logger.warning("No order data - first load data, then apply "+\
+                           "reference mask")
             
             return self
         
@@ -1289,8 +1287,8 @@ class Spectrum:
         if isinstance(self.spec_file, str):
             # print(f"{self.pp}Loading flux values from a single file: "+\
             #       f"{self.spec_file.split('/')[-1]}...", end="")
-            logger.info(f"{self.pp}Loading flux values from a single file: "+\
-                  f"{self.spec_file.split('/')[-1]}...")
+            logger.info("Loading flux values from a single file: "+\
+                       f"{self.spec_file.split('/')[-1]}...")
             
             _orders = []
             for ol in self.orderlets_to_load:
@@ -1314,7 +1312,7 @@ class Spectrum:
             self._orders = _orders
                 
             # print(f"{OKGREEN} DONE{ENDC}")
-            logger.info("DONE")
+            # logger.info("DONE")
         
         elif isinstance(self.spec_file, list):
             
@@ -1322,8 +1320,8 @@ class Spectrum:
             for ol in self.orderlets_to_load:
                 # print(f"{self.pp}Loading {ol} flux values "+\
                 #       f"from a list of {len(self.spec_file)} files...", end="")
-                logger.info(f"{self.pp}Loading {ol} flux values "+\
-                      f"from a list of {len(self.spec_file)} files...")
+                logger.info(f"Loading {ol} flux values from a list of "+\
+                            f"{len(self.spec_file)} files...")
                 
                 spec_green = np.median([fits.getdata(f,
                     f"GREEN_{_orderlet_name(ol)}_FLUX{_orderlet_index(ol)}")\
@@ -1332,7 +1330,7 @@ class Spectrum:
                     f"RED_{_orderlet_name(ol)}_FLUX{_orderlet_index(ol)}")\
                                             for f in self.spec_file], axis=0)
                 # print(f"{OKGREEN} DONE{ENDC}")
-                logger.info("DONE")
+                # logger.info("DONE")
                 
                 try:
                     assert all([fits.getval(f, "SCI-OBJ") ==\
@@ -1343,8 +1341,7 @@ class Spectrum:
                     # print(f"{self.pp}{WARNING}SCI-OBJ did not match between "+\
                     #       f"the input files!{ENDC}")
                     # print([f for f in self.spec_file])
-                    logger.warning(f"{self.pp}SCI-OBJ did not match between "+\
-                          f"the input files!")
+                    logger.warning("SCI-OBJ did not match between input files!")
                     logger.warning([f for f in self.spec_file])
                         
                 try:
@@ -1357,8 +1354,7 @@ class Spectrum:
                     #       f"the input files!{ENDC}")
                     # print([f for f in self.spec_file])
                     
-                    logger.warning(f"{self.pp}CAL-OBJ did not match between "+\
-                          f"the input files!")
+                    logger.warning("CAL-OBJ did not match between input files!")
                     logger.info([f for f in self.spec_file])
                     
                 try:
@@ -1371,8 +1367,7 @@ class Spectrum:
                     #       f"the input files!{ENDC}")
                     # print([f for f in self.spec_file])
                     
-                    logger.warning(f"{self.pp}OBJECT did not match between "+\
-                          f"the input files!")
+                    logger.warning("OBJECT did not match between input files!")
                     logger.warning([f for f in self.spec_file])
                     
                 try:
@@ -1387,8 +1382,8 @@ class Spectrum:
                     #       f"the input files!{ENDC}")
                     # print([f for f in self.spec_file])
                     
-                    logger.warning(f"{self.pp}DATE-OBS did not match between "+\
-                          f"the input files!")
+                    logger.warning("DATE-OBS did not match between "+\
+                                   "input files!")
                     logger.warning([f for f in self.spec_file])
                     
                 spec = np.append(spec_green, spec_red, axis=0)
@@ -1400,8 +1395,7 @@ class Spectrum:
             
         else: # self.spec_file is something else entirely
             raise NotImplementedError(
-                f"{self.pp}{FAIL}spec_file must be a single filename or "+\
-                f"list of filenames{ENDC}"
+                "spec_file must be a single filename or list of filenames"
                 )
         
         return self
@@ -1425,17 +1419,16 @@ class Spectrum:
             assert "lfc" in fits.getval(wls_file, "OBJECT").lower()
         except AssertionError:
             logger.warning(
-                f"{self.pp}'lfc' not found in {self.timeofday} "+\
-                f"WLS file 'OBJECT' value!"
+                f"'lfc' not found in {self.timeofday} WLS file 'OBJECT' value!"
                 )
         except FileNotFoundError:
-            logger.warning(f"{self.pp}{self.timeofday} WLS file not found")
+            logger.warning(f"{self.timeofday} WLS file not found")
             
         if wls_file:
             self.wls_file = wls_file
             # print(f"{self.pp}{OKBLUE}Using WLS file: "+\
             #       f"{wls_file.split('/')[-1]}{ENDC}")
-            logger.info(f"{self.pp}Using WLS file: {wls_file.split('/')[-1]}")
+            logger.info(f"Using WLS file: {wls_file.split('/')[-1]}")
         else:
             # Use the WLS embedded in the spec_file?
             self.wls_file = self.spec_file
@@ -1447,8 +1440,9 @@ class Spectrum:
             raise FileNotFoundError("No WLS file specified or found!")
         
         if isinstance(self.wls_file, list):
-            raise NotImplementedError(f"{self.pp}{FAIL}wls_file must be "+\
-                                      f"a single filename only{ENDC}")
+            raise NotImplementedError(
+                "wls_file must be a single filename only"
+                )
         
         for ol in self.orderlets_to_load:
             
@@ -1502,7 +1496,7 @@ class Spectrum:
             for ol in orderlet:
         
                 # print(f"{self.pp}Locating {ol:<4} peaks...", end="")
-                logger.info(f"{self.pp}Locating {ol:<4} peaks...")
+                logger.info(f"Locating {ol:<4} peaks...")
                 for o in self.orders(orderlet = ol):
                     o.locate_peaks(
                         fractional_height = fractional_height,
@@ -1511,14 +1505,15 @@ class Spectrum:
                         window_to_save=window_to_save,
                         )
                 # print(f"{OKGREEN} DONE{ENDC}")
-                logger.info("DONE")
+                # logger.info("DONE")
             
         else:
             # print(f"{self.pp}{OKBLUE}Not locating peaks because a "+\
             #       f"reference mask was passed in.{ENDC}")
             
-            logger.info(f"{self.pp}Not locating peaks because a "+\
-                  f"reference mask was passed in.")
+            logger.info(
+                "Not locating peaks because a reference mask was passed in."
+                )
         return self
         
     
@@ -1549,12 +1544,12 @@ class Spectrum:
                 self.locate_peaks()
             # print(f"{self.pp}Fitting {ol} peaks with {type} function...")
             
-            logger.info(f"{self.pp}Fitting {ol} peaks with {type} function...")
+            logger.info(f"Fitting {ol} peaks with {type} function...")
             
             #What to do about progress bars with logging???
             for o in tqdm(
                         self.orders(orderlet = ol),
-                        desc=f"{self.pp}Orders",
+                        desc="Orders",
                         unit="order",
                         ncols=100
                         ):
@@ -1592,31 +1587,49 @@ class Spectrum:
             # print(f"{self.pp}Filtering {ol} peaks to remove "+\
             #        "identical peaks appearing in adjacent orders...", end="")
             
-            logger.info(f"{self.pp}Filtering {ol} peaks to remove "+\
-                   "identical peaks appearing in adjacent orders...")
+            logger.info(f"Filtering {ol} peaks to remove identical peaks "+\
+                         "appearing in adjacent orders...")
             
             peaks = self.peaks(orderlet = ol)
             
             if peaks is None:
                 # print(f"\n{self.pp}{WARNING}No peaks found{ENDC}")
-                logger.warning(f"\n{self.pp}No peaks found")
+                logger.warning("No peaks found")
                 return self
             
             peaks = sorted(peaks, key=attrgetter("wl"))
+            spacing = np.diff([p.wl for p in peaks])
+            
+            # plt.rcParams["axes.autolimit_mode"] = "data"
+            # bins = np.linspace(0, 0.8, 200)
+            # plt.hist(spacing, bins=bins)
+            # # plt.xscale("log")
+            # plt.yscale("log")
+            # plt.savefig("/scr/jpember/temp/spacing_hist.png")
+            # plt.rcParams["axes.autolimit_mode"] = "round_numbers"
+            
+            # print(f"{np.median(spacing) = }")
+            # print(f"{np.mean(spacing) = }")
+            # print(f"{np.max(spacing) = }")
+            # print(f"{np.min(spacing) = }")
             
             to_keep = []
-            for (p1, p2) in zip(peaks[:-1], peaks[1:]):
+            for (p1, p2) in\
+                zip(peaks[:-1], peaks[1:]):
+                    
                 if p1.i == p2.i:
+                    to_keep.append(p1)
+                    
+                elif p1.is_close_to(p2, window=window):
                     continue
-                if p1.is_close_to(p2, window=window):
-                    if p1.d < p2.d:
-                        to_keep.append(p1)
-                    else:
-                        to_keep.append(p2)
+                
+                else:
+                    to_keep.append(p1)
             
             self.filtered_peaks[ol] = to_keep
+                
             # print(f"{OKGREEN} DONE{ENDC}")
-            logger.info("DONE")
+            # logger.info("DONE")
                 
         return self
     
@@ -1638,16 +1651,16 @@ class Spectrum:
             
         for ol in orderlet:
         
-            if self.filtered_peaks[ol] is None:
+            if not self.filtered_peaks[ol]:
                 self.filter_peaks(orderlet=ol)
             
             # print(f"{self.pp}Saving {ol} peaks to {filename}...", end="")
-            logger.info(f"{self.pp}Saving {ol} peaks to {filename}...")
+            logger.info(f"Saving {ol} peaks to {filename}...")
             with open(filename, "w") as f:
                 for p in self.filtered_peaks[ol]:
                     f.write(f"{p.wl}\t1.0\n")        
             # print(f"{OKGREEN} DONE{ENDC}")
-            logger.info("DONE")
+            # logger.info("DONE")
                     
         return self
     
@@ -1661,7 +1674,7 @@ class Spectrum:
         """
         """
         # print(f"{self.pp}Plotting {orderlet} spectrum...", end="")
-        logger.info(f"{self.pp}Plotting {orderlet} spectrum...")
+        logger.info(f"Plotting {orderlet} spectrum...")
         
         assert orderlet in self.orderlets
                 
@@ -1690,16 +1703,15 @@ class Spectrum:
         ax.plot(0, 0, color="k", lw=1.5)
 
         if plot_peaks:
-            if self.filtered_peaks[orderlet] is not None:
-                for p in self.filtered_peaks[orderlet]:
-                    if p.wl/10. > xlims[0] and p.wl/10. < xlims[1]:
-                        ax.axvline(x = p.wl/10., color = "k", alpha = 0.1)
+            for p in self.filtered_peaks[orderlet]:
+                if p.wl/10. > xlims[0] and p.wl/10. < xlims[1]:
+                    ax.axvline(x = p.wl/10., color = "k", alpha = 0.1)
 
         ax.set_xlabel("Wavelength [nm]")
         ax.set_ylabel("Flux")
         
         # print(f"{OKGREEN} DONE{ENDC}")
-        logger.info("DONE")
+        # logger.info("DONE")
 
         return self
     
@@ -1712,8 +1724,8 @@ class Spectrum:
         ) -> plt.Axes:
         """
         """
-        # print(f"{self.pp}Plotting {orderlet} spectrum...", end="")
-        logger.info(f"{self.pp}Plotting {orderlet} spectrum...")
+        # print(f"{self.pp}Plotting {orderlet} residuals...", end="")
+        logger.info(f"Plotting {orderlet} residuals...")
         
         assert orderlet in self.orderlets
                 
@@ -1745,16 +1757,15 @@ class Spectrum:
         ax.axhline(y=0, ls="--", color="k", alpha=0.25, zorder=-1)
 
         if plot_peaks:
-            if self.filtered_peaks[orderlet] is not None:
-                for p in self.filtered_peaks[orderlet]:
-                    if p.wl/10. > xlims[0] and p.wl/10. < xlims[1]:
-                        ax.axvline(x = p.wl/10., color = "k", alpha = 0.1)
+            for p in self.filtered_peaks[orderlet]:
+                if p.wl/10. > xlims[0] and p.wl/10. < xlims[1]:
+                    ax.axvline(x = p.wl/10., color = "k", alpha = 0.1)
 
         ax.set_xlabel("Wavelength [nm]")
         ax.set_ylabel("Residuals (data $-$ fit)")
         
         # print(f"{OKGREEN} DONE{ENDC}")
-        logger.info("DONE")
+        # logger.info("DONE")
 
         return self
     
@@ -1795,7 +1806,7 @@ class Spectrum:
         ) -> Spectrum:
         
         # print(f"{self.pp}Plotting {orderlet} Etalon FSR...", end="")
-        logger.info(f"{self.pp}Plotting {orderlet} Etalon FSR...")
+        logger.info(f"Plotting {orderlet} Etalon FSR...")
         
         assert orderlet in self.orderlets
         
@@ -1852,7 +1863,7 @@ class Spectrum:
         ax.set_ylabel("Etalon $\Delta\\nu_{FSR}$ [GHz]", size=16)
         
         # print(f"{OKGREEN} DONE{ENDC}")
-        logger.info("DONE")
+        # logger.info("DONE")
         
         return self
     
@@ -1860,7 +1871,7 @@ class Spectrum:
     def plot_peak_fits(self, orderlet: str) -> Spectrum:
         
         # print(f"{self.pp}Plotting fits of {orderlet} etalon peaks...", end="")
-        logger.info(f"{self.pp}Plotting fits of {orderlet} etalon peaks...")
+        logger.info(f"Plotting fits of {orderlet} etalon peaks...")
         
         assert orderlet in self.orderlets
         
@@ -1881,7 +1892,7 @@ class Spectrum:
             o.peaks[o.num_peaks-1].plot_fit(ax=axs[i][2])
             
         # print(f"{OKGREEN} DONE{ENDC}")
-        logger.info("DONE")
+        # logger.info("DONE")
 
         return self
     
@@ -2088,25 +2099,34 @@ def test() -> None:
     DATAPATH = "/data/kpf/masters/"
     DATE = "20240520"
     
-    WLS_file = f"{DATAPATH}{DATE}/"+\
-               f"kpf_{DATE}_master_WLS_autocal-lfc-all-morn_L1.fits"
+    WLS_file    = f"{DATAPATH}{DATE}/"+\
+                  f"kpf_{DATE}_master_WLS_autocal-lfc-all-morn_L1.fits"
     etalon_file = f"{DATAPATH}{DATE}/"+\
                   f"kpf_{DATE}_master_WLS_autocal-etalon-all-morn_L1.fits"
 
     s = Spectrum(
-        spec_file=etalon_file,
-        wls_file=WLS_file,
-        # orderlets_to_load="SCI2",
+        spec_file = etalon_file,
+        wls_file = WLS_file,
+        orderlets_to_load = "SCI2",
         )
     
-    print(s.orderlets)
-
-    s.locate_peaks()
+    s.locate_peaks(window_to_save = 14)
     
-    print(s.num_located_peaks())
+    print(f"{s.num_located_peaks() = }")
     
-    # s.fit_peaks()
-    # s.filter_peaks()
+    s.fit_peaks(
+        type = "gaussian"
+        # type = "conv_gauss_tophat"
+        )
+    print(f"{s.num_successfully_fit_peaks() = }")
+    
+    s.filter_peaks(window=0.01)
+    print(f"{s.num_filtered_peaks() = }")
+    
+    s.save_peak_locations(
+        filename = "/scr/jpember/temp/check_mask.csv",
+        orderlet = "SCI2"
+        )
     
     # s.save_peak_locations(f"./etalon_wavelengths_{orderlet}.csv")
 
@@ -2114,36 +2134,41 @@ def test() -> None:
 
 if __name__ == "__main__":
     
-    # create file handler which logs even debug messages
-    formatter = logging.Formatter(
-        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-        )
-    file_handler = logging.FileHandler(f"{__name__}.log")
-    file_handler.setLevel(logging.DEBUG)
-    file_handler.setFormatter(formatter)
-    logger.addHandler(file_handler)
+    logger.setLevel(logging.INFO)
+    
+    # # create file handler which logs even debug messages
+    # formatter = logging.Formatter(
+    #     "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    #     )
+    # file_handler = logging.FileHandler(f"{__file__}.log")
+    # file_handler.setLevel(logging.DEBUG)
+    # file_handler.setFormatter(formatter)
+    # logger.addHandler(file_handler)
 
-    # create console handler with a higher log level
-    stdout_formatter = logging.Formatter("%(message)s")
-    stdout = logging.StreamHandler()
-    stdout.setLevel(logging.INFO)
-    stdout.setFormatter(stdout_formatter)
-    logger.addHandler(stdout)
+    # # create console handler with a higher log level
+    # stdout_formatter = logging.Formatter("%(message)s")
+    # stdout = logging.StreamHandler()
+    # stdout.setLevel(logging.INFO)
+    # stdout.setFormatter(stdout_formatter)
+    # logger.addHandler(stdout)
+    
+    test()
     
     
-    import cProfile
-    import pstats
     
-    with cProfile.Profile() as pr:
-        test()
+    # import cProfile
+    # import pstats
+    
+    # with cProfile.Profile() as pr:
+    #     test()
         
-    stats = pstats.Stats(pr)
-    stats.sort_stats(pstats.SortKey.TIME)
-    stats.print_stats(20)
-    # stats.dump_stats("../etalonanalysis.prof")
+    # stats = pstats.Stats(pr)
+    # stats.sort_stats(pstats.SortKey.TIME)
+    # stats.print_stats(20)
+    # # stats.dump_stats("../etalonanalysis.prof")
     
     
-    # Close the logging handlers
-    for handler in logger.handlers:
-        handler.close()
-        logger.removeFilter(handler)
+    # # Close the logging handlers
+    # for handler in logger.handlers:
+    #     handler.close()
+    #     logger.removeFilter(handler)

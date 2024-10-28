@@ -41,9 +41,12 @@ from matplotlib import pyplot as plt
 try:
     from polly.etalonanalysis import Spectrum
     from polly.plotStyle import plotStyle
+    from polly.polly_logging import logger
 except ImportError:
     from etalonanalysis import Spectrum
     from plotStyle import plotStyle
+    from polly_logging import logger
+
 plt.style.use(plotStyle)
 
 
@@ -54,7 +57,7 @@ WARNING = '\033[93m'
 FAIL    = '\033[91m'
 ENDC    = '\033[0m'
 
-TIMESOFDAY = ["morn", "eve", "night"]
+TIMESOFDAY = ["morn", "eve", "night"] # midnight? day?
 
 ORDERLETS : list[str] = [
     "SCI1",
@@ -90,16 +93,19 @@ def main(
         spec_files = find_L1_etalon_files(
             DATE=DATE, TIMEOFDAY=t, masters=masters
             )
-        
+        # print()
         if not spec_files:
-            print(f"{pp}{FAIL}No files for {DATE} {t}{ENDC}")
+            # print(f"{pp}{FAIL}No files for {DATE} {t}{ENDC}")
+            logger.info(f"No files for {DATE} {t}")
             continue
         
         if VERBOSE:
             if isinstance(spec_files, str):
-                print(f"{pp}{OKBLUE}File: {spec_files}{ENDC}")
+                # print(f"{pp}{OKBLUE}File: {spec_files}{ENDC}")
+                logger.info(f"File: {spec_files}")
             elif isinstance(spec_files, list):
-                print(f"{pp}{OKBLUE}Files: {spec_files}{ENDC}")            
+                # print(f"{pp}{OKBLUE}Files: {spec_files}{ENDC}")
+                logger.info(f"Files: {spec_files}")
 
         try:
             s = Spectrum(
@@ -109,12 +115,13 @@ def main(
                 pp = pp,
                 )
         except Exception as e:
-            print(e)
+            # print(e)
+            logger.error(e)
             continue
         
         s.locate_peaks(fractional_height=0.01, window_to_save=14)
         s.fit_peaks(type="conv_gauss_tophat")
-        s.filter_peaks(window=0.1)
+        s.filter_peaks(window=0.01)
         
         for ol in s.orderlets:
             try:
@@ -124,7 +131,8 @@ def main(
                     orderlet=ol,
                     )
             except Exception as e:
-                print(f"{pp}{e}")
+                # print(e)
+                logger.error(e)
                 continue
         
         if spectrum_plot:
@@ -176,7 +184,8 @@ def find_L1_etalon_files(
         try:
             assert len(files) == 1
         except AssertionError:
-            print(f"{len(files)} files found for {DATE} {TIMEOFDAY}...")
+            # print(f"{len(files)} files found for {DATE} {TIMEOFDAY}...")
+            logger.info(f"{len(files)} files found for {DATE} {TIMEOFDAY}...")
             return None
 
         with open(files[0], mode="rb") as _f:
@@ -185,10 +194,12 @@ def find_L1_etalon_files(
                 if "etalon" in object.lower():
                     return files[0]
             except FileNotFoundError as e:
-                print(e)
+                # print(e)
+                logger.error(e)
                 return None
             except OSError as e:
-                print(e)
+                # print(e)
+                logger.error(e)
                 return None
             
     all_files: list[str] = glob(f"/data/kpf/L1/{DATE}/*.fits")
@@ -287,24 +298,26 @@ parser.add_argument("-v", "--verbose", action="store_true", default=False)
 
 if __name__ == "__main__":
     
-    logger = logging.getLogger(f"Polly:{__file__}").setLevel(logging.INFO)
-    logging.basicConfig()
+    logger.setLevel(logging.INFO)
     
-    # create file handler which logs even debug messages
-    formatter = logging.Formatter(
-        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-        )
-    file_handler = logging.FileHandler(f"{__file__}.log")
-    file_handler.setLevel(logging.DEBUG)
-    file_handler.setFormatter(formatter)
-    logger.addHandler(file_handler)
+    # logger = logging.getLogger(f"Polly:{__file__}")
+    # logger.setLevel(logging.INFO)
+    
+    # # create file handler which logs even debug messages
+    # formatter = logging.Formatter(
+    #     "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    #     )
+    # file_handler = logging.FileHandler(f"{__file__}.log")
+    # file_handler.setLevel(logging.DEBUG)
+    # file_handler.setFormatter(formatter)
+    # logger.addHandler(file_handler)
 
-    # create console handler with a higher log level
-    stdout_formatter = logging.Formatter("%(message)s")
-    stdout = logging.StreamHandler()
-    stdout.setLevel(logging.INFO)
-    stdout.setFormatter(stdout_formatter)
-    logger.addHandler(stdout)
+    # # create console handler with a higher log level
+    # stdout_formatter = logging.Formatter("%(message)s")
+    # stdout = logging.StreamHandler()
+    # stdout.setLevel(logging.INFO)
+    # stdout.setFormatter(stdout_formatter)
+    # logger.addHandler(stdout)
     
     
     
