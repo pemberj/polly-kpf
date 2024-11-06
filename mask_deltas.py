@@ -20,6 +20,7 @@ from typing import Callable
 from dataclasses import dataclass, field
 from math import factorial
 from datetime import datetime
+from pathlib import Path
 
 import numpy as np
 from numpy.typing import ArrayLike
@@ -30,9 +31,9 @@ from astropy.units import Quantity
 from matplotlib import pyplot as plt
 
 try:
-    from polly.plotStyle import plotStyle
+    from polly.plotStyle import plotStyle, wavelength_to_rgb
 except ImportError:
-    from plotStyle import plotStyle
+    from plotStyle import plotStyle, wavelength_to_rgb
 plt.style.use(plotStyle)
 
 
@@ -48,30 +49,83 @@ class PeakDrift:
     local_spacing: float # Local distance between wavelengths in reference mask
     
     masks: list[str] # List of filenames to search
+    dates: list[datetime] | None = None
     
     # After initialisation, the single peak will be tracked as it appears in
     # each successive mask. The corresponding wavelengths at which it is found
     # will populate the `wavelengths` list.
-    wavelengths: list[float] = field(default_factory=list)
+    wavelengths: list[float | None] = field(default_factory=list)
     valid: ArrayLike | None = None
+    
+    auto_fit: bool = True
     
     fit: Callable | None = None
     fit_err: list[float] | None = None
-    fit_slope: float | None = None
-    fit_slope_err: float | None = None
+    fit_slope: Quantity | None = None
+    fit_slope_err: Quantity | None = None
+    
+    
+    drift_file: str | Path | None = None
+    force_recalculate: bool = False
+    # TODO: First check if there is an existing file. If so, check its length.
+    # If this is within 10% of the length of self.masks, don't recalculate
+    # unless self.force_recalculate == True
+    
+    # File saving routine should use the drift_file path rather than taking one
+    # in (by default)
 
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         
-        print(f"Tracking drift for λ={self.reference_wavelength:.1f}...")
+        if isinstance(self.drift_file, str):
+            self.drift_file = Path(self.drift_file)
+            
+        if self.drift_file.exists():
+            
+            if self.force_recalculate:
+                # Then proceed as normal, track the drift from the masks
+                self.track_drift()
+                
+            else:
+                # Then load all the information from the file
+                # print(f"Loading drifts from file: {self.drift_file}")
+                file_dates, file_wls = np.transpose(np.loadtxt(self.drift_file))
+                file_dates = [parse_yyyymmdd(d) for d in file_dates]
+                
+                self.dates = file_dates
+                self.wavelengths = file_wls
+                
+                self.valid = np.where(self.wavelengths, True, False)
+                
+                # if sum(self.valid) == 0:
+                #     print(self.reference_wavelength)
+                #     print("No valid wavelengths")
+                #     print(self.wavelengths)
+            
+        else:
+            # No file exists, proceed as normal
+            self.track_drift()
         
-        self.track_drift()
-        self.linear_fit()
+        if self.auto_fit:
+            self.linear_fit()
         
     
     @property
     def valid_wavelengths(self) -> list[float]:
-        return list(np.array(self.wavelengths)[self.valid])
+        if self.valid is not None:
+            return list(np.array(self.wavelengths)[self.valid])
+        
+        else:
+            return self.wavelengths
+    
+    
+    @property
+    def valid_dates(self) -> list[datetime]:
+        if self.valid is not None:
+            return list(np.array(self.dates)[self.valid])
+        
+        else:
+            return self.dates
     
     
     @property
@@ -79,28 +133,38 @@ class PeakDrift:
         return parse_filename(self.reference_mask).date
 
         
-    @property
-    def dates(self) -> list[datetime]:
+    # @property
+    # def dates(self) -> list[datetime]:
         
-        if self.wavelengths:
+        
+    #     if self.valid:
+    #         valid_masks = list(np.array(self.masks)[self.valid])
+    #     else:
+    #         valid_masks = self.masks
+        
+    #     return [parse_filename(m).date for m in valid_masks]
+    
+    
+    @property
+    def timesofday(self) -> list[str]:
+        
+        if self.valid is not None:
             valid_masks = list(np.array(self.masks)[self.valid])
         
         else:
             valid_masks = self.masks
 
-        return [parse_filename(m).date for m in valid_masks]
-
+        return [parse_filename(m).timeofday for m in valid_masks]
+        
     
     @property
     def smoothed_wavelengths(self) -> list[float]:
-        wls = np.array(self.wavelengths)[self.valid]
-        return savitzky_golay(y=wls, window_size=21, order=3)
+        return savitzky_golay(y=self.valid_wavelengths, window_size=21, order=3)
     
         
     @property
     def deltas(self) -> list[float]:
-        wls = np.array(self.wavelengths)[self.valid]
-        return wls - self.reference_wavelength
+        return self.valid_wavelengths - self.reference_wavelength
     
     
     @property
@@ -108,7 +172,7 @@ class PeakDrift:
         return savitzky_golay(y=self.deltas, window_size=21, order=3)
 
 
-    def track_drift(self) -> None:
+    def track_drift(self) -> PeakDrift:
         """
         Starting with the reference wavelength, track the position of the
         matching peak in successive masks. This function uses the last
@@ -117,11 +181,17 @@ class PeakDrift:
         reasonable search window over time.
         """
         
+        print(f"Tracking drift for λ={self.reference_wavelength:.1f}...")
+        
+        self.dates = []
+        
         last_wavelength: float = None
         
         # print(f"{self.reference_wavelength:.3g}\t", end="")
         
         for m in self.masks:
+            
+            self.dates.append(parse_filename(m).date)
             
             with open(m, "r") as f:
                 peaks = np.array([float(line.strip().split()[0])
@@ -154,10 +224,12 @@ class PeakDrift:
                 # same wavelength as previously.
             
         # Assign self.valid as a mask where wavelengths were successfully found
-        self.valid = np.where(self.wavelengths)[0]    
+        self.valid = np.where(self.wavelengths, True, False)
+        
+        return self
         
     
-    def linear_fit(self) -> None:
+    def linear_fit(self) -> PeakDrift:
         """
         - Fit the tracked drift with a linear function
         - Assign self.fit with a Callable function
@@ -166,29 +238,159 @@ class PeakDrift:
           day?
         """
         
-        if not self.valid_wavelengths:
-            print("No valid wavelengths found. Run PeakDrift.track_drift() first.")
-            return
+        if len(self.valid_wavelengths) == 0:
+            print(f"No valid wavelengths found for {self.reference_wavelength}")
+            print("Running PeakDrift.track_drift() first.")
+            
+            print(f"{self.wavelengths}")
+            
+            self.track_drift()
         
-        ref_wl = self.reference_wavelength * u.Angstrom
-        wls = self.valid_wavelengths * u.Angstrom
-        deltas = (wls - ref_wl).to(u.Angstrom).value
+        # ref_wl = self.reference_wavelength * u.Angstrom
+        # wls = self.valid_wavelengths * u.Angstrom
+        # deltas = (wls - ref_wl).to(u.Angstrom).value
         
-        d0 = self.reference_date
-        days = [(d - d0).days for d in self.dates]
+        d0 = self.reference_date        
+        days = [(d - d0).days for d in self.valid_dates]
         
-        p, cov = np.polyfit(x = days, y = deltas, deg = 1, cov = True)
+        try:
+            p, cov = np.polyfit(x = days, y = self.deltas, deg = 1, cov = True)
+            
+            self.fit = np.poly1d(p)
+            self.fit_err = np.sqrt(np.diag(cov))
+            self.fit_slope = p[0] * u.Angstrom / u.day
+            self.fit_slope_err = self.fit_err[0] * u.Angstrom / u.day
+            
         
-        self.fit = np.poly1d(p)
-        self.fit_err = np.sqrt(np.diag(cov))
-        self.fit_slope = p[0] * u.Angstrom / u.day
-        self.fit_slope_err = self.fit_err[0] * u.Angstrom / u.day
+            
+        except Exception as e:
+            print(e)
+            ...
+            
+            self.fit = lambda x: np.nan
+            self.fit_err = np.nan
+            self.fit_slope = np.nan * u.Angstrom / u.day
+            self.fit_slope_err = np.nan * u.Angstrom / u.day
         
         # print(f"{self.reference_wavelength:.3e = }")
         # print(f"{self.fit_slope:.3e = } +/- {self.fit_slope_err:.3e}")
+            
+        return self
         
-        return
+    
+    def save_to_file(self, path: str | Path | None = None) -> PeakDrift:
+        """
+        """
         
+        if not path:
+            if self.drift_file:
+                path = self.drift_file
+            else:
+                # TODO: make this neater
+                raise Exception("No file path passed in and no drift_file specified")
+            
+        if isinstance(path, str):
+            path = Path(path)
+        
+        if path.is_dir():
+            path.mkdir(parents=True, exist_ok=True)
+        else:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            
+        if path.exists():
+            return self
+        
+        datestrings = [f"{d:%Y%m%d}" for d in self.valid_dates]
+        wlstrings = [f"{wl}" for wl in self.valid_wavelengths]
+        
+        try:
+            np.savetxt(f"{path}", np.transpose([datestrings, wlstrings]), fmt="%s")
+        except FileExistsError as e:
+            # print(e)
+            ...
+            
+        return self
+    
+    
+@dataclass
+class GroupDrift:
+    """
+    A class that tracks the drift of a group of peaks and fits their slope
+    together. Rather than computing the drift (and fitting a linear slope) for
+    individual peaks, here we can consider a block of wavelengths all together.
+    """
+    
+    reference_mask: str # Filename of the reference mask
+    reference_wavelengths: list[float] # List of peak wavelengths to track
+    
+    masks: list[str] # List of filenames to search
+    
+    peakDrifts: list[PeakDrift] = field(default_factory=list)
+    
+
+    group_fit: Callable | None = None
+    group_fit_err: list[float] | None = None
+    group_fit_slope: float | None = None
+    group_fit_slope_err: float | None = None
+    
+    
+    def __post_init__(self) -> None:
+        
+        local_spacings = list(np.diff(self.reference_wavelengths))
+        local_spacings = [*local_spacings, local_spacings[-1]]
+        
+        self.peakDrifts = [
+            PeakDrift(
+                reference_mask = self.reference_mask,
+                reference_wavelength = wl,
+                local_spacing = spacing,
+                masks = self.masks,
+                auto_fit = False
+                      )
+            for wl, spacing in zip(self.reference_wavelengths, local_spacings)
+        ]
+        
+        
+    @property
+    def mean_wavelength(self) -> float:
+        return np.mean(self.reference_wavelengths)
+    
+    
+    @property
+    def min_wavelength(self) -> float:
+        return min(self.reference_wavelengths)
+    
+    
+    @property
+    def min_wavelength(self) -> float:
+        return max(self.reference_wavelengths)
+    
+    
+    @property
+    def reference_date(self) -> datetime:
+        return parse_filename(self.reference_mask).date
+
+        
+    @property
+    def dates(self) -> list[datetime]:
+        return [parse_filename(m).date for m in self.masks]
+    
+    
+    def fit_group_drift(self) -> None:
+        
+        d0 = self.reference_date
+        days = [(d - d0).days for d in self.dates]
+        all_deltas = [pd.deltas for pd in self.peakDrifts]
+        
+        mean_deltas = np.mean(all_deltas, axis=0)
+        
+        p, cov = np.polyfit(x = days, y = mean_deltas, deg = 1, cov = True)
+        
+        self.group_fit = np.poly1d(p)
+        self.group_fit_err = np.sqrt(np.diag(cov))
+        self.group_fit_slope = p[0] * u.Angstrom / u.day
+        self.group_fit_slope_err = self.fit_err[0] * u.Angstrom / u.day
+
 
 def savitzky_golay(
     y: ArrayLike,
@@ -200,7 +402,8 @@ def savitzky_golay(
     
     # FROM: https://scipy.github.io/old-wiki/pages/Cookbook/SavitzkyGolay
     
-    """Smooth (and optionally differentiate) data with a Savitzky-Golay filter.
+    """
+    Smooth (and optionally differentiate) data with a Savitzky-Golay filter.
     The Savitzky-Golay filter removes high frequency noise from data.
     It has the advantage of preserving the original shape and
     features of the signal better than other types of filtering
@@ -234,7 +437,8 @@ def savitzky_golay(
     .. [2] Numerical Recipes 3rd Edition: The Art of Scientific Computing
         W.H. Press, S.A. Teukolsky, W.T. Vetterling, B.P. Flannery
         Cambridge University Press ISBN-13: 9780521880688
-    """    
+    """
+    
     try:
         window_size = abs(int(window_size))
         order = abs(int(order))
@@ -288,6 +492,22 @@ def parse_filename(filename: str | list[str]) -> tuple[datetime, str, str]:
     date = parse_date_string(datestr)
     
     return Mask(date=date, timeofday=timeofday, orderlet=orderlet)
+
+
+def parse_yyyymmdd(input: str | float | int) -> datetime:
+    
+    if isinstance(input, float):
+        input = str(int(input))
+    elif isinstance(input, int):
+        input = str(input)
+        
+    assert isinstance(input, str) and len(input) == 8
+    
+    yyyy = int(input[0:4])
+    mm   = int(input[4:6])
+    dd   = int(input[6:8])
+    
+    return datetime(year = yyyy, month = mm, day = dd)
     
     
 def find_mask(
@@ -353,18 +573,25 @@ def main() -> None:
     MASKS_DIR  = "/scr/jpember/polly_outputs/masks"
     OUTPUT_DIR = "/scr/jpember/temp"
     
+    orderlet = "SCI2"
+    timeofday = "eve"
+    
     ref_date = datetime(2024, 5, 1)
-    max_date = datetime(2024, 7, 1)
+    max_date = datetime(2024, 11, 1)
+    
+    Path(f"{OUTPUT_DIR}/raw_drifts_{ref_date:%Y%m%d}_{max_date:%Y%m%d}")\
+                                            .mkdir(parents=True, exist_ok=True)
     
     masks = sorted(glob(f"{MASKS_DIR}/*SCI2*.csv"))
     
     
+    print("Selecting masks...")
     masks = select_masks(
         masks = masks,
         min_date = ref_date,
         max_date = max_date,
-        orderlet = "SCI2",
-        timeofday = "eve",
+        orderlet = orderlet,
+        timeofday = timeofday,
         )
     
     reference_mask = find_mask(date=ref_date, masks=masks)
@@ -375,46 +602,90 @@ def main() -> None:
             )
         
     local_spacings = np.diff(reference_wavelengths)
-        
+    
+    
+    print("Calculating/loading drifts...")
     drifts = [
         PeakDrift(
             reference_mask = reference_mask,
             reference_wavelength = reference_wavelength,
             local_spacing = local_spacing,
             masks = masks,
-            )
+            drift_file = f"{OUTPUT_DIR}/"+\
+                           f"raw_drifts_{ref_date:%Y%m%d}_{max_date:%Y%m%d}/"+\
+                                               f"{reference_wavelength:.1f}.txt"
+            ).save_to_file()
                 for reference_wavelength, local_spacing
                 in zip(
-                    reference_wavelengths[::250],
-                    local_spacings[::250]
+                    reference_wavelengths[::],
+                    local_spacings[::]
                     )
         ]
     
-    
     # Calculate and save slopes to file
-    # wavelengths = [d.reference_wavelength for d in drifts]
-    # slopes = [d.fit_slope.to(u.Angstrom / u.day).value for d in drifts] * u.Angstrom / u.day
+    wavelengths = [d.reference_wavelength for d in drifts]
+    slopes = [
+        d.fit_slope.to(u.Angstrom / u.day).value
+                if d.fit_slope is not None else np.nan
+                                                for d in drifts
+                ] * u.Angstrom / u.day
     
-    # np.savetxt(
-    #     f"{OUTPUT_DIR}/drifts_{ref_date:%Y%m%d}_{max_date:%Y%m%d}",
-    #     np.transpose([wavelengths, slopes.to(u.Angstrom / u.day).value])
-    #     )
+    
+    print("Saving drifts to file...")
+    np.savetxt(
+        f"{OUTPUT_DIR}/drifts_{ref_date:%Y%m%d}_{max_date:%Y%m%d}",
+        np.transpose([wavelengths, slopes.to(u.Angstrom / u.day).value])
+        )
 
 
-
+    print("Plotting...")
+    
+    t0 = 0
+    t1 = (max_date - ref_date).days
+    
+    plt.rcParams["axes.autolimit_mode"] = "data"
+    
     # Plot drift over time
     fig = plt.figure(figsize=(10, 8))
     ax = fig.gca()
     
-    for d in drifts:
-        if d.reference_wavelength > 5000:
-            if 6000 <= d.reference_wavelength <= 6100:
-                continue
-            ax.plot(d.dates, d.deltas, alpha=0.5)
+    for d in drifts[::]:
         
-    ax.set_ylim(-0.0002, 0.0005)
-    ax.set_ylabel("Drift from reference wavelength [Angstroms]")
-    ax.set_xlabel("Time")
+        if d.reference_wavelength <= 4950:
+            continue
+        elif 5950 < d.reference_wavelength < 6100:
+            continue
+        
+        try:
+            y0 = 0
+            y1 = (d.fit_slope / d.reference_wavelength).to(u.Angstrom / u.day).value * (t1 - t0)
+        except:
+            continue
+        
+        plt.plot(
+            [t0, t1],
+            [y0, y1],
+            color = wavelength_to_rgb(d.reference_wavelength),
+            alpha=0.015,
+            lw=2,
+            )
+        
+        # Don't plot drifts for those orders whose wavelength solution is based
+        # on the thorium-argon lamp
+        # if d.reference_wavelength > 5000:
+        #     if 6000 <= d.reference_wavelength <= 6150:
+        #         continue
+        #     ax.plot(
+        #         d.valid_dates,
+        #         d.deltas,
+        #         color = wavelength_to_rgb(d.reference_wavelength),
+        #         alpha=0.025
+        #         )
+        
+    ax.set_xlim(t0, t1)
+    # ax.set_ylim(0, 4e-4)
+    ax.set_ylabel("Fractional drift in wavelength [Angstroms]")
+    ax.set_xlabel("Time [Days]")
         
     plt.savefig(f"{OUTPUT_DIR}/deltas_{ref_date:%Y%m%d}_{max_date:%Y%m%d}.png")
     plt.close()
