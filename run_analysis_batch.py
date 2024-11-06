@@ -91,21 +91,12 @@ def main(
         pp = f"{f'[{DATE} {t:>5}]':<20}" # Print/logging line prefix
         
         spec_files = find_L1_etalon_files(
-            DATE=DATE, TIMEOFDAY=t, masters=masters
+            DATE=DATE, TIMEOFDAY=t, masters=masters, pp=pp,
             )
         # print()
         if not spec_files:
-            # print(f"{pp}{FAIL}No files for {DATE} {t}{ENDC}")
-            logger.info(f"No files for {DATE} {t}")
+            logger.info(f"{pp}No files for {DATE} {t}")
             continue
-        
-        if VERBOSE:
-            if isinstance(spec_files, str):
-                # print(f"{pp}{OKBLUE}File: {spec_files}{ENDC}")
-                logger.info(f"File: {spec_files}")
-            elif isinstance(spec_files, list):
-                # print(f"{pp}{OKBLUE}Files: {spec_files}{ENDC}")
-                logger.info(f"Files: {spec_files}")
 
         try:
             s = Spectrum(
@@ -115,8 +106,7 @@ def main(
                 pp = pp,
                 )
         except Exception as e:
-            # print(e)
-            logger.error(e)
+            logger.error(f"{pp}{e}")
             continue
         
         s.locate_peaks(fractional_height=0.01, window_to_save=14)
@@ -131,8 +121,7 @@ def main(
                     orderlet=ol,
                     )
             except Exception as e:
-                # print(e)
-                logger.error(e)
+                logger.error(f"{pp}{e}")
                 continue
         
         if spectrum_plot:
@@ -161,6 +150,7 @@ def find_L1_etalon_files(
     DATE: str,
     TIMEOFDAY: str,
     masters: bool,
+    pp: str = "",
     ) -> str | list[str]:
     """
     Locates relevant L1 files for a given date and time of day. At the moment
@@ -178,14 +168,12 @@ def find_L1_etalon_files(
         files = glob(
             f"/data/kpf/masters/{DATE}/"+\
                f"kpf_{DATE}_master_arclamp_"+\
-            #    f"kpf_{DATE}_master_WLS_"+\
                    f"autocal-etalon-all-{TIMEOFDAY}_L1.fits"
                )
         try:
             assert len(files) == 1
         except AssertionError:
-            # print(f"{len(files)} files found for {DATE} {TIMEOFDAY}...")
-            logger.info(f"{len(files)} files found for {DATE} {TIMEOFDAY}...")
+            logger.info(f"{pp}{len(files)} files found")
             return None
 
         with open(files[0], mode="rb") as _f:
@@ -194,12 +182,10 @@ def find_L1_etalon_files(
                 if "etalon" in object.lower():
                     return files[0]
             except FileNotFoundError as e:
-                # print(e)
-                logger.error(e)
+                logger.error(f"{pp}{e}")
                 return None
             except OSError as e:
-                # print(e)
-                logger.error(e)
+                logger.error(f"{pp}{e}")
                 return None
             
     all_files: list[str] = glob(f"/data/kpf/L1/{DATE}/*.fits")
@@ -302,7 +288,7 @@ if __name__ == "__main__":
     
     args = parser.parse_args()
     OUTDIR: str = args.outdir
-    VERBOSE: bool = args.verbose
+    VERBOSE: bool = args.verbose # Placeholder
     
     for y in args.year:
         for m in args.month:
