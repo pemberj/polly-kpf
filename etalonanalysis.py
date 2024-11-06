@@ -194,15 +194,18 @@ class Peak:
     distance_from_order_center: float | None = None
     
     # Fitting results
-    fit_type: str | None = None
+    fit_space: str | None = None
+    fit_type:  str | None = None
     # Fit parameters
     center_wavelength: float | None = None
+    center_pixel:      float | None = None
     amplitude:         float | None = None
     sigma:             float | None = None
     boxhalfwidth:      float | None = None
     offset:            float | None = None
     # Fit errors
     center_wavelength_stddev: float | None = None
+    center_pixel_stddev:      float | None = None
     amplitude_stddev:         float | None = None
     sigma_stddev:             float | None = None
     boxhalfwidth_stddev:      float | None = None
@@ -279,6 +282,7 @@ class Peak:
         
         else:
             self.fit_type = type
+            self.fit_space = space
             
             if type.lower() == "gaussian":
                 self._fit_gaussian(space=space)
@@ -336,25 +340,30 @@ class Peak:
             
         amplitude, center, sigma, offset = p
         
-        if space == "wavelength":
-            center_wavelength = x0 + center
-        elif space == "pixel":
-            center_wavelength = np.interp(center, x, self.wavelet)
-        # TODO: Make the same conversion for sigma & bowhalfwidth?
+        self.remove_fit()
         
         # Populate the fit parameters
-        self.center_wavelength = center_wavelength
+        stddev = np.sqrt(np.diag(cov))
+        
+        if space == "wavelength":
+            self.center_wavelength = x0 + center
+            self.center_wavelength_stddev = stddev[0]
+        elif space == "pixel":
+            self.center_pixel = x0 + center
+            self.center_pixel_stddev = stddev[0]
+            # Also interpolate to wavelength space
+            self.center_wavelength =\
+                np.interp(center, x, self.wavelet)
+            self.center_wavelength_stddev =\
+                np.interp(stddev[0] - center, x, self.wavelet)
+        
+        # Populate the fit parameters
         self.amplitude = amplitude
         self.sigma = sigma
-        # In case another function fit had already defined self.boxhalfwidth
-        self.boxhalfwidth = None
         self.offset = offset
         
-        stddev = np.sqrt(np.diag(cov))
         self.amplitude_stddev = stddev[0]
-        self.center_wavelength_stddev = stddev[1]
         self.sigma_stddev = stddev[2]
-        self.boxhalfwidth_stddev = None
         self.offset_stddev = stddev[3]
             
     
@@ -409,21 +418,28 @@ class Peak:
         
         center, amplitude, sigma, boxhalfwidth, offset = p
         
-        if space == "wavelength":
-            center_wavelength = x0 + center
-        elif space == "pixel":
-            center_wavelength = np.interp(center, x, self.wavelet)
-        # TODO: Make the same conversion for sigma & bowhalfwidth?
+        self.remove_fit()
         
         # Populate the fit parameters
-        self.center_wavelength = center_wavelength
+        stddev = np.sqrt(np.diag(cov))
+        
+        if space == "wavelength":
+            self.center_wavelength = x0 + center
+            self.center_wavelength_stddev = stddev[0]
+        elif space == "pixel":
+            self.center_pixel = x0 + center
+            self.center_pixel_stddev = stddev[0]
+            # Also interpolate to wavelength space
+            self.center_wavelength =\
+                np.interp(center, x, self.wavelet)
+            self.center_wavelength_stddev =\
+                np.interp(stddev[0] - center, x, self.wavelet)
+        
         self.amplitude = amplitude * maxy
         self.sigma = sigma
         self.boxhalfwidth = boxhalfwidth
         self.offset = offset * maxy
         
-        stddev = np.sqrt(np.diag(cov))
-        self.center_wavelength_stddev = stddev[0]
         self.amplitude_stddev = stddev[1]
         self.sigma_stddev = stddev[2]
         self.boxhalfwidth_stddev = stddev[3]
@@ -432,22 +448,27 @@ class Peak:
 
     def remove_fit(self) -> Peak:
         """
-        Not sure when this might be used, but this method will remove any
-        existing fit that has previously been stored.
+        Reset any previously fitted parameters, used in the case of fitting
+        again, perhaps with a different function, or in pixel space instead of
+        wavelength space.
         """
         
-        self.fit_type = None
-        self.center_wavelength = None
-        self.amplitude = None
-        self.sigma = None
-        self.boxhalfwidth = None
-        self.offset = None
+        self.fit_type   = None
+        self.fit_space  = None
         
-        self.center_wavelength_stddev = None
-        self.amplitude_stddev = None
-        self.sigma_stddev = None
-        self.boxhalfwidth_stddev = None
-        self.offset_stddev = None
+        self.center_wavelength  = None
+        self.center_pixel       = None
+        self.amplitude          = None
+        self.sigma              = None
+        self.boxhalfwidth       = None
+        self.offset             = None
+        
+        self.center_wavelength_stddev   = None
+        self.center_pixel_stddev        = None
+        self.amplitude_stddev           = None
+        self.sigma_stddev               = None
+        self.boxhalfwidth_stddev        = None
+        self.offset_stddev              = None
         
         return self
     
@@ -457,13 +478,17 @@ class Peak:
         
         return {
             "fit_type": self.fit_type,
+            "fit_space": self.fit_space,
+            
             "center_wavelength": self.center_wavelength,
+            "center_pixel": self.center_pixel,
             "amplitude": self.amplitude,
             "sigma": self.sigma,
             "boxhalfwidth": self.boxhalfwidth,
             "offset": self.offset,
             
             "center_wavelength_stddev": self.center_wavelength_stddev,
+            "center_pixel_stddev": self.center_pixel_stddev,
             "amplitude_stddev": self.amplitude_stddev,
             "sigma_stddev": self.sigma_stddev,
             "boxhalfwidth_stddev": self.boxhalfwidth_stddev,
@@ -499,7 +524,10 @@ class Peak:
         if about_zero:
             center = 0
         else:
-            center = self.center_wavelength
+            if self.center_wavelength:
+                center = self.center_wavelength
+            elif self.center_pixel:
+                center = self.center_pixel
         
         if self.fit_type == "gaussian":
             yfit = _gaussian(
@@ -507,7 +535,7 @@ class Peak:
                 amplitude = self.amplitude,
                 center = center,
                 sigma = self.sigma,
-                offset = self.offset
+                offset = self.offset,
                 )
             
         elif self.fit_type == "conv_gauss_tophat":
