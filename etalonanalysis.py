@@ -477,22 +477,22 @@ class Peak:
     def fit_parameters(self) -> dict:
         
         return {
-            "fit_type": self.fit_type,
-            "fit_space": self.fit_space,
+            "fit_type":     self.fit_type,
+            "fit_space":    self.fit_space,
             
-            "center_wavelength": self.center_wavelength,
-            "center_pixel": self.center_pixel,
-            "amplitude": self.amplitude,
-            "sigma": self.sigma,
-            "boxhalfwidth": self.boxhalfwidth,
-            "offset": self.offset,
+            "center_wavelength":    self.center_wavelength,
+            "center_pixel":         self.center_pixel,
+            "amplitude":            self.amplitude,
+            "sigma":                self.sigma,
+            "boxhalfwidth":         self.boxhalfwidth,
+            "offset":               self.offset,
             
             "center_wavelength_stddev": self.center_wavelength_stddev,
-            "center_pixel_stddev": self.center_pixel_stddev,
-            "amplitude_stddev": self.amplitude_stddev,
-            "sigma_stddev": self.sigma_stddev,
-            "boxhalfwidth_stddev": self.boxhalfwidth_stddev,
-            "offset_stddev": self.offset_stddev,
+            "center_pixel_stddev":      self.center_pixel_stddev,
+            "amplitude_stddev":         self.amplitude_stddev,
+            "sigma_stddev":             self.sigma_stddev,
+            "boxhalfwidth_stddev":      self.boxhalfwidth_stddev,
+            "offset_stddev":            self.offset_stddev,
         }
         
         
