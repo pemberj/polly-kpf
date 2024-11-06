@@ -759,8 +759,7 @@ class Order:
         """
         
         if self.spec is None or self.wave is None:
-            # print(f"{self.pp}Issue with processing order {self}")
-            logger.info(f"Issue with processing order {self}")
+            logger.info(f"{self.pp}Issue with processing order {self}")
             return self
         
         y = self.spec - np.nanmin(self.spec)
@@ -1153,16 +1152,12 @@ class Spectrum:
             if len(result) == 1:
                 return result[0]
             elif len(result) > 1:
-                # print("More than one Order matching "+\
-                #      f"orderlet={orderlet} and i={i}!")
-                # print(result)
-                logger.info("More than one Order matching "+\
-                           f"orderlet={orderlet} and i={i}!")
-                logger.info(f"{result}")
+                logger.info(f"{self.pp}More than one Order matching "+\
+                            f"orderlet={orderlet} and i={i}!")
+                logger.info(f"{self.pp}{result}")
                 return result
             else:
-                # print("No matching order found!")
-                logger.info("No matching order found!")
+                logger.info(f"{self.pp}seNo matching order found!")
                 return None
         
         elif orderlet is not None:
@@ -1186,7 +1181,7 @@ class Spectrum:
 
     @property
     def timeofday(self) -> str:
-        # morn, eve, night, midnight
+        # morn, eve, night, midnight?
         return self.object.split("-")[-1]
     
     
@@ -1253,7 +1248,7 @@ class Spectrum:
         ) -> int:
         
         if not self.filtered_peaks:
-            logger.warning("List of filtered peaks is empty. "+\
+            logger.warning(f"{self.pp}List of filtered peaks is empty. "+\
                            "Call Spectrum.filter_peaks() first")
         
         if isinstance(orderlet, str):
@@ -1279,10 +1274,8 @@ class Spectrum:
     def apply_reference_mask(self) -> Spectrum:
         
         if not self.orders():
-            # print(f"{self.pp}{WARNING}No order data - first load data, then "+\
-            #       f"apply reference mask{ENDC}")
-            logger.warning("No order data - first load data, then apply "+\
-                           "reference mask")
+            logger.warning(f"{self.pp}No order data - "+\
+                            "first load data then apply reference mask")
             
             return self
         
@@ -1306,10 +1299,8 @@ class Spectrum:
     def load_spec(self) -> Spectrum:
         
         if isinstance(self.spec_file, str):
-            # print(f"{self.pp}Loading flux values from a single file: "+\
-            #       f"{self.spec_file.split('/')[-1]}...", end="")
-            logger.info("Loading flux values from a single file: "+\
-                       f"{self.spec_file.split('/')[-1]}...")
+            logger.info(f"{self.pp}Loading flux values from a single file: "+\
+                        f"{self.spec_file.split('/')[-1]}...")
             
             _orders = []
             for ol in self.orderlets_to_load:
@@ -1331,18 +1322,13 @@ class Spectrum:
                     _orders.append(Order(orderlet=ol, wave=None, spec=s, i=i))
             
             self._orders = _orders
-                
-            # print(f"{OKGREEN} DONE{ENDC}")
-            # logger.info("DONE")
-        
+
         elif isinstance(self.spec_file, list):
             
             _orders = []
             for ol in self.orderlets_to_load:
-                # print(f"{self.pp}Loading {ol} flux values "+\
-                #       f"from a list of {len(self.spec_file)} files...", end="")
-                logger.info(f"Loading {ol} flux values from a list of "+\
-                            f"{len(self.spec_file)} files...")
+                logger.info(f"{self.pp}Loading {ol} flux values from a "+\
+                            f"list of {len(self.spec_file)} files...")
                 
                 spec_green = np.median([fits.getdata(f,
                     f"GREEN_{_orderlet_name(ol)}_FLUX{_orderlet_index(ol)}")\
@@ -1350,8 +1336,6 @@ class Spectrum:
                 spec_red = np.median([fits.getdata(f,
                     f"RED_{_orderlet_name(ol)}_FLUX{_orderlet_index(ol)}")\
                                             for f in self.spec_file], axis=0)
-                # print(f"{OKGREEN} DONE{ENDC}")
-                # logger.info("DONE")
                 
                 try:
                     assert all([fits.getval(f, "SCI-OBJ") ==\
@@ -1359,11 +1343,9 @@ class Spectrum:
                                                     for f in self.spec_file])
                     self.sci_obj = fits.getval(self.spec_file[0], "SCI-OBJ")
                 except AssertionError:
-                    # print(f"{self.pp}{WARNING}SCI-OBJ did not match between "+\
-                    #       f"the input files!{ENDC}")
-                    # print([f for f in self.spec_file])
-                    logger.warning("SCI-OBJ did not match between input files!")
-                    logger.warning([f for f in self.spec_file])
+                    logger.warning(f"{self.pp}SCI-OBJ did not match between "+\
+                                    "input files!")
+                    logger.warning(f"{self.pp}{[f for f in self.spec_file]}")
                         
                 try:
                     assert all([fits.getval(f, "CAL-OBJ") ==\
@@ -1371,12 +1353,9 @@ class Spectrum:
                                                     for f in self.spec_file])
                     self.cal_obj = fits.getval(self.spec_file[0], "CAL-OBJ")
                 except AssertionError:
-                    # print(f"{self.pp}{WARNING}CAL-OBJ did not match between "+\
-                    #       f"the input files!{ENDC}")
-                    # print([f for f in self.spec_file])
-                    
-                    logger.warning("CAL-OBJ did not match between input files!")
-                    logger.info([f for f in self.spec_file])
+                    logger.warning(f"{self.pp}CAL-OBJ did not match between "+\
+                                    "input files!")
+                    logger.warning(f"{self.pp}{[f for f in self.spec_file]}")
                     
                 try:
                     assert all([fits.getval(f, "OBJECT") ==\
@@ -1384,12 +1363,9 @@ class Spectrum:
                                                     for f in self.spec_file])
                     self.object = fits.getval(self.spec_file[0], "OBJECT")
                 except AssertionError:
-                    # print(f"{self.pp}{WARNING}OBJECT did not match between "+\
-                    #       f"the input files!{ENDC}")
-                    # print([f for f in self.spec_file])
-                    
-                    logger.warning("OBJECT did not match between input files!")
-                    logger.warning([f for f in self.spec_file])
+                    logger.warning(f"{self.pp}OBJECT did not match between "+\
+                                    "input files!")
+                    logger.warning(f"{self.pp}{[f for f in self.spec_file]}")
                     
                 try:
                     assert all([fits.getval(f, "DATE-OBS") ==\
@@ -1399,13 +1375,9 @@ class Spectrum:
                         fits.getval(self.spec_file[0], "DATE-OBS").split("-")
                         )
                 except AssertionError:
-                    # print(f"{self.pp}{WARNING}DATE-OBS did not match between "+\
-                    #       f"the input files!{ENDC}")
-                    # print([f for f in self.spec_file])
-                    
-                    logger.warning("DATE-OBS did not match between "+\
-                                   "input files!")
-                    logger.warning([f for f in self.spec_file])
+                    logger.warning(f"{self.pp}DATE-OBS did not match between "+\
+                                    "input files!")
+                    logger.warning(f"{self.pp}{[f for f in self.spec_file]}")
                     
                 spec = np.append(spec_green, spec_red, axis=0)
                 
@@ -1439,17 +1411,14 @@ class Spectrum:
         try:
             assert "lfc" in fits.getval(wls_file, "OBJECT").lower()
         except AssertionError:
-            logger.warning(
-                f"'lfc' not found in {self.timeofday} WLS file 'OBJECT' value!"
-                )
+            logger.warning(f"{self.pp}'lfc' not found in {self.timeofday} "+\
+                            "WLS file 'OBJECT' value!")
         except FileNotFoundError:
-            logger.warning(f"{self.timeofday} WLS file not found")
+            logger.warning(f"{self.pp}{self.timeofday} WLS file not found")
             
         if wls_file:
             self.wls_file = wls_file
-            # print(f"{self.pp}{OKBLUE}Using WLS file: "+\
-            #       f"{wls_file.split('/')[-1]}{ENDC}")
-            logger.info(f"Using WLS file: {wls_file.split('/')[-1]}")
+            logger.info(f"{self.pp}Using WLS file: {wls_file.split('/')[-1]}")
         else:
             # Use the WLS embedded in the spec_file?
             self.wls_file = self.spec_file
@@ -1486,11 +1455,10 @@ class Spectrum:
                     try: self.orders(orderlet = ol, i = i)\
                                             .apply_wavelength_solution(wls = w)
                     except AttributeError as e:
-                        # print(e)
-                        # print(f"No order exists: orderlet={ol}, {i=}")
-                        
-                        logger.error(e)
-                        logger.error(f"No order exists: orderlet={ol}, {i=}")
+                        logger.error(f"{self.pp}{e}")
+                        logger.error(
+                            f"{self.pp}No order exists: orderlet={ol}, {i=}"
+                            )
             
         return self
             
@@ -1513,11 +1481,8 @@ class Spectrum:
             orderlet = self.orderlets
         
         if self.reference_mask is None:
-            
             for ol in orderlet:
-        
-                # print(f"{self.pp}Locating {ol:<4} peaks...", end="")
-                logger.info(f"Locating {ol:<4} peaks...")
+                logger.info(f"{self.pp}Locating {ol:<4} peaks...")
                 for o in self.orders(orderlet = ol):
                     o.locate_peaks(
                         fractional_height = fractional_height,
@@ -1525,16 +1490,10 @@ class Spectrum:
                         width = width,
                         window_to_save=window_to_save,
                         )
-                # print(f"{OKGREEN} DONE{ENDC}")
-                # logger.info("DONE")
-            
+                       
         else:
-            # print(f"{self.pp}{OKBLUE}Not locating peaks because a "+\
-            #       f"reference mask was passed in.{ENDC}")
-            
-            logger.info(
-                "Not locating peaks because a reference mask was passed in."
-                )
+            logger.info(f"{self.pp}Not locating peaks because "+\
+                         "a reference mask was passed in.")
         return self
         
     
@@ -1563,9 +1522,8 @@ class Spectrum:
         
             if self.num_located_peaks is None:
                 self.locate_peaks()
-            # print(f"{self.pp}Fitting {ol} peaks with {type} function...")
             
-            logger.info(f"Fitting {ol} peaks with {type} function...")
+            logger.info(f"{self.pp}Fitting {ol} peaks with {type} function...")
             
             #What to do about progress bars with logging???
             for o in tqdm(
@@ -1604,22 +1562,19 @@ class Spectrum:
             orderlet = self.orderlets
         
         for ol in orderlet:
-        
-            # print(f"{self.pp}Filtering {ol} peaks to remove "+\
-            #        "identical peaks appearing in adjacent orders...", end="")
             
-            logger.info(f"Filtering {ol} peaks to remove identical peaks "+\
-                         "appearing in adjacent orders...")
+            logger.info(f"{self.pp}Filtering {ol} peaks to remove identical "+\
+                         "peaks appearing in adjacent orders...")
             
             peaks = self.peaks(orderlet = ol)
             
             if peaks is None:
                 # print(f"\n{self.pp}{WARNING}No peaks found{ENDC}")
-                logger.warning("No peaks found")
+                logger.warning(f"{self.pp}No peaks found")
                 return self
             
             peaks = sorted(peaks, key=attrgetter("wl"))
-            spacing = np.diff([p.wl for p in peaks])
+            # spacing = np.diff([p.wl for p in peaks])
             
             # plt.rcParams["axes.autolimit_mode"] = "data"
             # bins = np.linspace(0, 0.8, 200)
@@ -1649,9 +1604,6 @@ class Spectrum:
             
             self.filtered_peaks[ol] = to_keep
                 
-            # print(f"{OKGREEN} DONE{ENDC}")
-            # logger.info("DONE")
-                
         return self
     
     
@@ -1675,13 +1627,10 @@ class Spectrum:
             if not self.filtered_peaks[ol]:
                 self.filter_peaks(orderlet=ol)
             
-            # print(f"{self.pp}Saving {ol} peaks to {filename}...", end="")
-            logger.info(f"Saving {ol} peaks to {filename}...")
+            logger.info(f"{self.pp}Saving {ol} peaks to {filename}...")
             with open(filename, "w") as f:
                 for p in self.filtered_peaks[ol]:
                     f.write(f"{p.wl}\t1.0\n")        
-            # print(f"{OKGREEN} DONE{ENDC}")
-            # logger.info("DONE")
                     
         return self
     
@@ -1694,8 +1643,7 @@ class Spectrum:
         ) -> plt.Axes:
         """
         """
-        # print(f"{self.pp}Plotting {orderlet} spectrum...", end="")
-        logger.info(f"Plotting {orderlet} spectrum...")
+        logger.info(f"{self.pp}Plotting {orderlet} spectrum...")
         
         assert orderlet in self.orderlets
                 
@@ -1730,9 +1678,6 @@ class Spectrum:
 
         ax.set_xlabel("Wavelength [nm]")
         ax.set_ylabel("Flux")
-        
-        # print(f"{OKGREEN} DONE{ENDC}")
-        # logger.info("DONE")
 
         return self
     
@@ -1745,8 +1690,7 @@ class Spectrum:
         ) -> plt.Axes:
         """
         """
-        # print(f"{self.pp}Plotting {orderlet} residuals...", end="")
-        logger.info(f"Plotting {orderlet} residuals...")
+        logger.info(f"{self.pp}Plotting {orderlet} residuals...")
         
         assert orderlet in self.orderlets
                 
@@ -1784,9 +1728,6 @@ class Spectrum:
 
         ax.set_xlabel("Wavelength [nm]")
         ax.set_ylabel("Residuals (data $-$ fit)")
-        
-        # print(f"{OKGREEN} DONE{ENDC}")
-        # logger.info("DONE")
 
         return self
     
@@ -1826,8 +1767,7 @@ class Spectrum:
         name: str = "",
         ) -> Spectrum:
         
-        # print(f"{self.pp}Plotting {orderlet} Etalon FSR...", end="")
-        logger.info(f"Plotting {orderlet} Etalon FSR...")
+        logger.info(f"{self.pp}Plotting {orderlet} Etalon FSR...")
         
         assert orderlet in self.orderlets
         
@@ -1858,11 +1798,10 @@ class Spectrum:
                 _fit_spline(x = wls[mask], y = delta_nu_FSR[mask], knots = 21)
             label = f"{name}Spline fit"
         except ValueError as e:
-            # print(f"{e}")
-            # print("Spline fit failed. Fitting with polynomial.")
-            
-            logger.error(e)
-            logger.error("Spline fit failed. Fitting with polynomial.")
+            logger.error(f"{self.pp}{e}")
+            logger.error(
+                f"{self.pp}Spline fit failed. Fitting with polynomial."
+                )
             
             model = np.poly1d(np.polyfit(wls[mask], delta_nu_FSR[mask], 5))
             label = f"{name}Polynomial fit"
@@ -1883,16 +1822,12 @@ class Spectrum:
         ax.set_xlabel("Wavelength [nm]", size=16)
         ax.set_ylabel("Etalon $\Delta\\nu_{FSR}$ [GHz]", size=16)
         
-        # print(f"{OKGREEN} DONE{ENDC}")
-        # logger.info("DONE")
-        
         return self
     
     
     def plot_peak_fits(self, orderlet: str) -> Spectrum:
         
-        # print(f"{self.pp}Plotting fits of {orderlet} etalon peaks...", end="")
-        logger.info(f"Plotting fits of {orderlet} etalon peaks...")
+        logger.info(f"{self.pp}Plotting fits of {orderlet} etalon peaks...")
         
         assert orderlet in self.orderlets
         
@@ -1912,9 +1847,6 @@ class Spectrum:
             o.peaks[o.num_peaks//2].plot_fit(ax=axs[i][1])
             o.peaks[o.num_peaks-1].plot_fit(ax=axs[i][2])
             
-        # print(f"{OKGREEN} DONE{ENDC}")
-        # logger.info("DONE")
-
         return self
     
     
@@ -1951,11 +1883,9 @@ class Spectrum:
         }
         
         for k in fp.keys():
-            fp[k] = [
-                        v for ol in orderlet
-                            for o in self.orders(orderlet=ol)
-                                for v in o.fit_parameters[k]
-                    ]
+            fp[k] = [v for ol in orderlet
+                        for o in self.orders(orderlet=ol)
+                            for v in o.fit_parameters[k]]
                 
         return fp
     
@@ -2108,10 +2038,6 @@ def _orderlet_index(orderlet: str) -> str:
 
 
 
-
-
-
-
 def test() -> None:
     
     # A basic test case: loading in data from master files; locating, fitting,
@@ -2145,7 +2071,7 @@ def test() -> None:
     print(f"{s.num_filtered_peaks() = }")
     
     s.save_peak_locations(
-        filename = "/scr/jpember/temp/check_mask.csv",
+        filename = "/scr/jpember/temp/temp_mask_{DATE}.csv",
         orderlet = "SCI2"
         )
     
