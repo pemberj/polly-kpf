@@ -12,7 +12,6 @@ file_handler.setLevel(logging.DEBUG)
 file_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
 
-
 # create console handler with a higher log level
 stdout_formatter = logging.Formatter("%(message)s")
 stdout = logging.StreamHandler()
@@ -20,4 +19,5 @@ stdout.setLevel(logging.INFO)
 stdout.setFormatter(stdout_formatter)
 logger.addHandler(stdout)
 
+# Set default logger level
 logger.setLevel(logging.INFO)
