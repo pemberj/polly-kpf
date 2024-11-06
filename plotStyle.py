@@ -68,3 +68,58 @@ plotStyle = {
     "errorbar.capsize" : 3,
     "hist.bins" : 20,
 }
+
+
+def wavelength_to_rgb(wavelength, gamma=0.8):
+    """
+    This converts a given wavelength of light to an approximate RGB color
+    value. Colors are returned for wavelengths in the range from 3800 A to
+    7500 A, otherwise black is returned.
+    
+    Wavelength must be passed in Angstroms
+
+    Based on code by Dan Bruton
+    http://www.physics.sfasu.edu/astro/color/spectra.html
+    """
+    
+    if isinstance(wavelength, list):
+        return [wavelength_to_rgb(wl) for wl in wavelength]
+
+    if wavelength >= 3800 and wavelength <= 4400:
+        attenuation = 0.3 + 0.7 * (wavelength - 3800) / (4400 - 3800)
+        R = ((-(wavelength - 4400) / (4400 - 3800)) * attenuation) ** gamma
+        G = 0.0
+        B = (1.0 * attenuation) ** gamma
+        
+    elif wavelength >= 4400 and wavelength <= 4900:
+        R = 0.0
+        G = ((wavelength - 4400) / (4900 - 4400)) ** gamma
+        B = 1.0
+        
+    elif wavelength >= 4900 and wavelength <= 5100:
+        R = 0.0
+        G = 1.0
+        B = (-(wavelength - 5100) / (5100 - 4900)) ** gamma
+        
+    elif wavelength >= 5100 and wavelength <= 5800:
+        R = ((wavelength - 5100) / (5800 - 5100)) ** gamma
+        G = 1.0
+        B = 0.0
+        
+    elif wavelength >= 5800 and wavelength <= 6450:
+        R = 1.0
+        G = (-(wavelength - 6450) / (6450 - 5800)) ** gamma
+        B = 0.0
+        
+    elif wavelength >= 6450 and wavelength <= 7500:
+        attenuation = 0.3 + 0.7 * (7500 - wavelength) / (7500 - 6450)
+        R = (1.0 * attenuation) ** gamma
+        G = 0.0
+        B = 0.0
+        
+    else:
+        R = 0.0
+        G = 0.0
+        B = 0.0
+        
+    return (R, G, B)
