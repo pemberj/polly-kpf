@@ -309,9 +309,11 @@ class Peak:
                 p0=p0,
                 bounds=bounds,
                 )
-        except RuntimeError:
+        except RuntimeError as e:
+            logging.warning(e)
             p = cov = [np.nan] * len(p0)
-        except ValueError:
+        except ValueError as e:
+            logging.warning(e)
             p = cov = [np.nan] * len(p0)
             
         amplitude, center, sigma, offset = p
@@ -367,9 +369,11 @@ class Peak:
                 # ftol=1e-3,
                 # xtol=1e-9,
                 )
-        except RuntimeError:
+        except RuntimeError as e:
+            logging.warning(e)
             p = cov = [np.nan] * len(p0)
-        except ValueError:
+        except ValueError as e:
+            logging.warning(e)
             p = cov = [np.nan] * len(p0)
         
         center, amplitude, sigma, boxhalfwidth, offset = p
