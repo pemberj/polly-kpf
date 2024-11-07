@@ -1676,9 +1676,22 @@ class Spectrum:
         ax.plot(0, 0, color="k", lw=1.5)
 
         if plot_peaks:
-            for p in self.filtered_peaks[orderlet]:
-                if p.wl/10. > xlims[0] and p.wl/10. < xlims[1]:
-                    ax.axvline(x = p.wl/10., color = "k", alpha = 0.1)
+            if self.filtered_peaks.get(orderlet, None):
+                peaks_to_plot =\
+                    [
+                    p for p in self.filtered_peaks[orderlet]
+                        if xlims[0] <= p.wl/10 <= xlims[1]
+                    ]
+                
+            else:                    
+                peaks_to_plot =\
+                    [
+                    p for p in self.peaks(orderlet=orderlet)
+                        if xlims[0] <= p.wl/10 <= xlims[1]
+                    ]
+                
+            for p in peaks_to_plot:
+                ax.axvline(x = p.wl/10., color = "k", alpha = 0.1)
 
         ax.set_xlabel("Wavelength [nm]")
         ax.set_ylabel("Flux")
