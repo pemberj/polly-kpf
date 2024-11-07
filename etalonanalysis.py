@@ -290,7 +290,7 @@ class Peak:
         
         x0 = np.mean(self.wavelet)
         x = self.wavelet - x0 # Centre about zero
-        mean_dx = np.mean(np.diff(x))
+        mean_dx = np.abs(np.mean(np.diff(x)))
         maxy = max(self.speclet)
         y = self.speclet / maxy
         
