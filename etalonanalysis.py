@@ -1583,37 +1583,27 @@ class Spectrum:
             peaks = self.peaks(orderlet = ol)
             
             if peaks is None:
-                # print(f"\n{self.pp}{WARNING}No peaks found{ENDC}")
                 logger.warning(f"{self.pp}No peaks found")
                 return self
             
             peaks = sorted(peaks, key=attrgetter("wl"))
-            # spacing = np.diff([p.wl for p in peaks])
-            
-            # plt.rcParams["axes.autolimit_mode"] = "data"
-            # bins = np.linspace(0, 0.8, 200)
-            # plt.hist(spacing, bins=bins)
-            # # plt.xscale("log")
-            # plt.yscale("log")
-            # plt.savefig("/scr/jpember/temp/spacing_hist.png")
-            # plt.rcParams["axes.autolimit_mode"] = "round_numbers"
-            
-            # print(f"{np.median(spacing) = }")
-            # print(f"{np.mean(spacing) = }")
-            # print(f"{np.max(spacing) = }")
-            # print(f"{np.min(spacing) = }")
             
             to_keep = []
             for (p1, p2) in\
                 zip(peaks[:-1], peaks[1:]):
                     
                 if p1.i == p2.i:
+                    # The peaks are in the same order - window is too large?
                     to_keep.append(p1)
                     
                 elif p1.is_close_to(p2, window=window):
-                    continue
+                    if p1.d < p2.d:
+                        to_keep.append(p1)
+                    else:
+                        to_keep.append(p2)
                 
                 else:
+                    # Different orders and outside the window
                     to_keep.append(p1)
             
             self.filtered_peaks[ol] = to_keep
