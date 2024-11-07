@@ -613,9 +613,14 @@ class Peak:
                f"center_wavelength {self.center_wavelength:.3f})"
                
 
-    def __eq__(self, wl) -> bool:
-        return self.wl == wl           
-
+    def __eq__(self, other: Peak | float) -> bool:
+        
+        if isinstance(other, Peak):
+            return self.wl == other.wl
+        
+        elif isinstance(other, float):
+            return self.wl == other
+    
 
     def __lt__(self, wl: float) -> bool:
         return self.wl < wl
@@ -628,6 +633,11 @@ class Peak:
     def __contains__(self, wl: float) -> bool:
         
         return min(self.wavelet) <= wl <= max(self.wavelet)
+    
+    
+    def __hash__(self) -> hash:
+        
+        return hash(f"{self.i}{self.wl}")
         
  
 
