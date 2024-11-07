@@ -1657,7 +1657,7 @@ class Spectrum:
             ax.set_title(f"{orderlet} {self.date} {self.timeofday}", size=20)
             
         if ax.get_xlim() == (0.0, 1.0):
-            ax.set_xlim(440, 880)
+            ax.set_xlim(4400, 8800)
         xlims = ax.get_xlim()
 
         # plot the full spectrum
@@ -1667,11 +1667,11 @@ class Spectrum:
         for o in self.orders(orderlet = orderlet):
             wvl_mean_ord = np.nanmean(o.wave)
             wvl_norm = 1. - ((wvl_mean_ord) - 4200.) / (7200. - 4200.)
-            bluemask = o.wave / 10. > xlims[0]
-            redmask  = o.wave / 10. < xlims[1]
+            bluemask = o.wave > xlims[0]
+            redmask  = o.wave < xlims[1]
             mask = bluemask & redmask
-            ax.plot(o.wave[mask]/10., o.spec[mask], lw=1.5, color="k")
-            ax.plot(o.wave[mask]/10., o.spec[mask],
+            ax.plot(o.wave[mask], o.spec[mask], lw=1.5, color="k")
+            ax.plot(o.wave[mask], o.spec[mask],
                                             lw=0.5, color=Col(wvl_norm))
         ax.plot(0, 0, color="k", lw=1.5)
 
@@ -1680,20 +1680,20 @@ class Spectrum:
                 peaks_to_plot =\
                     [
                     p for p in self.filtered_peaks[orderlet]
-                        if xlims[0] <= p.wl/10 <= xlims[1]
+                        if xlims[0] <= p.wl <= xlims[1]
                     ]
                 
             else:                    
                 peaks_to_plot =\
                     [
                     p for p in self.peaks(orderlet=orderlet)
-                        if xlims[0] <= p.wl/10 <= xlims[1]
+                        if xlims[0] <= p.wl <= xlims[1]
                     ]
                 
             for p in peaks_to_plot:
-                ax.axvline(x = p.wl/10., color = "k", alpha = 0.1)
+                ax.axvline(x = p.wl, color = "k", alpha = 0.1)
 
-        ax.set_xlabel("Wavelength [nm]")
+        ax.set_xlabel("Wavelength [Angstroms]")
         ax.set_ylabel("Flux")
 
         return self
@@ -1718,7 +1718,7 @@ class Spectrum:
                           "Residuals after peak fitting", size=20)
             
         if ax.get_xlim() == (0.0, 1.0):
-            ax.set_xlim(440, 880)
+            ax.set_xlim(4400, 8800)
         xlims = ax.get_xlim()
 
         # plot the full spectrum
@@ -1731,19 +1731,32 @@ class Spectrum:
             bluemask = o.wave / 10. > xlims[0]
             redmask  = o.wave / 10. < xlims[1]
             mask = bluemask & redmask
-            ax.plot(o.wave[mask]/10., o.spec_residuals[mask], lw=1.5, color="k")
-            ax.plot(o.wave[mask]/10., o.spec_residuals[mask],
+            ax.plot(o.wave[mask], o.spec_residuals[mask], lw=1.5, color="k")
+            ax.plot(o.wave[mask], o.spec_residuals[mask],
                                             lw=0.5, color=Col(wvl_norm))
         ax.plot(0, 0, color="k", lw=1.5)
         
         ax.axhline(y=0, ls="--", color="k", alpha=0.25, zorder=-1)
 
         if plot_peaks:
-            for p in self.filtered_peaks[orderlet]:
-                if p.wl/10. > xlims[0] and p.wl/10. < xlims[1]:
-                    ax.axvline(x = p.wl/10., color = "k", alpha = 0.1)
+            if self.filtered_peaks.get(orderlet, None):
+                peaks_to_plot =\
+                    [
+                    p for p in self.filtered_peaks[orderlet]
+                        if xlims[0] <= p.wl <= xlims[1]
+                    ]
+                
+            else:                    
+                peaks_to_plot =\
+                    [
+                    p for p in self.peaks(orderlet=orderlet)
+                        if xlims[0] <= p.wl <= xlims[1]
+                    ]
+                
+            for p in peaks_to_plot:
+                ax.axvline(x = p.wl, color = "k", alpha = 0.1)
 
-        ax.set_xlabel("Wavelength [nm]")
+        ax.set_xlabel("Wavelength [Angstroms]")
         ax.set_ylabel("Residuals (data $-$ fit)")
 
         return self
@@ -1794,7 +1807,7 @@ class Spectrum:
             ax.set_title(f"{orderlet} {self.date} {self.timeofday}", size=20)
             
         if ax.get_xlim() == (0.0, 1.0):
-            ax.set_xlim(440, 880) # Default xlims
+            ax.set_xlim(4400, 8800) # Default xlims
         if ax.get_ylim() == (0.0, 1.0):
             ax.set_ylim(30.15, 30.35) # Default ylims
         
@@ -1823,7 +1836,7 @@ class Spectrum:
             model = np.poly1d(np.polyfit(wls[mask], delta_nu_FSR[mask], 5))
             label = f"{name}Polynomial fit"
         
-        ax.plot(wls/10, model(wls), label=label, linestyle="--")
+        ax.plot(wls, model(wls), label=label, linestyle="--")
         
         try:
             # Remove >= 250MHz outliers from model
@@ -1832,11 +1845,11 @@ class Spectrum:
             ...
         
         # plot as a function of wavelength in nanometers
-        ax.scatter(wls[mask]/10, delta_nu_FSR[mask], marker=".", alpha=0.2,
+        ax.scatter(wls[mask], delta_nu_FSR[mask], marker=".", alpha=0.2,
                    label=f"Data (n = {len(mask[0]):,}/{len(delta_nu_FSR):,})")
         
         ax.legend(loc="lower right")
-        ax.set_xlabel("Wavelength [nm]", size=16)
+        ax.set_xlabel("Wavelength [Angstroms]", size=16)
         ax.set_ylabel("Etalon $\Delta\\nu_{FSR}$ [GHz]", size=16)
         
         return self
