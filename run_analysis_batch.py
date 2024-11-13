@@ -75,16 +75,11 @@ def main(
     spectrum_plot: bool,
     fsr_plot: bool,
     fit_plot: bool,
+    save_weights: bool,
     masters: bool,
-    ) -> None:    
+    ) -> None:
     
     Path(f"{OUTDIR}/masks/").mkdir(parents=True, exist_ok=True)
-    if spectrum_plot:
-        Path(f"{OUTDIR}/spectrum_plots").mkdir(parents=True, exist_ok=True)
-    if fsr_plot:
-        Path(f"{OUTDIR}/FSR_plots").mkdir(parents=True, exist_ok=True)
-    if fit_plot:
-        Path(f"{OUTDIR}/fit_plots").mkdir(parents=True, exist_ok=True)
     
     for t in timesofday:
     
@@ -119,12 +114,14 @@ def main(
                     filename=f"{OUTDIR}/masks/"+\
                         f"{DATE}_{t}_{ol}_etalon_wavelengths.csv",
                     orderlet=ol,
+                    weights=save_weights,
                     )
             except Exception as e:
                 logger.error(f"{pp}{e}")
                 continue
         
         if spectrum_plot:
+            Path(f"{OUTDIR}/spectrum_plots").mkdir(parents=True, exist_ok=True)
             for ol in orderlets:
                 s.plot_spectrum(orderlet=ol, plot_peaks=False)
                 plt.savefig(f"{OUTDIR}/spectrum_plots/"+\
@@ -132,6 +129,7 @@ def main(
                 plt.close()
 
         if fsr_plot:
+            Path(f"{OUTDIR}/FSR_plots").mkdir(parents=True, exist_ok=True)
             for ol in s.orderlets:
                 s.plot_FSR(orderlet=ol)
                 plt.savefig(f"{OUTDIR}/FSR_plots/"+\
@@ -139,6 +137,7 @@ def main(
                 plt.close()
                 
         if fit_plot:
+            Path(f"{OUTDIR}/fit_plots").mkdir(parents=True, exist_ok=True)
             for ol in s.orderlets:
                 s.plot_peak_fits(orderlet=ol)
                 plt.savefig(f"{OUTDIR}/fit_plots/"+\
@@ -231,7 +230,7 @@ def parse_timesofday(timesofday: str) -> list:
         return timesofday.split(sep=",")
     
     else:
-        return timesofday
+        return [timesofday]
 
 
 def parse_orderlets(orderlets: str) -> list:
@@ -240,10 +239,25 @@ def parse_orderlets(orderlets: str) -> list:
         return ORDERLETS
     
     elif "," in orderlets:
-        return orderlets.split(sep=",")
+        orderlets = orderlets.split(sep=",")
+        for ol in orderlets:
+            assert ol in ORDERLETS
+        return orderlets
     
     else:
-        return orderlets
+        assert orderlets in ORDERLETS
+        return [orderlets]
+
+
+def parse_bool(string):
+    if isinstance(string, bool):
+        return string
+    if string.lower() in ["yes", "true", "t", "y", "1"]:
+        return True
+    elif string.lower() in ["no", "false", "f", "n", "0"]:
+        return False
+    else:
+        raise argparse.ArgumentTypeError("Boolean value expected.")
 
 
 parser = argparse.ArgumentParser(
@@ -264,20 +278,19 @@ file_selection.add_argument("-m", "--month", type=parse_num_list,
 file_selection.add_argument("-d", "--date",  type=parse_num_list,
                             required=False, default="1-31")
 file_selection.add_argument("-t", "--timesofday", type=parse_timesofday,
-                            choices=[*TIMESOFDAY, "all"],
                             required=False, default="all")
 file_selection.add_argument("-o", "--orderlets", type=parse_orderlets,
-                            choices=[*ORDERLETS, "all"],
                             required=False, default="all")
 
 parser.add_argument("--outdir", type=lambda p: Path(p).absolute(),
                     default="/scr/jpember/polly_outputs")
 
 plots = parser.add_argument_group("Plots")
-plots.add_argument("--spectrum_plot", type=bool, default=False)
-plots.add_argument("--fsr_plot",      type=bool, default=True )
-plots.add_argument("--fit_plot",      type=bool, default=True )
+plots.add_argument("--spectrum_plot", type=parse_bool, default=False)
+plots.add_argument("--fsr_plot",      type=parse_bool, default=True )
+plots.add_argument("--fit_plot",      type=parse_bool, default=True )
 
+parser.add_argument("--save_weights", action="store_true", default=False)
 parser.add_argument("--masters", action="store_true", default=False)
 parser.add_argument("-v", "--verbose", action="store_true", default=False)
 
@@ -303,6 +316,6 @@ if __name__ == "__main__":
                     spectrum_plot = args.spectrum_plot,
                     fsr_plot = args.fsr_plot,
                     fit_plot = args.fit_plot,
-                    
+                    save_weights = args.save_weights,
                     masters = args.masters,
                     )
