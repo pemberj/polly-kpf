@@ -1606,7 +1606,8 @@ class Spectrum:
                     # Different orders and outside the window
                     to_keep.append(p1)
             
-            self.filtered_peaks[ol] = list(set(to_keep))
+            self.filtered_peaks[ol] =\
+                            sorted(list(set(to_keep)), key=attrgetter("wl"))
                 
         return self
     
