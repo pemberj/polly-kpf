@@ -27,6 +27,7 @@ from numpy.typing import ArrayLike
 
 from astropy import units as u
 from astropy.units import Quantity
+from astropy import constants
 
 from matplotlib import pyplot as plt
 
@@ -131,18 +132,11 @@ class PeakDrift:
     @property
     def reference_date(self) -> datetime:
         return parse_filename(self.reference_mask).date
-
-        
-    # @property
-    # def dates(self) -> list[datetime]:
-        
-        
-    #     if self.valid:
-    #         valid_masks = list(np.array(self.masks)[self.valid])
-    #     else:
-    #         valid_masks = self.masks
-        
-    #     return [parse_filename(m).date for m in valid_masks]
+    
+    
+    @property
+    def days_since_reference_date(self) -> list[float]:
+        return [(d - self.reference_date).days for d in self.valid_dates]
     
     
     @property
@@ -271,9 +265,6 @@ class PeakDrift:
             self.fit_err = np.nan
             self.fit_slope = np.nan * u.Angstrom / u.day
             self.fit_slope_err = np.nan * u.Angstrom / u.day
-        
-        # print(f"{self.reference_wavelength:.3e = }")
-        # print(f"{self.fit_slope:.3e = } +/- {self.fit_slope_err:.3e}")
             
         return self
         
@@ -310,7 +301,6 @@ class PeakDrift:
             ...
             
         return self
-    
     
 @dataclass
 class GroupDrift:
@@ -596,10 +586,7 @@ def main() -> None:
     
     reference_mask = find_mask(date=ref_date, masks=masks)
     
-    with open(reference_mask, "r") as f:
-        reference_wavelengths = np.array(
-            [float(line.strip().split()[0]) for line in f.readlines()[1:]]
-            )
+    reference_wavelengths, _weights = np.transpose(np.loadtxt(reference_mask))
         
     local_spacings = np.diff(reference_wavelengths)
     
@@ -649,11 +636,9 @@ def main() -> None:
     fig = plt.figure(figsize=(10, 8))
     ax = fig.gca()
     
-    for d in drifts[::]:
+    for d in drifts[::50]:
         
-        if d.reference_wavelength <= 4950:
-            continue
-        elif 5950 < d.reference_wavelength < 6100:
+        if d.reference_wavelength <= 4897 or 5998 <= d.reference_wavelength <= 6044:
             continue
         
         try:
@@ -662,11 +647,23 @@ def main() -> None:
         except:
             continue
         
+        
+        ts = [(t - ref_date).days for t in d.dates]
+        
+        plt.scatter(
+            ts,
+            constants.c.to(u.cm / u.s) * d.deltas / d.reference_wavelength,
+            s = 50,
+            color = wavelength_to_rgb(d.reference_wavelength, fade_factor=0.8, gamma=0.8),
+            edgecolors = "k",
+            alpha = 0.2
+            )
+        
         plt.plot(
             [t0, t1],
-            [y0, y1],
-            color = wavelength_to_rgb(d.reference_wavelength),
-            alpha=0.015,
+            constants.c.to(u.cm / u.s) * [y0, y1],
+            color = wavelength_to_rgb(d.reference_wavelength, fade_factor=0.8, gamma=0.8),
+            alpha=0.5,
             lw=2,
             )
         
@@ -683,9 +680,9 @@ def main() -> None:
         #         )
         
     ax.set_xlim(t0, t1)
-    # ax.set_ylim(0, 4e-4)
-    ax.set_ylabel("Fractional drift in wavelength [Angstroms]")
-    ax.set_xlabel("Time [Days]")
+    ax.set_ylim(-1000, 3000)
+    ax.set_ylabel(f"Drift [cm s$^{-1}$]")
+    ax.set_xlabel(f"Time since {ref_date.date()} [Days]")
         
     plt.savefig(f"{OUTPUT_DIR}/deltas_{ref_date:%Y%m%d}_{max_date:%Y%m%d}.png")
     plt.close()
