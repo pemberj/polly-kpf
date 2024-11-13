@@ -56,6 +56,7 @@ class PeakDrift:
     # each successive mask. The corresponding wavelengths at which it is found
     # will populate the `wavelengths` list.
     wavelengths: list[float | None] = field(default_factory=list)
+    sigmas: list[float] = field(default_factory=list)
     valid: ArrayLike | None = None
     
     auto_fit: bool = True
@@ -181,39 +182,35 @@ class PeakDrift:
         
         last_wavelength: float = None
         
-        # print(f"{self.reference_wavelength:.3g}\t", end="")
-        
         for m in self.masks:
             
             self.dates.append(parse_filename(m).date)
-            
-            with open(m, "r") as f:
-                peaks = np.array([float(line.strip().split()[0])
-                                                for line in f.readlines()[1:]])
+            peaks, sigmas = np.transpose(np.loadtxt(m))
                 
             if last_wavelength is None:
+                # First mask
                 last_wavelength = self.reference_wavelength
      
-            try:
-                # Find the peak in the mask that is closest in wavelength
-                # to the reference peak
+            try: # Find the closest peak in the mask
                 closest_index =\
                     np.nanargmin(np.abs(peaks - last_wavelength))
-            except ValueError as e:
-                # What would give us a ValueError here?
-                closest_index = -1
+            except ValueError as e: # What would give us a ValueError here?
+                self.wavelengths.append(None)
+                self.sigmas.append(None)
+                continue
             
             wavelength = peaks[closest_index]
-            delta = last_wavelength - wavelength
+            sigma = sigmas[closest_index]
 
             # Check if the new peak is within a search window around the last
-            # TODO: Maybe define this search window differently? Unclear if needed.
-            if abs(delta) <= self.local_spacing / 50:
+            # TODO: Maybe define this search window differently?
+            if abs(last_wavelength - wavelength) <= self.local_spacing / 50:
                 self.wavelengths.append(wavelength)
                 last_wavelength = wavelength
-            else:
-                # No peak found within the window!
+                self.sigmas.append(sigma)
+            else: # No peak found within the window!
                 self.wavelengths.append(None)
+                self.sigmas.append(None)
                 # Don't update last_wavelength: we will keep searching at the
                 # same wavelength as previously.
             
@@ -235,27 +232,21 @@ class PeakDrift:
         if len(self.valid_wavelengths) == 0:
             print(f"No valid wavelengths found for {self.reference_wavelength}")
             print("Running PeakDrift.track_drift() first.")
-            
-            print(f"{self.wavelengths}")
-            
             self.track_drift()
         
-        # ref_wl = self.reference_wavelength * u.Angstrom
-        # wls = self.valid_wavelengths * u.Angstrom
-        # deltas = (wls - ref_wl).to(u.Angstrom).value
-        
-        d0 = self.reference_date        
-        days = [(d - d0).days for d in self.valid_dates]
-        
         try:
-            p, cov = np.polyfit(x = days, y = self.deltas, deg = 1, cov = True)
+            p, cov = np.polyfit(
+                x = self.days_since_reference_date,
+                y = self.deltas,
+                w = 1 / self.sigmas,
+                deg = 1,
+                cov = True
+                )
             
             self.fit = np.poly1d(p)
             self.fit_err = np.sqrt(np.diag(cov))
             self.fit_slope = p[0] * u.Angstrom / u.day
             self.fit_slope_err = self.fit_err[0] * u.Angstrom / u.day
-            
-        
             
         except Exception as e:
             print(e)
