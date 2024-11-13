@@ -1615,6 +1615,7 @@ class Spectrum:
         self,
         filename: str,
         orderlet: str | list[str] | None,
+        weights: bool = False,
         ) -> Spectrum:
         """
         
@@ -1634,7 +1635,12 @@ class Spectrum:
             logger.info(f"{self.pp}Saving {ol} peaks to {filename}...")
             with open(filename, "w") as f:
                 for p in self.filtered_peaks[ol]:
-                    f.write(f"{p.wl}\t1.0\n")        
+                    if weights:
+                        weight = f"{p.center_wavelength_stddev:f}"
+                    else:
+                        weight = "1.0"
+                        
+                    f.write(f"{p.wl}\t{weight}\n")
                     
         return self
     
