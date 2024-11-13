@@ -6,6 +6,7 @@ test_superGaussian.py
 test_fit_parameters.py
 voigt.py
 averaged_fsr_plot.py
+run_analysis_batch_with_weights.py
 
 # draw.io temp files
 *.bkp
