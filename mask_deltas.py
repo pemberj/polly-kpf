@@ -38,6 +38,9 @@ except ImportError:
 plt.style.use(plotStyle)
 
 
+ORDERLETS = ["SCI1", "SCI2", "SCI3", "CAL", "SKY"]
+TIMESOFDAY = ["morn", "day", "eve", "night", "midnight"]
+
 # A simple named tuple "class" for accessing mask details by field name
 Mask = namedtuple("Mask", ["date", "timeofday", "orderlet"])
 
@@ -518,12 +521,21 @@ def select_masks(
     masks: list[str],
     min_date: datetime | None = None,
     max_date: datetime | None = None,
-    timeofday: str | None = None,
-    orderlet: str | None = None,
+    timeofday: str | list[str] | None = None,
+    orderlet:  str | list[str] | None = None,
     ) -> list[str]:
+    """
+    """
     
-    assert orderlet in ["SCI1", "SCI2", "SCI3", "CAL", "SKY", None]
-    assert timeofday in ["morn", "day", "eve", "night", "midnight", None] # ????
+    if isinstance(orderlet, str):
+        orderlets = [orderlet]
+        for ol in orderlets:
+            assert ol in [*ORDERLETS, None]
+        
+    if isinstance(timeofday, str):
+        timesofday = [timeofday]
+        for tod in timesofday:
+            assert tod in [*TIMESOFDAY, None]
     
     valid_masks = masks
     
@@ -537,11 +549,11 @@ def select_masks(
     
     if timeofday:
         valid_masks =\
-            [m for m in valid_masks if parse_filename(m).timeofday == timeofday]
+            [m for m in valid_masks if parse_filename(m).timeofday in timesofday]
         
     if orderlet:
         valid_masks =\
-            [m for m in valid_masks if parse_filename(m).orderlet == orderlet]
+            [m for m in valid_masks if parse_filename(m).orderlet in orderlets]
     
     return valid_masks
 
