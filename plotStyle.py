@@ -1,3 +1,9 @@
+"""
+
+"""
+
+import colorsys
+
 # Definition of custom plot style
 import matplotlib.font_manager as fm
 
@@ -70,7 +76,11 @@ plotStyle = {
 }
 
 
-def wavelength_to_rgb(wavelength, gamma=0.8):
+def wavelength_to_rgb(
+    wavelength: float,
+    gamma: float = 0.8,
+    fade_factor: float = 0.8
+    ) -> tuple[float, float, float]:
     """
     This converts a given wavelength of light to an approximate RGB color
     value. Colors are returned for wavelengths in the range from 3800 A to
@@ -122,4 +132,14 @@ def wavelength_to_rgb(wavelength, gamma=0.8):
         G = 0.0
         B = 0.0
         
-    return (R, G, B)
+    return fade((R, G, B), fade_factor = fade_factor)
+
+
+def fade(
+    RGB: tuple[float, float, float],
+    fade_factor: float = 0.8
+    ) -> tuple[float, float, float]:
+    
+    h, s, v = colorsys.rgb_to_hsv(*RGB)
+    
+    return colorsys.hsv_to_rgb(h = h, s = fade_factor * s, v = v)
