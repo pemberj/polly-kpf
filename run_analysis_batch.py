@@ -101,7 +101,7 @@ def main(
         try:
             s = Spectrum(
                 spec_file = spec_files,
-                wls_file = None, # It will try to find the corresponding WLS file
+                wls_file = None, # Try to find the corresponding WLS file
                 orderlets_to_load = orderlets,
                 pp = pp,
                 )
