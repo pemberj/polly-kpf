@@ -78,8 +78,8 @@ plotStyle = {
 
 def wavelength_to_rgb(
     wavelength: float,
-    gamma: float = 0.8,
-    fade_factor: float = 0.8
+    gamma: float = 3,
+    fade_factor: float = 0.5
     ) -> tuple[float, float, float]:
     """
     This converts a given wavelength of light to an approximate RGB color
