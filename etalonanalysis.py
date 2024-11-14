@@ -79,9 +79,11 @@ from matplotlib import pyplot as plt
 import matplotlib.patheffects as pe
 
 try:
+    from polly.kpf import THORIUM_ORDER_INDICES
     from polly.plotStyle import plotStyle
     from polly.polly_logging import logger
 except ImportError:
+    from kpf import THORIUM_ORDER_INDICES
     from plotStyle import plotStyle
     from polly_logging import logger
 plt.style.use(plotStyle)
@@ -1075,7 +1077,7 @@ class Spectrum:
     cal_obj: str | None = None # CAL-OBJ in FITS header
     object:  str | None = None # OBJECT in FITS header
 
-    filtered_peaks: dict[str, list[Peak]] = field(default_factory=dict)
+    filtered_peaks: dict[str, list[Peak]] | None = None
 
     pp: str = "" # Print prefix
     
@@ -1090,9 +1092,6 @@ class Spectrum:
         
         if self._orders:
             ...
-            
-        for ol in self.orderlets_to_load:
-            self.filtered_peaks[ol] = []
         
         else:
             if self.spec_file:
@@ -1256,6 +1255,7 @@ class Spectrum:
         if not self.filtered_peaks:
             logger.warning(f"{self.pp}List of filtered peaks is empty. "+\
                            "Call Spectrum.filter_peaks() first")
+            return 0
         
         if isinstance(orderlet, str):
             return len(self.filtered_peaks[orderlet])
@@ -1566,6 +1566,8 @@ class Spectrum:
         
         if orderlet is None:
             orderlet = self.orderlets
+            
+        self.filtered_peaks = {ol: [] for ol in orderlet}
         
         for ol in orderlet:
             
@@ -1589,7 +1591,20 @@ class Spectrum:
                     to_keep.append(p1)
                     
                 elif p1.is_close_to(p2, window=window):
-                    if p1.d < p2.d:
+                    
+                    # If only one of the peaks is in an order whose wavelength
+                    # solution is derived from thorium, take the other one!
+                    if p2.i in THORIUM_ORDER_INDICES and\
+                                    p1.i not in THORIUM_ORDER_INDICES:
+                        to_keep.append(p1)
+                        
+                    elif p1.i in THORIUM_ORDER_INDICES and\
+                                    p2.i not in THORIUM_ORDER_INDICES:
+                        to_keep.append(p2)
+                    
+                    # Otherwise (either both are LFC or both thorium), take the
+                    # peak that is closest to its order centre
+                    elif p1.d < p2.d:
                         to_keep.append(p1)
                     else:
                         to_keep.append(p2)
@@ -1776,7 +1791,13 @@ class Spectrum:
         if orderlet is None:
             orderlet = self.orderlets
             
+            
+            
         for ol in orderlet:
+            if not self.filtered_peaks[ol]:
+                logger.info(f"{self.pp}Filtering peaks before computing FSR")
+                self.filter_peaks(orderlet = ol)
+            
             # Get peak wavelengths
             wls = np.array([p.wl for p in self.filtered_peaks[ol]]) * u.angstrom
             # Filter out any NaN values
@@ -1809,6 +1830,10 @@ class Spectrum:
             ax.set_xlim(4400, 8800) # Default xlims
         if ax.get_ylim() == (0.0, 1.0):
             ax.set_ylim(30.15, 30.35) # Default ylims
+            
+        if not self.filtered_peaks[orderlet]:
+            logger.info(f"{self.pp}Filtering peaks before computing FSR")
+            self.filter_peaks(orderlet = orderlet)
         
         wls = np.array([p.wl for p in self.filtered_peaks[orderlet]])
         nanmask = ~np.isnan(wls)
@@ -1895,6 +1920,31 @@ class Spectrum:
             
         elif orderlet is None:
             orderlet = self.orderlets
+            
+            
+        if self.filtered_peaks:
+            peaks_to_use =\
+                [p for ol in orderlet for p in self.filtered_peaks[ol]]
+        else:
+            peaks_to_use =\
+                [p for ol in orderlet for p in self.peaks(orderlet=ol)]
+            
+        return {
+            "fit_type": [p.fit_type for p in peaks_to_use],
+            "center_wavelength": [p.center_wavelength for p in peaks_to_use],
+            "amplitude": [p.amplitude for p in peaks_to_use],
+            "sigma": [p.sigma for p in peaks_to_use],
+            "boxhalfwidth": [p.boxhalfwidth for p in peaks_to_use],
+            "offset": [p.offset for p in peaks_to_use],
+            
+            "center_wavelength_stddev":
+                [p.center_wavelength_stddev for p in peaks_to_use],
+            "amplitude_stddev": [p.amplitude_stddev for p in peaks_to_use],
+            "sigma_stddev": [p.sigma_stddev for p in peaks_to_use],
+            "boxhalfwidth_stddev": [p.boxhalfwidth_stddev for p in peaks_to_use],
+            "offset_stddev": [p.offset_stddev for p in peaks_to_use],
+        }
+            
         
         fp = {
             "fit_type": [],
