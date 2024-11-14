@@ -888,7 +888,7 @@ class Order:
                f"spec={self.spec}, "+\
                f"wave={self.wave})\n"+\
                f"`spec` from {self.parent.spec_file}"+\
-               f"`wave` from {self.parent.wave_file}"
+               f"`wave` from {self.parent.wls_file}"
                
                
     def __contains__(self, wl: float) -> bool:
@@ -1965,7 +1965,7 @@ class Spectrum:
         
         return f"Spectrum("+\
                f"spec_file={self.spec_file}, "+\
-               f"wave_file={self.wave_file}, "+\
+               f"wls_file={self.wls_file}, "+\
                f"orderlets_to_load={self.orderlets_to_load})"
 
 
