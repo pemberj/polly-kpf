@@ -47,6 +47,9 @@ Peak
     The fitting is typically initiated from the higher level (Spectrum object),
     and inversely all of the Peak's data is also passed upward to be accessible
     from Order and Spectrum objects.
+        
+TODO: assert orderlets in ORDERLETS where they are inputs?
+
 """
 
 # Standard library
@@ -79,13 +82,15 @@ from matplotlib import pyplot as plt
 import matplotlib.patheffects as pe
 
 try:
+    from polly.log import logger
     from polly.kpf import THORIUM_ORDER_INDICES
+    from polly.parsing import get_orderlet_name, get_orderlet_index
     from polly.plotStyle import plotStyle
-    from polly.polly_logging import logger
 except ImportError:
+    from log import logger
     from kpf import THORIUM_ORDER_INDICES
+    from parsing import get_orderlet_name, get_orderlet_index
     from plotStyle import plotStyle
-    from polly_logging import logger
 plt.style.use(plotStyle)
 
 
@@ -633,7 +638,6 @@ class Peak:
         
         return hash(f"{self.i}{self.wl}")
         
- 
 
 @dataclass
 class Order:
@@ -1310,10 +1314,14 @@ class Spectrum:
             
             _orders = []
             for ol in self.orderlets_to_load:
-                spec_green = fits.getdata(self.spec_file,
-                        f"GREEN_{_orderlet_name(ol)}_FLUX{_orderlet_index(ol)}")
-                spec_red = fits.getdata(self.spec_file,
-                        f"RED_{_orderlet_name(ol)}_FLUX{_orderlet_index(ol)}")
+                spec_green = fits.getdata(
+                    self.spec_file,
+                    f"GREEN_{get_orderlet_name(ol)}_FLUX{get_orderlet_index(ol)}"
+                    )
+                spec_red = fits.getdata(
+                    self.spec_file,
+                    f"RED_{get_orderlet_name(ol)}_FLUX{get_orderlet_index(ol)}"
+                    )
                 
                 self.date = "".join(
                             fits.getval(self.spec_file, "DATE-OBS").split("-")
@@ -1337,10 +1345,10 @@ class Spectrum:
                             f"list of {len(self.spec_file)} files...")
                 
                 spec_green = np.median([fits.getdata(f,
-                    f"GREEN_{_orderlet_name(ol)}_FLUX{_orderlet_index(ol)}")\
+                    f"GREEN_{get_orderlet_name(ol)}_FLUX{get_orderlet_index(ol)}")\
                                             for f in self.spec_file], axis=0)
                 spec_red = np.median([fits.getdata(f,
-                    f"RED_{_orderlet_name(ol)}_FLUX{_orderlet_index(ol)}")\
+                    f"RED_{get_orderlet_name(ol)}_FLUX{get_orderlet_index(ol)}")\
                                             for f in self.spec_file], axis=0)
                 
                 try:
@@ -1443,9 +1451,9 @@ class Spectrum:
         for ol in self.orderlets_to_load:
             
             wave_green = fits.getdata(self.wls_file,
-                    f"GREEN_{_orderlet_name(ol)}_WAVE{_orderlet_index(ol)}")
+                f"GREEN_{get_orderlet_name(ol)}_WAVE{get_orderlet_index(ol)}")
             wave_red =  fits.getdata(self.wls_file,
-                        f"RED_{_orderlet_name(ol)}_WAVE{_orderlet_index(ol)}")
+                f"RED_{get_orderlet_name(ol)}_WAVE{get_orderlet_index(ol)}")
             
             wave = np.append(wave_green, wave_red, axis=0)
             
@@ -2085,36 +2093,6 @@ def _conv_gauss_tophat(
         return amp * (partial / np.nanmax(partial)) + offset
     
     return amp * partial + offset
-
-
-def _orderlet_name(orderlet: str) -> str:
-    """
-    A simple helper function to get the non-numeric part of the orderlet name,
-    used to build the relevant FITS header keyword to access data.
-    
-    eg. for 'SCI1' we need 'GREEN_SCI_FLUX1', so return 'SCI'
-    """
-    
-    if orderlet.startswith("SCI"):
-        return "SCI"
-    else:
-        return orderlet
-    
-    
-def _orderlet_index(orderlet: str) -> str:
-    """
-    A simple helper function to get only the numeric part of the orderlet name,
-    used to build the relevant FITS header keyword to access data.
-    
-    eg. for 'SCI1' we need 'GREEN_SCI_FLUX1', so return '1'
-    """
-    
-    if orderlet.startswith("SCI"):
-        return orderlet[-1]
-    else:
-        return ""
-
-
 
 
 def test() -> None:
