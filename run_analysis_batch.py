@@ -28,44 +28,29 @@ TODO:
 
 
 from __future__ import annotations
-from pathlib import Path
-from glob import glob
-import argparse
-import re
-import logging
 
-from astropy.io import fits
+import logging
+import argparse
+from pathlib import Path
 
 from matplotlib import pyplot as plt
 
 try:
+    from polly.log import logger
     from polly.etalonanalysis import Spectrum
+    from polly.fileselection import find_L1_etalon_files
+    from polly.parsing import\
+        parse_num_list, parse_timesofday, parse_orderlets, parse_bool
     from polly.plotStyle import plotStyle
-    from polly.polly_logging import logger
 except ImportError:
+    from log import logger
     from etalonanalysis import Spectrum
+    from fileselection import find_L1_etalon_files
+    from parsing import\
+        parse_num_list, parse_timesofday, parse_orderlets, parse_bool
     from plotStyle import plotStyle
-    from polly_logging import logger
 
 plt.style.use(plotStyle)
-
-
-HEADER  = '\033[95m'
-OKBLUE  = '\033[94m'
-OKGREEN = '\033[92m'
-WARNING = '\033[93m'
-FAIL    = '\033[91m'
-ENDC    = '\033[0m'
-
-TIMESOFDAY = ["morn", "eve", "night"] # midnight? day?
-
-ORDERLETS : list[str] = [
-    "SCI1",
-    "SCI2",
-    "SCI3",
-    "CAL",
-    # "SKY"
-    ]
 
 
 def main(
@@ -144,121 +129,6 @@ def main(
                     f"{DATE}_{t}_{ol}_etalon_fits.png")
                 plt.close()
             
-        
-def find_L1_etalon_files(
-    DATE: str,
-    TIMEOFDAY: str,
-    masters: bool,
-    pp: str = "",
-    ) -> str | list[str]:
-    """
-    Locates relevant L1 files for a given date and time of day. At the moment
-    it loops through all files and looks at the "OBJECT" keyword in their
-    headers.
-    
-    TODO:
-     - Don't just take every matching frame! There are three "blocks" of three
-       etalon frames taken every morning (and evening?). Should take only the
-       single block that is closest to the SoCal observations.
-     - Use a database lookup (on shrek) to select files
-    """
-    
-    if masters:
-        files = glob(
-            f"/data/kpf/masters/{DATE}/"+\
-               f"kpf_{DATE}_master_arclamp_"+\
-                   f"autocal-etalon-all-{TIMEOFDAY}_L1.fits"
-               )
-        try:
-            assert len(files) == 1
-        except AssertionError:
-            logger.info(f"{pp}{len(files)} files found")
-            return None
-
-        with open(files[0], mode="rb") as _f:
-            try:
-                object = fits.getval(_f, "OBJECT")
-                if "etalon" in object.lower():
-                    return files[0]
-            except FileNotFoundError as e:
-                logger.error(f"{pp}{e}")
-                return None
-            except OSError as e:
-                logger.error(f"{pp}{e}")
-                return None
-            
-    all_files: list[str] = glob(f"/data/kpf/L1/{DATE}/*.fits")
-    
-    out_files: list[str] = []
-    
-    for f in all_files:
-        object = fits.getval(f, "OBJECT")
-        if "etalon" in object.lower():
-            timeofday = object.split("-")[-1]
-            if timeofday == TIMEOFDAY:
-                out_files.append(f)
-                
-    return out_files
-
-
-def parse_num_list(string_list: str) -> list[int]:
-    """
-    Adapted from Julian Stürmer's PyEchelle code
-    
-    Converts a string specifying a range of numbers (e.g. '1-3') into a list of
-    these numbers ([1,2,3])
-    """
-
-    m = re.match(r"(\d+)(?:-(\d+))?$", string_list)
-    if not m:
-        raise argparse.ArgumentTypeError(
-            f"'{string_list}' is not a range or number."+\
-            f"Expected forms like '1-12' or '6'."
-            )
-    
-    start = m.group(1)
-    end = m.group(2) or start
-    
-    return list(range(int(start), int(end) + 1))
-
-
-def parse_timesofday(timesofday: str) -> list:
-    if (timesofday == "all") or (timesofday is None):
-        return TIMESOFDAY
-    
-    elif "," in timesofday:
-        return timesofday.split(sep=",")
-    
-    else:
-        return [timesofday]
-
-
-def parse_orderlets(orderlets: str) -> list:
-    
-    if (orderlets == "all") or (orderlets is None):
-        return ORDERLETS
-    
-    elif "," in orderlets:
-        orderlets = orderlets.split(sep=",")
-        for ol in orderlets:
-            assert ol in ORDERLETS
-        return orderlets
-    
-    else:
-        assert orderlets in ORDERLETS
-        return [orderlets]
-
-
-def parse_bool(string):
-    if isinstance(string, bool):
-        return string
-    if string.lower() in ["yes", "true", "t", "y", "1"]:
-        return True
-    elif string.lower() in ["no", "false", "f", "n", "0"]:
-        return False
-    else:
-        raise argparse.ArgumentTypeError("Boolean value expected.")
-
 
 parser = argparse.ArgumentParser(
             prog = "polly run_analysis_batch",
