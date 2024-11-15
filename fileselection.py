@@ -27,8 +27,8 @@ except ImportError:
 
 
 def find_L1_etalon_files(
-    DATE: str,
-    TIMEOFDAY: str,
+    date: str,
+    timeofday: str,
     masters: bool,
     pp: str = "",
     ) -> str | list[str]:
@@ -37,18 +37,19 @@ def find_L1_etalon_files(
     it loops through all files and looks at the "OBJECT" keyword in their
     headers.
     
-    TODO:
-     - Don't just take every matching frame! There are three "blocks" of three
-       etalon frames taken every morning (and evening?). Should take only the
-       single block that is closest to the SoCal observations.
-     - Use a database lookup (on shrek) to select files
+    TODO: Don't just take every matching frame! There are three "blocks" of
+          three etalon frames taken every morning (and evening?). Should take
+          only the single block that is closest to the SoCal observations.
+    TODO: Use a database lookup (on shrek) to select files?
     """
+    
+    assert timeofday in TIMESOFDAY
     
     if masters:
         files = glob(
-            f"/data/kpf/masters/{DATE}/"+\
-               f"kpf_{DATE}_master_arclamp_"+\
-                   f"autocal-etalon-all-{TIMEOFDAY}_L1.fits"
+            f"/data/kpf/masters/{date}/"+\
+               f"kpf_{date}_master_arclamp_"+\
+                   f"autocal-etalon-all-{timeofday}_L1.fits"
                )
         try:
             assert len(files) == 1
@@ -68,7 +69,7 @@ def find_L1_etalon_files(
                 logger.error(f"{pp}{e}")
                 return None
             
-    all_files: list[str] = glob(f"/data/kpf/L1/{DATE}/*.fits")
+    all_files: list[str] = glob(f"/data/kpf/L1/{date}/*.fits")
     
     out_files: list[str] = []
     
@@ -76,7 +77,7 @@ def find_L1_etalon_files(
         object = fits.getval(f, "OBJECT")
         if "etalon" in object.lower():
             timeofday = object.split("-")[-1]
-            if timeofday == TIMEOFDAY:
+            if timeofday == timeofday:
                 out_files.append(f)
                 
     return out_files
@@ -89,15 +90,22 @@ def find_mask(
     timeofday: str = "eve",
     orderlet: str = "SCI2",
     ) -> str:
+    """
+    Find a single mask matching the input criteria. To be used to locate the
+    reference mask for a drift analysis.
+    """
     
     if (datestr is None and date is None) or (datestr and date):
-        print("Either datestr or date must be specified, not both")
+        print("Exactly one of `datestr` or `date` must be specified")
         
     if date:
         assert isinstance(date, datetime)
         
     if datestr:
         date = parse_date_string(datestr)
+        
+    assert orderlet in ORDERLETS
+    assert timeofday in TIMESOFDAY
         
     for m in masks:
         mdate, mtimeofday, morderlet = parse_filename(m)
@@ -113,20 +121,23 @@ def select_masks(
     orderlet:  str | list[str] | None = None,
     ) -> list[str]:
     """
+    Find all masks in an input list that match the given criteria.
     """
     
     if isinstance(orderlet, str):
         orderlets = [orderlet]
-        for ol in orderlets:
-            assert ol in [*ORDERLETS, None]
+    for ol in orderlets:
+        assert ol in [*ORDERLETS, None]
         
     if isinstance(timeofday, str):
         timesofday = [timeofday]
-        for tod in timesofday:
-            assert tod in [*TIMESOFDAY, None]
+    for tod in timesofday:
+        assert tod in [*TIMESOFDAY, None]
     
+    # Start with the full list of masks
     valid_masks = masks
     
+    # Then progressively keep only the matching masks
     if min_date:
         valid_masks =\
             [m for m in valid_masks if parse_filename(m).date >= min_date]
@@ -143,5 +154,10 @@ def select_masks(
     if orderlet:
         valid_masks =\
             [m for m in valid_masks if parse_filename(m).orderlet in orderlets]
+    
+    # Only the matching masks are left
+    if not valid_masks:
+        print("No matching masks found!")
+        return None
     
     return valid_masks

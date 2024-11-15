@@ -54,7 +54,7 @@ plt.style.use(plotStyle)
 
 
 def main(
-    DATE: str,
+    date: str,
     timesofday: str | list[str],
     orderlets: str | list[str],
     spectrum_plot: bool,
@@ -68,14 +68,14 @@ def main(
     
     for t in timesofday:
     
-        pp = f"{f'[{DATE} {t:>5}]':<20}" # Print/logging line prefix
+        pp = f"{f'[{date} {t:>5}]':<20}" # Print/logging line prefix
         
         spec_files = find_L1_etalon_files(
-            DATE=DATE, TIMEOFDAY=t, masters=masters, pp=pp,
+            date=date, timeofday=t, masters=masters, pp=pp,
             )
         # print()
         if not spec_files:
-            logger.info(f"{pp}No files for {DATE} {t}")
+            logger.info(f"{pp}No files for {date} {t}")
             continue
 
         try:
@@ -97,7 +97,7 @@ def main(
             try:
                 s.save_peak_locations(
                     filename=f"{OUTDIR}/masks/"+\
-                        f"{DATE}_{t}_{ol}_etalon_wavelengths.csv",
+                        f"{date}_{t}_{ol}_etalon_wavelengths.csv",
                     orderlet=ol,
                     weights=save_weights,
                     )
@@ -110,7 +110,7 @@ def main(
             for ol in orderlets:
                 s.plot_spectrum(orderlet=ol, plot_peaks=False)
                 plt.savefig(f"{OUTDIR}/spectrum_plots/"+\
-                    f"{DATE}_{t}_{ol}_spectrum.png")
+                    f"{date}_{t}_{ol}_spectrum.png")
                 plt.close()
 
         if fsr_plot:
@@ -118,7 +118,7 @@ def main(
             for ol in s.orderlets:
                 s.plot_FSR(orderlet=ol)
                 plt.savefig(f"{OUTDIR}/FSR_plots/"+\
-                    f"{DATE}_{t}_{ol}_etalon_FSR.png")
+                    f"{date}_{t}_{ol}_etalon_FSR.png")
                 plt.close()
                 
         if fit_plot:
@@ -126,7 +126,7 @@ def main(
             for ol in s.orderlets:
                 s.plot_peak_fits(orderlet=ol)
                 plt.savefig(f"{OUTDIR}/fit_plots/"+\
-                    f"{DATE}_{t}_{ol}_etalon_fits.png")
+                    f"{date}_{t}_{ol}_etalon_fits.png")
                 plt.close()
             
 
@@ -177,10 +177,10 @@ if __name__ == "__main__":
         for m in args.month:
             for d in args.date:
                 
-                DATE = f"{y}{m:02}{d:02}"
+                date = f"{y}{m:02}{d:02}"
                 
                 main(
-                    DATE = DATE,
+                    date = date,
                     timesofday = args.timesofday,
                     orderlets = args.orderlets,
                     spectrum_plot = args.spectrum_plot,
