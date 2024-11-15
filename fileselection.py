@@ -125,13 +125,13 @@ def select_masks(
     """
     
     if isinstance(orderlet, str):
-        orderlets = [orderlet]
-    for ol in orderlets:
+        orderlet = [orderlet]
+    for ol in orderlet:
         assert ol in [*ORDERLETS, None]
         
     if isinstance(timeofday, str):
-        timesofday = [timeofday]
-    for tod in timesofday:
+        timeofday = [timeofday]
+    for tod in timeofday:
         assert tod in [*TIMESOFDAY, None]
     
     # Start with the full list of masks
@@ -149,11 +149,11 @@ def select_masks(
     if timeofday:
         valid_masks =\
             [m for m in valid_masks\
-                if parse_filename(m).timeofday in timesofday]
+                if parse_filename(m).timeofday in timeofday]
         
     if orderlet:
         valid_masks =\
-            [m for m in valid_masks if parse_filename(m).orderlet in orderlets]
+            [m for m in valid_masks if parse_filename(m).orderlet in orderlet]
     
     # Only the matching masks are left
     if not valid_masks:
