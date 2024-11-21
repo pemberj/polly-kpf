@@ -284,10 +284,10 @@ class Peak:
             self.fit_type = type
             self.fit_space = space
             
-            if type.lower() == "gaussian":
+            if type == "gaussian":
                 self._fit_gaussian(space=space)
             
-            elif type.lower() == "conv_gauss_tophat":
+            elif type == "conv_gauss_tophat":
                 self._fit_conv_gauss_tophat(space=space)
                 
         return self
@@ -378,7 +378,7 @@ class Peak:
         if space == "wavelength":
             x0 = np.mean(self.wavelet)
             x = self.wavelet - x0 # Centre about zero
-            mean_dx = abs(np.mean(np.diff(x)))
+            mean_dx = np.abs(np.mean(np.diff(x)))
             
         elif space == "pixel":
             x0 = np.mean(self.pixlet)
@@ -863,10 +863,14 @@ class Order:
         return self
     
     
-    def fit_peaks(self, type: str = "conv_gauss_tophat") -> Order:
+    def fit_peaks(
+        self,
+        type: str = "conv_gauss_tophat",
+        space: str = "wavelength",
+        ) -> Order:
         
         for p in self.peaks:
-            p.fit(type=type)
+            p.fit(type=type, space=space)
             
         return self
     
@@ -1569,7 +1573,8 @@ class Spectrum:
     def fit_peaks(
         self,
         orderlet: str | list[str] | None = None,
-        type="conv_gauss_tophat"
+        type: str = "conv_gauss_tophat",
+        space: str = "wavelength",
         ) -> Spectrum:
         """
         TODO: Run multiple fits at once, each in a separate process. The fitting
@@ -1601,7 +1606,7 @@ class Spectrum:
                         unit="order",
                         ncols=100
                         ):
-                o.fit_peaks(type=type)
+                o.fit_peaks(type=type, space=space)
                 
         return self
         
@@ -1686,11 +1691,17 @@ class Spectrum:
         self,
         filename: str,
         orderlet: str | list[str] | None,
+        space: str = "wavelength",
+        filtered: bool = True,
         weights: bool = False,
         ) -> Spectrum:
         """
-        
+        Save the identified and fitted peak locations (in either pixel space or
+        wavelength space) to a CSV file on disk.
         """
+        
+        if space not in ["wavelength", "pixel"]:
+            raise NotImplementedError
         
         if isinstance(orderlet, str):
             orderlet = [orderlet]
@@ -1699,19 +1710,32 @@ class Spectrum:
             orderlet = self.orderlets
             
         for ol in orderlet:
-        
-            if not self.filtered_peaks[ol]:
-                self.filter_peaks(orderlet=ol)
+            if filtered:
+                if not self.filtered_peaks[ol]:
+                    self.filter_peaks(orderlet=ol)
+                peaks_to_use = self.filtered_peaks[ol]
+                
+            else:
+                peaks_to_use = self.peaks(orderlet=ol)
             
-            logger.info(f"{self.pp}Saving {ol} peaks to {filename}...")
+            logger.info(
+                f"{self.pp}Saving {space}-space {ol} "\
+               +f"peak locations to {filename}..."
+                )
             with open(filename, "w") as f:
-                for p in self.filtered_peaks[ol]:
-                    if weights:
-                        weight = f"{p.center_wavelength_stddev:f}"
-                    else:
-                        weight = "1.0"
+                for p in peaks_to_use:
+                    
+                    if space == "wavelength":
+                        location = f"{p.center_wavelength:f}"
+                        if weights: weight = f"{p.center_wavelength_stddev:f}"
+                        else: weight = "1.0"
+                    
+                    elif space == "pixel":
+                        location = f"{p.center_pixel:f}"
+                        if weights: weight = f"{p.center_pixel_stddev:f}"
+                        else: weight = "1.0"
                         
-                    f.write(f"{p.wl}\t{weight}\n")
+                    f.write(f"{location}\t{weight}\n")
                     
         return self
     
