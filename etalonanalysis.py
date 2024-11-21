@@ -224,6 +224,11 @@ class Peak:
     
     
     @property
+    def pixlet(self) -> list[int]:
+        return [self.starting_pixel + i for i in range(len(self.wavelet))]
+    
+    
+    @property
     def parent(self) -> Order:
         """
         Return the Order to which this Peak belongs.
@@ -306,7 +311,7 @@ class Peak:
         if space == "wavelength":
             x0 = np.mean(self.wavelet)
             x = self.wavelet - x0 # Centre about zero
-            mean_dx = np.abs(np.mean(np.diff(x)))
+            mean_dx = abs(np.mean(np.diff(x)))
             
         elif space == "pixel":
             x0 = np.mean(self.pixlet)
@@ -338,7 +343,7 @@ class Peak:
         amplitude, center, sigma, offset = p
         
         self.remove_fit()
-        
+
         # Populate the fit parameters
         stddev = np.sqrt(np.diag(cov))
         
@@ -378,7 +383,7 @@ class Peak:
         if space == "wavelength":
             x0 = np.mean(self.wavelet)
             x = self.wavelet - x0 # Centre about zero
-            mean_dx = np.abs(np.mean(np.diff(x)))
+            mean_dx = abs(np.mean(np.diff(x)))
             
         elif space == "pixel":
             x0 = np.mean(self.pixlet)
