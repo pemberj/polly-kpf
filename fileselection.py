@@ -62,10 +62,7 @@ def find_L1_etalon_files(
                 object = fits.getval(_f, "OBJECT")
                 if "etalon" in object.lower():
                     return files[0]
-            except FileNotFoundError as e:
-                logger.error(f"{pp}{e}")
-                return None
-            except OSError as e:
+            except (FileNotFoundError, OSError) as e:
                 logger.error(f"{pp}{e}")
                 return None
             
@@ -74,10 +71,15 @@ def find_L1_etalon_files(
     out_files: list[str] = []
     
     for f in all_files:
-        object = fits.getval(f, "OBJECT")
+        try:
+            object = fits.getval(f, "OBJECT")
+        except (FileNotFoundError, OSError) as e:
+            logger.error(f"{pp}{e}")
+            continue
+        
         if "etalon" in object.lower():
-            timeofday = object.split("-")[-1]
-            if timeofday == timeofday:
+            file_timeofday = object.split("-")[-1]
+            if file_timeofday == timeofday:
                 out_files.append(f)
                 
     return out_files
