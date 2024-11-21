@@ -331,13 +331,10 @@ class Peak:
                 p0=p0,
                 bounds=bounds,
                 )
-        except RuntimeError as e:
+        except (RuntimeError, ValueError) as e:
             logging.warning(e)
             p = cov = [np.nan] * len(p0)
-        except ValueError as e:
-            logging.warning(e)
-            p = cov = [np.nan] * len(p0)
-            
+        
         amplitude, center, sigma, offset = p
         
         self.remove_fit()
@@ -409,10 +406,7 @@ class Peak:
                 # ftol=1e-3,
                 # xtol=1e-9,
                 )
-        except RuntimeError as e:
-            logging.warning(e)
-            p = cov = [np.nan] * len(p0)
-        except ValueError as e:
+        except (RuntimeError, ValueError) as e:
             logging.warning(e)
             p = cov = [np.nan] * len(p0)
         
