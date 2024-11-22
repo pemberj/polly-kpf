@@ -1067,6 +1067,7 @@ class Spectrum:
     
     spec_file: str | list[str] | None = None
     wls_file:  str |             None = None
+    orders_to_load:  list[int] | None = None
     orderlets_to_load: str | list[str] | None = None
     
     reference_mask: str | None = None
@@ -1332,6 +1333,9 @@ class Spectrum:
                 
                 spec = np.append(spec_green, spec_red, axis=0)
                 
+                if self.orders_to_load is not None:
+                    spec = spec[self.orders_to_load]
+                
                 for i, s in enumerate(spec):
                     _orders.append(Order(orderlet=ol, wave=None, spec=s, i=i))
             
@@ -1395,6 +1399,9 @@ class Spectrum:
                     
                 spec = np.append(spec_green, spec_red, axis=0)
                 
+                if self.orders_to_load is not None:
+                    spec = spec[self.orders_to_load]
+                
                 for i, s in enumerate(spec):
                     _orders.append(Order(orderlet=ol, wave=None, spec=s, i=i))
                 
@@ -1456,6 +1463,9 @@ class Spectrum:
                 f"RED_{get_orderlet_name(ol)}_WAVE{get_orderlet_index(ol)}")
             
             wave = np.append(wave_green, wave_red, axis=0)
+            
+            if self.orders_to_load is not None:
+                wave = wave[self.orders_to_load]
             
             # If there are no orders already (for this orderlet), just populate
             # a new set of orders only with the wavelength solution
