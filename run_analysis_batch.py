@@ -53,7 +53,7 @@ except ImportError:
 plt.style.use(plotStyle)
 
 
-def main(
+def run_analysis_batch(
     date: str,
     timesofday: str | list[str],
     orderlets: str | list[str],
@@ -62,9 +62,11 @@ def main(
     fit_plot: bool,
     save_weights: bool,
     masters: bool,
+    outdir: str | Path,
+    verbose: bool = False
     ) -> None:
     
-    Path(f"{OUTDIR}/masks/").mkdir(parents=True, exist_ok=True)
+    Path(f"{outdir}/masks/").mkdir(parents=True, exist_ok=True)
     
     for t in timesofday:
     
@@ -96,7 +98,7 @@ def main(
         for ol in s.orderlets:
             try:
                 s.save_peak_locations(
-                    filename=f"{OUTDIR}/masks/"+\
+                    filename=f"{outdir}/masks/"+\
                         f"{date}_{t}_{ol}_etalon_wavelengths.csv",
                     orderlet=ol,
                     weights=save_weights,
@@ -106,26 +108,26 @@ def main(
                 continue
         
         if spectrum_plot:
-            Path(f"{OUTDIR}/spectrum_plots").mkdir(parents=True, exist_ok=True)
+            Path(f"{outdir}/spectrum_plots").mkdir(parents=True, exist_ok=True)
             for ol in orderlets:
                 s.plot_spectrum(orderlet=ol, plot_peaks=False)
-                plt.savefig(f"{OUTDIR}/spectrum_plots/"+\
+                plt.savefig(f"{outdir}/spectrum_plots/"+\
                     f"{date}_{t}_{ol}_spectrum.png")
                 plt.close()
 
         if fsr_plot:
-            Path(f"{OUTDIR}/FSR_plots").mkdir(parents=True, exist_ok=True)
+            Path(f"{outdir}/FSR_plots").mkdir(parents=True, exist_ok=True)
             for ol in s.orderlets:
                 s.plot_FSR(orderlet=ol)
-                plt.savefig(f"{OUTDIR}/FSR_plots/"+\
+                plt.savefig(f"{outdir}/FSR_plots/"+\
                     f"{date}_{t}_{ol}_etalon_FSR.png")
                 plt.close()
                 
         if fit_plot:
-            Path(f"{OUTDIR}/fit_plots").mkdir(parents=True, exist_ok=True)
+            Path(f"{outdir}/fit_plots").mkdir(parents=True, exist_ok=True)
             for ol in s.orderlets:
                 s.plot_peak_fits(orderlet=ol)
-                plt.savefig(f"{OUTDIR}/fit_plots/"+\
+                plt.savefig(f"{outdir}/fit_plots/"+\
                     f"{date}_{t}_{ol}_etalon_fits.png")
                 plt.close()
             
@@ -151,6 +153,8 @@ file_selection.add_argument("-t", "--timesofday", type=parse_timesofday,
                             required=False, default="all")
 file_selection.add_argument("-o", "--orderlets", type=parse_orderlets,
                             required=False, default="all")
+file_selection.add_argument("--orders", type=parse_num_list,
+                            required=False, default="0-66")
 
 parser.add_argument("--outdir", type=lambda p: Path(p).absolute(),
                     default="/scr/jpember/polly_outputs")
@@ -170,8 +174,6 @@ if __name__ == "__main__":
     logger.setLevel(logging.INFO)
     
     args = parser.parse_args()
-    OUTDIR: str = args.outdir
-    VERBOSE: bool = args.verbose # Placeholder
     
     for y in args.year:
         for m in args.month:
@@ -179,7 +181,7 @@ if __name__ == "__main__":
                 
                 date = f"{y}{m:02}{d:02}"
                 
-                main(
+                run_analysis_batch(
                     date = date,
                     timesofday = args.timesofday,
                     orderlets = args.orderlets,
@@ -188,4 +190,6 @@ if __name__ == "__main__":
                     fit_plot = args.fit_plot,
                     save_weights = args.save_weights,
                     masters = args.masters,
+                    outdir = args.outdir,
+                    verbose = args.verbose,
                     )
