@@ -63,8 +63,18 @@ def run_analysis_batch(
     save_weights: bool,
     masters: bool,
     outdir: str | Path,
+    orders: list[int] | None = None,
+    single_wls_file: str | Path | None = None,
     verbose: bool = False
     ) -> None:
+    """
+    single_wls_File
+    
+    If passed, all analysis will use this single file as its wavelength solution
+    reference. Default is None, in which case the script will locate the
+    corresponding (date, time of day) `master_WLS_autocal-lfc-all-{timeofday}`
+    file and load the WLS from there.
+    """
     
     Path(f"{outdir}/masks/").mkdir(parents=True, exist_ok=True)
     
@@ -83,8 +93,9 @@ def run_analysis_batch(
         try:
             s = Spectrum(
                 spec_file = spec_files,
-                wls_file = None, # Try to find the corresponding WLS file
+                wls_file = single_wls_file,
                 orderlets_to_load = orderlets,
+                orders_to_load = orders,
                 pp = pp,
                 )
         except Exception as e:
@@ -144,7 +155,7 @@ parser = argparse.ArgumentParser(
 # parser.add_argument("--files")
 file_selection = parser.add_argument_group("File Selection")
 file_selection.add_argument("-y", "--year",  type=parse_num_list,
-                            required=False, default="2023-2024")
+                            required=False, default="2024")
 file_selection.add_argument("-m", "--month", type=parse_num_list,
                             required=False, default="1-12")
 file_selection.add_argument("-d", "--date",  type=parse_num_list,
