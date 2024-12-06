@@ -72,6 +72,8 @@ class PeakDrift:
     fit_err: list[float] | None = None
     fit_slope: Quantity | None = None
     fit_slope_err: Quantity | None = None
+    fit_offset: Quantity | None = None
+    fit_offset_err: Quantity | None = None
     
     
     drift_file: str | Path | None = None
@@ -263,7 +265,10 @@ class PeakDrift:
         return self
         
     
-    def linear_fit(self) -> PeakDrift:
+    def linear_fit(
+        self,
+        fit_fractional: bool = False,
+        ) -> PeakDrift:
         """
         - Fit the tracked drift with a linear function
         - Assign self.fit with a Callable function
@@ -276,26 +281,38 @@ class PeakDrift:
             print(f"No valid wavelengths found for {self.reference_wavelength}")
             print("Running PeakDrift.track_drift() first.")
             self.track_drift()
+            
+        if fit_fractional:
+            deltas_to_use = self.fractional_deltas
+        else:
+            # Use absolute delta wavelengths
+            deltas_to_use = self.deltas
         
         try:
             p, cov = np.polyfit(
                 x = self.days_since_reference_date,
-                y = self.deltas,
+                y = deltas_to_use,
                 w = 1 / np.array(self.valid_sigmas),
                 deg = 1,
                 cov = True
                 )
             
-            self.fit = np.poly1d(p)
+            self.fit = np.poly1d(p) * u.Angstrom
             self.fit_err = np.sqrt(np.diag(cov))
-            self.fit_slope = p[0] * u.Angstrom / u.day
-            self.fit_slope_err = self.fit_err[0] * u.Angstrom / u.day
+            if fit_fractional:
+                self.fit_slope = p[0] * 1 / u.day
+                self.fit_slope_err = self.fit_err[0] * 1 / u.day
+            else:
+                self.fit_slope = p[0] * u.Angstrom / u.day
+                self.fit_slope_err = self.fit_err[0] * u.Angstrom / u.day
+            self.fit_offset = p[1] * u.Angstrom
+            self.fit_offset_err = self.fit_err[1] * u.Angstrom
             
         except Exception as e:
             print(e)
             
             print(f"{np.shape(self.days_since_reference_date) = }")
-            print(f"{np.shape(self.deltas) = }")
+            print(f"{np.shape(deltas_to_use) = }")
             print(f"{np.shape(self.valid_sigmas) = }")    
             
             self.fit = lambda x: np.nan
@@ -304,6 +321,14 @@ class PeakDrift:
             self.fit_slope_err = np.nan * u.Angstrom / u.day
             
         return self
+    
+    
+    def fit_residuals(self, fractional: bool = False) -> list[float]:
+        
+        if fractional:
+            return (self.fractional_deltas - self.fit(self.days_since_reference_date).value)
+        else:
+            return (self.deltas - self.fit(self.days_since_reference_date).value)
         
     
     def save_to_file(self, path: str | Path | None = None) -> PeakDrift:
