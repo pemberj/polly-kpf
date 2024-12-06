@@ -4,6 +4,8 @@
 
 import colorsys
 
+import numpy as np
+
 # Definition of custom plot style
 import matplotlib.font_manager as fm
 
@@ -77,10 +79,10 @@ plotStyle = {
 
 
 def wavelength_to_rgb(
-    wavelength: float,
-    gamma: float = 3,
-    fade_factor: float = 0.5
-    ) -> tuple[float, float, float]:
+    wavelength: float | int,
+    gamma: float | int = 3,
+    fade_factor: float | int = 0.5
+    ) -> tuple[float | int, float | int, float | int]:
     """
     This converts a given wavelength of light to an approximate RGB color
     value. Colors are returned for wavelengths in the range from 3800 A to
@@ -92,7 +94,7 @@ def wavelength_to_rgb(
     http://www.physics.sfasu.edu/astro/color/spectra.html
     """
     
-    if isinstance(wavelength, list):
+    if isinstance(wavelength, list | np.ndarray):
         return [wavelength_to_rgb(wl) for wl in wavelength]
 
     if wavelength >= 3800 and wavelength <= 4400:
