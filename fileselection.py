@@ -89,29 +89,46 @@ def find_mask(
     masks: list[str],
     datestr: str | None = None,
     date: datetime | None = None,
-    timeofday: str = "eve",
-    orderlet: str = "SCI2",
+    timeofday: str | list[str] | None = None,
+    orderlet:  str | list[str] | None = None,
     ) -> str:
     """
     Find a single mask matching the input criteria. To be used to locate the
     reference mask for a drift analysis.
     """
     
+    if timeofday is None:
+        timesofday = TIMESOFDAY
+    elif isinstance(timeofday, str):
+        assert timeofday in TIMESOFDAY
+        timesofday = [timeofday]
+    elif isinstance(timeofday, list):
+        for t in timeofday:
+            assert t in TIMESOFDAY
+        timesofday = timeofday
+        
+    if orderlet is None:
+        orderlets = ORDERLETS
+    elif isinstance(orderlet, str):
+        assert orderlet in ORDERLETS
+        orderlets = [orderlet]
+    
     if (datestr is None and date is None) or (datestr and date):
         print("Exactly one of `datestr` or `date` must be specified")
         
     if date:
-        assert isinstance(date, datetime)
+        try:
+            assert isinstance(date, datetime)
+        except AssertionError:
+            print(date)
         
     if datestr:
         date = parse_date_string(datestr)
         
-    assert orderlet in ORDERLETS
-    assert timeofday in TIMESOFDAY
         
     for m in masks:
         mdate, mtimeofday, morderlet = parse_filename(m)
-        if mdate == date and mtimeofday == timeofday and morderlet == orderlet:
+        if mdate == date and mtimeofday in timesofday and morderlet in orderlets:
             return m
         
     
