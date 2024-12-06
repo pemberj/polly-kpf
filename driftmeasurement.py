@@ -186,7 +186,7 @@ class PeakDrift:
     def get_delta_at_date(
         self,
         date: datetime | list[datetime],
-        ) -> float:
+        ) -> float | list[float]:
         """
         Returns the delta value for a given date. If there is no data for a
         given date, returns NaN.
@@ -204,7 +204,20 @@ class PeakDrift:
         for i, d in enumerate(self.valid_dates):
             if d == date:
                 return self.deltas[i]
-        return np.nan            
+        return np.nan
+    
+    
+    @cached_property
+    def fractional_deltas(self) -> list[float]:
+        return self.deltas / self.reference_wavelength
+    
+    
+    def get_fractional_delta_at_date(
+        self,
+        date: datetime | list[datetime],
+        ) -> float | list[float]:
+        
+        return self.get_delta_at_date(date) / self.reference_wavelength
     
     
     @cached_property
