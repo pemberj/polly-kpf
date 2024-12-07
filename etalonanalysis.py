@@ -440,29 +440,36 @@ class Peak:
         self.offset_stddev = stddev[4]
 
 
-    def remove_fit(self) -> Peak:
+    def remove_fit(self, fill_with_NaN: bool = False) -> Peak:
         """
         Reset any previously fitted parameters, used in the case of fitting
         again, perhaps with a different function, or in pixel space instead of
         wavelength space.
         """
         
-        self.fit_type   = None
-        self.fit_space  = None
+        if not fill_with_NaN:
+            self.fit_type   = None
+            self.fit_space  = None
         
-        self.center_wavelength  = None
-        self.center_pixel       = None
-        self.amplitude          = None
-        self.sigma              = None
-        self.boxhalfwidth       = None
-        self.offset             = None
+        if fill_with_NaN:
+            ___ = np.nan
+        else:
+            ___ = None
+            
         
-        self.center_wavelength_stddev   = None
-        self.center_pixel_stddev        = None
-        self.amplitude_stddev           = None
-        self.sigma_stddev               = None
-        self.boxhalfwidth_stddev        = None
-        self.offset_stddev              = None
+        self.center_wavelength  = ___
+        self.center_pixel       = ___
+        self.amplitude          = ___
+        self.sigma              = ___
+        self.boxhalfwidth       = ___
+        self.offset             = ___
+        
+        self.center_wavelength_stddev   = ___
+        self.center_pixel_stddev        = ___
+        self.amplitude_stddev           = ___
+        self.sigma_stddev               = ___
+        self.boxhalfwidth_stddev        = ___
+        self.offset_stddev              = ___
         
         return self
     
