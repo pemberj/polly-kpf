@@ -32,6 +32,10 @@ from __future__ import annotations
 import logging
 import argparse
 from pathlib import Path
+from datetime import datetime, timedelta
+
+import numpy as np
+from numpy.typing import ArrayLike
 
 from matplotlib import pyplot as plt
 
@@ -39,15 +43,19 @@ try:
     from polly.log import logger
     from polly.etalonanalysis import Spectrum
     from polly.fileselection import find_L1_etalon_files
-    from polly.parsing import\
-        parse_num_list, parse_timesofday, parse_orderlets, parse_bool
+    from polly.parsing import (
+        parse_num_list, parse_timesofday, parse_orderlets,
+        parse_bool, parse_orders, parse_yyyymmdd
+        )
     from polly.plotStyle import plotStyle
 except ImportError:
     from log import logger
     from etalonanalysis import Spectrum
     from fileselection import find_L1_etalon_files
-    from parsing import\
-        parse_num_list, parse_timesofday, parse_orderlets, parse_bool
+    from parsing import (
+        parse_num_list, parse_timesofday, parse_orderlets,
+        parse_bool, parse_orders, parse_yyyymmdd
+        )
     from plotStyle import plotStyle
 
 plt.style.use(plotStyle)
@@ -63,6 +71,8 @@ def run_analysis_batch(
     save_weights: bool,
     masters: bool,
     outdir: str | Path,
+    fit_type: str = "conv_gauss_tophat",
+    fit_space: str = "pixel",
     orders: list[int] | None = None,
     single_wls_file: str | Path | None = None,
     verbose: bool = False
@@ -103,7 +113,7 @@ def run_analysis_batch(
             continue
         
         s.locate_peaks(fractional_height=0.01, window_to_save=14)
-        s.fit_peaks(type="conv_gauss_tophat")
+        s.fit_peaks(type=fit_type, space=fit_space)
         s.filter_peaks(window=0.01)
         
         for ol in s.orderlets:
@@ -154,18 +164,16 @@ parser = argparse.ArgumentParser(
 
 # parser.add_argument("--files")
 file_selection = parser.add_argument_group("File Selection")
-file_selection.add_argument("-y", "--year",  type=parse_num_list,
-                            required=False, default="2024")
-file_selection.add_argument("-m", "--month", type=parse_num_list,
-                            required=False, default="1-12")
-file_selection.add_argument("-d", "--date",  type=parse_num_list,
-                            required=False, default="1-31")
+file_selection.add_argument("--min_date",  type=parse_yyyymmdd,
+                            required=False, default="20240501")
+file_selection.add_argument("--max_date",  type=parse_yyyymmdd,
+                            required=False, default="now")
 file_selection.add_argument("-t", "--timesofday", type=parse_timesofday,
                             required=False, default="all")
 file_selection.add_argument("-o", "--orderlets", type=parse_orderlets,
                             required=False, default="all")
-file_selection.add_argument("--orders", type=parse_num_list,
-                            required=False, default="0-66")
+file_selection.add_argument("--orders", type=parse_orders,
+                            required=False, default="all")
 
 parser.add_argument("--outdir", type=lambda p: Path(p).absolute(),
                     default="/scr/jpember/polly_outputs")
@@ -186,21 +194,24 @@ if __name__ == "__main__":
     
     args = parser.parse_args()
     
-    for y in args.year:
-        for m in args.month:
-            for d in args.date:
+    dates: ArrayLike[datetime] = np.arange(
+        start = args.min_date,
+        stop = args.max_date,
+        step = timedelta(days=1),
+        dtype = datetime,
+    )
+    
+    for date in dates:
                 
-                date = f"{y}{m:02}{d:02}"
-                
-                run_analysis_batch(
-                    date = date,
-                    timesofday = args.timesofday,
-                    orderlets = args.orderlets,
-                    spectrum_plot = args.spectrum_plot,
-                    fsr_plot = args.fsr_plot,
-                    fit_plot = args.fit_plot,
-                    save_weights = args.save_weights,
-                    masters = args.masters,
-                    outdir = args.outdir,
-                    verbose = args.verbose,
-                    )
+        run_analysis_batch(
+            date = f"{date:%Y%m%d}",
+            timesofday = args.timesofday,
+            orderlets = args.orderlets,
+            spectrum_plot = args.spectrum_plot,
+            fsr_plot = args.fsr_plot,
+            fit_plot = args.fit_plot,
+            save_weights = args.save_weights,
+            masters = args.masters,
+            outdir = args.outdir,
+            verbose = args.verbose,
+            )
