@@ -1155,6 +1155,8 @@ class Spectrum:
         
         if self.orderlets_to_load is None:
             self.orderlets_to_load = ["SCI1", "SCI2", "SCI3", "CAL", "SKY"]
+            
+        self.filtered_peaks = {ol: None for ol in self.orderlets_to_load}
         
         if self._orders:
             ...
@@ -1892,11 +1894,16 @@ class Spectrum:
             
         for ol in orderlet:
             if not self.filtered_peaks[ol]:
-                logger.info(f"{self.pp}Filtering peaks before computing FSR")
-                self.filter_peaks(orderlet = ol)
+                logger.info(f"{self.pp}" + \
+                    "You may want to filter peaks before computing FSR")
+                peaks_to_use = self.peaks(orderlet = ol)
+                # self.filter_peaks(orderlet = ol)
+            
+            else:
+                peaks_to_use = self.filtered_peaks[ol]
             
             # Get peak wavelengths
-            wls = np.array([p.wl for p in self.filtered_peaks[ol]]) * u.angstrom
+            wls = np.array([p.wl for p in peaks_to_use]) * u.angstrom
             # Filter out any NaN values
             nanmask = ~np.isnan(wls)
             wls = wls[nanmask]
