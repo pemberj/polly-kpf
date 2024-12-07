@@ -10,9 +10,11 @@ from collections import namedtuple
 
 
 try:
-    from polly.kpf import ORDERLETS, TIMESOFDAY
+    from polly.kpf import\
+        ORDERLETS, TIMESOFDAY, LFC_ORDER_INDICES, THORIUM_ORDER_INDICES
 except ImportError:
-    from kpf import ORDERLETS, TIMESOFDAY
+    from kpf import\
+        ORDERLETS, TIMESOFDAY, LFC_ORDER_INDICES, THORIUM_ORDER_INDICES
 
 
 
@@ -46,6 +48,9 @@ def parse_filename(filename: str | list[str]) -> tuple[datetime, str, str]:
 
 
 def parse_yyyymmdd(input: str | float | int) -> datetime:
+    
+    if input == "now":
+        return datetime.now()
     
     if isinstance(input, float):
         input = str(int(input))
@@ -81,6 +86,28 @@ def parse_num_list(string_list: str) -> list[int]:
     end = m.group(2) or start
     
     return list(range(int(start), int(end) + 1))
+
+
+
+def parse_orders(orders_str: str) -> list[int]:
+    """
+    Wrapper around parse_num_list
+    """
+    
+    if (orders_str == "all") or (orders_str is None):
+        return list(range((67)))
+    elif orders_str == "lfc":
+        return LFC_ORDER_INDICES
+    elif orders_str == "thorium":
+        return THORIUM_ORDER_INDICES
+        
+    else:
+        try:
+            return parse_num_list(orders_str)
+        except Exception as e:
+            print(f"Exception raised when parsing orders: {e}")
+            print("Returning ALL orders")
+            return list(range((67)))
 
 
 
