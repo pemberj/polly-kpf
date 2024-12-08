@@ -627,26 +627,7 @@ class Peak:
         
         return None
     
-    
-    def is_close_to(self, other: Peak, window: float = 0.01) -> bool:
-        """
-        Checks if a Peak is within a window of another Peak. Used for filtering
-        identical peaks (same wavelength) from neighbouring orders (m, m+1).
-        
-        Args:
-            other (Self): _description_
-            window (float, optional): _description_. Defaults to 0.01.
-
-        Returns:
-            bool: _description_
-        """
-        
-        if abs(self.center_wavelength - other.center_wavelength) <= window:
-            return True
-        
-        return False
- 
- 
+     
     def has(self, prop: str) -> str:
         """String generation"""
         
@@ -1710,7 +1691,8 @@ class Spectrum:
                     # The peaks are in the same order - window is too large?
                     to_keep.append(p1)
                     
-                elif p1.is_close_to(p2, window=window):
+                # elif p1.is_close_to(p2, window=window):
+                elif abs(p1 - p2) <= window:
                     
                     # If only one of the peaks is in an order whose wavelength
                     # solution is derived from thorium, take the other one!
