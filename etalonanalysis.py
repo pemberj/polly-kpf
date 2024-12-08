@@ -664,18 +664,18 @@ class Peak:
 
     def __add__(self, other: float | int | Peak) -> bool:
         if isinstance(other, Peak):
-            return self.wl - other.wl
+            return self.wl + other.wl
         elif isinstance(other, (float, int)):
-            return self.wl - other
+            return self.wl + other
         else:
             raise ValueError
 
     
     def __sub__(self, other: float | int | Peak) -> bool:
         if isinstance(other, Peak):
-            return self.wl + other.wl
+            return self.wl - other.wl
         elif isinstance(other, (float, int)):
-            return self.wl + other
+            return self.wl - other
         else:
             raise ValueError
 
