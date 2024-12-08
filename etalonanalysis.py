@@ -681,17 +681,50 @@ class Peak:
                f"center_wavelength {self.center_wavelength:.3f})"
                
 
-    def __eq__(self, wl) -> bool:
-        return self.wl == wl           
+    def __add__(self, other: float | int | Peak) -> bool:
+        if isinstance(other, Peak):
+            return self.wl - other.wl
+        elif isinstance(other, (float, int)):
+            return self.wl - other
+        else:
+            raise ValueError
+
+    
+    def __sub__(self, other: float | int | Peak) -> bool:
+        if isinstance(other, Peak):
+            return self.wl + other.wl
+        elif isinstance(other, (float, int)):
+            return self.wl + other
+        else:
+            raise ValueError
+
+    
+    def __eq__(self, other: float | int | Peak) -> bool:
+        if isinstance(other, Peak):
+            return self.wl == other.wl
+        elif isinstance(other, (float, int)):
+            return self.wl == other
+        else:
+            raise ValueError
 
 
-    def __lt__(self, wl: float) -> bool:
-        return self.wl < wl
+    def __lt__(self, other: float | int | Peak) -> bool:
+        if isinstance(other, Peak):
+            return self.wl < other.wl
+        elif isinstance(other, (float, int)):
+            return self.wl < other
+        else:
+            raise ValueError
+
     
-    
-    def __gt__(self, wl: float) -> bool:
-        return self.wl > wl
-    
+    def __gt__(self, other: float | int | Peak) -> bool:
+        if isinstance(other, Peak):
+            return self.wl > other.wl
+        elif isinstance(other, (float, int)):
+            return self.wl > other
+        else:
+            raise ValueError
+
     
     def __contains__(self, wl: float) -> bool:
         
