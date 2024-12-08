@@ -75,7 +75,7 @@ from astropy import constants
 # SciPy
 from scipy.signal import find_peaks
 from scipy.optimize import curve_fit
-from scipy.interpolate import splrep, BSpline
+from scipy.interpolate import interp1d, splrep, BSpline
 
 # Matplotlib
 from matplotlib import pyplot as plt
