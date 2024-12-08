@@ -83,12 +83,12 @@ import matplotlib.patheffects as pe
 
 try:
     from polly.log import logger
-    from polly.kpf import THORIUM_ORDER_INDICES
+    from polly.kpf import THORIUM_ORDER_INDICES, LFC_ORDER_INDICES
     from polly.parsing import get_orderlet_name, get_orderlet_index
     from polly.plotStyle import plotStyle
 except ImportError:
     from log import logger
-    from kpf import THORIUM_ORDER_INDICES
+    from kpf import THORIUM_ORDER_INDICES, LFC_ORDER_INDICES
     from parsing import get_orderlet_name, get_orderlet_index
     from plotStyle import plotStyle
 plt.style.use(plotStyle)
@@ -672,6 +672,8 @@ class Peak:
 
     
     def __sub__(self, other: float | int | Peak) -> bool:
+        if other is None:
+            return self.wl
         if isinstance(other, Peak):
             return self.wl - other.wl
         elif isinstance(other, (float, int)):
@@ -1667,8 +1669,6 @@ class Spectrum:
         
         if orderlet is None:
             orderlet = self.orderlets
-            
-        self.filtered_peaks = {ol: [] for ol in orderlet}
         
         for ol in orderlet:
             
@@ -1684,39 +1684,49 @@ class Spectrum:
             peaks = sorted(peaks, key=attrgetter("wl"))
             
             to_keep = []
-            for (p1, p2) in\
-                zip(peaks[:-1], peaks[1:]):
-                    
-                if p1.i == p2.i:
-                    # The peaks are in the same order - window is too large?
+            for i, _ in enumerate(peaks):
+                p1: Peak = peaks[i]
+                p2: Peak | None = peaks[i+1] if i+1 < len(peaks) else None
+                
+                if p2 is None:
                     to_keep.append(p1)
+                    continue
+                        
+                if p1.i == p2.i:
+                    to_keep.append(p1)
+                    continue
                     
-                # elif p1.is_close_to(p2, window=window):
                 elif abs(p1 - p2) <= window:
+                    # Whichever peak is chosen, it is also removed from the
+                    #`peaks` array, so the next iteration will not include
+                    # either of these peaks!
                     
                     # If only one of the peaks is in an order whose wavelength
                     # solution is derived from thorium, take the other one!
-                    if p2.i in THORIUM_ORDER_INDICES and\
-                                    p1.i not in THORIUM_ORDER_INDICES:
-                        to_keep.append(p1)
-                        
-                    elif p1.i in THORIUM_ORDER_INDICES and\
-                                    p2.i not in THORIUM_ORDER_INDICES:
-                        to_keep.append(p2)
+                    if p1.i in THORIUM_ORDER_INDICES and \
+                                    p2.i not in LFC_ORDER_INDICES:
+                        to_keep.append(peaks.pop(i))
+                        continue
                     
-                    # Otherwise (either both are LFC or both thorium), take the
-                    # peak that is closest to its order centre
+                    elif p2.i in THORIUM_ORDER_INDICES and \
+                                    p1.i in LFC_ORDER_INDICES:
+                        to_keep.append(peaks.pop(i+1))
+                        continue    
+                    
+                    # Otherwise take the peak that's closest to its order centre
                     elif p1.d < p2.d:
-                        to_keep.append(p1)
+                        to_keep.append(peaks.pop(i))
+                        continue
                     else:
-                        to_keep.append(p2)
+                        to_keep.append(peaks.pop(i+1))
+                        continue
                 
                 else:
                     # Different orders and outside the window
                     to_keep.append(p1)
+                    continue
             
-            self.filtered_peaks[ol] =\
-                            sorted(list(set(to_keep)), key=attrgetter("wl"))
+            self.filtered_peaks[ol] = to_keep
                 
         return self
     
