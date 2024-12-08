@@ -112,9 +112,9 @@ def run_analysis_batch(
             logger.error(f"{pp}{e}")
             continue
         
-        s.locate_peaks(fractional_height=0.01, window_to_save=14)
+        s.locate_peaks()
         s.fit_peaks(type=fit_type, space=fit_space)
-        s.filter_peaks(window=0.01)
+        s.filter_peaks()
         
         for ol in s.orderlets:
             try:
