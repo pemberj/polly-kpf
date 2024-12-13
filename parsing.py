@@ -78,7 +78,7 @@ def parse_num_list(string_list: str) -> list[int]:
     m = re.match(r"(\d+)(?:-(\d+))?$", string_list)
     if not m:
         raise argparse.ArgumentTypeError(
-            f"'{string_list}' is not a range or number."+\
+            f"'{string_list}' is not a range or number." + \
             f"Expected forms like '1-12' or '6'."
             )
     

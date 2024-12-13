@@ -128,7 +128,10 @@ def find_mask(
         
     for m in masks:
         mdate, mtimeofday, morderlet = parse_filename(m)
-        if mdate == date and mtimeofday in timesofday and morderlet in orderlets:
+        if (mdate == date) \
+            and (mtimeofday in timesofday) \
+                and (morderlet in orderlets):
+            
             return m
         
     
@@ -158,20 +161,20 @@ def select_masks(
     
     # Then progressively keep only the matching masks
     if min_date:
-        valid_masks =\
+        valid_masks = \
             [m for m in valid_masks if parse_filename(m).date >= min_date]
         
     if max_date:
-        valid_masks =\
+        valid_masks = \
             [m for m in valid_masks if parse_filename(m).date <= max_date]
     
     if timeofday:
-        valid_masks =\
-            [m for m in valid_masks\
+        valid_masks = \
+            [m for m in valid_masks \
                 if parse_filename(m).timeofday in timeofday]
         
     if orderlet:
-        valid_masks =\
+        valid_masks = \
             [m for m in valid_masks if parse_filename(m).orderlet in orderlet]
     
     # Only the matching masks are left

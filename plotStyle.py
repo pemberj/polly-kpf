@@ -10,7 +10,9 @@ import numpy as np
 import matplotlib.font_manager as fm
 
 # Import new font for plots
-fm.FontManager.addfont(fm.fontManager, path="/scr/jpember/polly/Quicksand-Regular.ttf")
+fm.FontManager.addfont(
+    fm.fontManager, path="/scr/jpember/polly/Quicksand-Regular.ttf"
+    )
 
 lw = 1.3
 
@@ -66,7 +68,7 @@ plotStyle = {
     "figure.dpi" : 96,
     "figure.constrained_layout.use" : True,
     
-    # Default properties for plotting lines, markers, scatterpoints, errorbars, etc.
+    # Default properties for plotting lines, markers, scatterpoints, etc.
     "lines.linewidth" : 2,
     "lines.markeredgecolor" : "k",
     "lines.markersize" : 16,

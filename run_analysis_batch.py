@@ -90,7 +90,7 @@ def run_analysis_batch(
     
     for t in timesofday:
     
-        pp = f"{f'[{date} {t:>5}]':<20}" # Print/logging line prefix
+        pp = f"{f'[{date} {t:>8}]':<22}" # Print/logging line prefix
         
         spec_files = find_L1_etalon_files(
             date=date, timeofday=t, masters=masters, pp=pp,
@@ -119,10 +119,10 @@ def run_analysis_batch(
         for ol in s.orderlets:
             try:
                 s.save_peak_locations(
-                    filename=f"{outdir}/masks/"+\
-                        f"{date}_{t}_{ol}_etalon_wavelengths.csv",
-                    orderlet=ol,
-                    weights=save_weights,
+                    filename = \
+                    f"{outdir}/masks/{date}_{t}_{ol}_etalon_wavelengths.csv",
+                    orderlet = ol,
+                    weights = save_weights,
                     )
             except Exception as e:
                 logger.error(f"{pp}{e}")
@@ -132,33 +132,37 @@ def run_analysis_batch(
             Path(f"{outdir}/spectrum_plots").mkdir(parents=True, exist_ok=True)
             for ol in orderlets:
                 s.plot_spectrum(orderlet=ol, plot_peaks=False)
-                plt.savefig(f"{outdir}/spectrum_plots/"+\
-                    f"{date}_{t}_{ol}_spectrum.png")
+                plt.savefig(
+                    f"{outdir}/spectrum_plots/{date}_{t}_{ol}_spectrum.png"
+                    )
                 plt.close()
 
         if fsr_plot:
             Path(f"{outdir}/FSR_plots").mkdir(parents=True, exist_ok=True)
             for ol in s.orderlets:
                 s.plot_FSR(orderlet=ol)
-                plt.savefig(f"{outdir}/FSR_plots/"+\
-                    f"{date}_{t}_{ol}_etalon_FSR.png")
+                plt.savefig(
+                    f"{outdir}/FSR_plots/{date}_{t}_{ol}_etalon_FSR.png"
+                    )
                 plt.close()
                 
         if fit_plot:
             Path(f"{outdir}/fit_plots").mkdir(parents=True, exist_ok=True)
             for ol in s.orderlets:
                 s.plot_peak_fits(orderlet=ol)
-                plt.savefig(f"{outdir}/fit_plots/"+\
-                    f"{date}_{t}_{ol}_etalon_fits.png")
+                plt.savefig(
+                    f"{outdir}/fit_plots/{date}_{t}_{ol}_etalon_fits.png"
+                    )
                 plt.close()
             
 
 parser = argparse.ArgumentParser(
             prog = "polly run_analysis_batch",
-            description = "A utility to process KPF etalon data from multiple"+\
-                "L1 files specified by observation date and time of day."+\
-                "Produces an output mask file with the wavelengths of each"+\
-                "identified etalon peak, as well as optional diagnostic plots.",
+            description = \
+            """A utility to process KPF etalon data from multiple L1 files
+            specified by observation date and time of day. Produces an output
+            mask file with the wavelengths of each identified etalon peak, as
+            well as optional diagnostic plots.""",
             formatter_class = argparse.ArgumentDefaultsHelpFormatter,
             )
 

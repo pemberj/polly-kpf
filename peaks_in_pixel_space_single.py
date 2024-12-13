@@ -86,7 +86,7 @@ def main(
     for ol in s.orderlets:
         try:
             s.save_peak_locations(
-                filename = f"{OUTDIR}/masks/"+\
+                filename = f"{OUTDIR}/masks/" + \
                     f"{date}_{timeofday}_{ol}_etalon_wavelengths.csv",
                 orderlet = ol,
                 space = "pixel",
@@ -100,17 +100,17 @@ def main(
             Path(f"{OUTDIR}/fit_plots").mkdir(parents=True, exist_ok=True)
             for ol in s.orderlets:
                 s.plot_peak_fits(orderlet=ol)
-                plt.savefig(f"{OUTDIR}/fit_plots/"+\
+                plt.savefig(f"{OUTDIR}/fit_plots/" + \
                     f"{date}_{timeofday}_{ol}_etalon_fits.png")
                 plt.close()
 
 
 parser = argparse.ArgumentParser(
             prog="polly peaks_in_pixel_space_single",
-            description="A utility to process KPF etalon data from an "+\
-                "individual file, specified by filename. Produces an output "+\
-                "mask file with the pixel position of each identified etalon "+\
-                "peak, as well as optional diagnostic plots."
+            description="""A utility to process KPF etalon data from an 
+                individual file, specified by filename. Produces an output 
+                mask file with the pixel position of each identified etalon 
+                peak, as well as optional diagnostic plots."""
             )
 
 parser.add_argument("-f", "--filename", default=DEFAULT_FILENAME)
