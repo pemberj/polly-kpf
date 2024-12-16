@@ -303,10 +303,12 @@ class Peak:
         See top-level `_gaussian` for function definition
         """
         
+        mean_dwave = np.mean(np.diff(self.wavelet))
+        
         if space == "wavelength":
             x0 = np.mean(self.wavelet)
             x = self.wavelet - x0 # Centre about zero
-            mean_dx = np.abs(np.mean(np.diff(x)))
+            mean_dx = np.abs(mean_dwave)
             
         elif space == "pixel":
             x0 = np.mean(self.pixlet)
@@ -325,15 +327,18 @@ class Peak:
         
         try:
             p, cov = curve_fit(
-                f=_gaussian,
-                xdata=x,
-                ydata=y,
-                p0=p0,
-                bounds=bounds,
+                f = _gaussian,
+                xdata = x,
+                ydata = y,
+                p0 = p0,
+                bounds = bounds,
                 )
-        except (RuntimeError, ValueError) as e:
-            logging.warning(e)
-            p = cov = [np.nan] * len(p0)
+        except ValueError as e:
+            raise ValueError(e)
+        except RuntimeError as e:
+            # logger.warning(e)
+            self.remove_fit(fill_with_NaN = True)
+            return
         
         amplitude, center, sigma, offset = p
         
@@ -342,17 +347,45 @@ class Peak:
         # Populate the fit parameters
         stddev = np.sqrt(np.diag(cov))
         
-        if space == "wavelength":
+        if space == "wavelength":           
             self.center_wavelength = x0 + center
-            self.center_wavelength_stddev = stddev[0]
+            self.center_wavelength_stddev = float(stddev[0])
+            # Also interpolate to pixel space
+            wavelength_to_pixel = interp1d(self.wavelet, self.pixlet)
+            try:
+                self.center_pixel = wavelength_to_pixel(self.center_wavelength)
+            except ValueError as e:
+                self.center_pixel = np.nan
+            try:
+                self.center_pixel_stddev = \
+                    abs(
+                    wavelength_to_pixel(
+                        self.center_wavelength + self.center_wavelength_stddev
+                                        ) \
+                    - self.center_pixel
+                    )
+            except ValueError as e:
+                self.center_pixel_stddev = np.nan
+                
         elif space == "pixel":
             self.center_pixel = x0 + center
             self.center_pixel_stddev = stddev[0]
             # Also interpolate to wavelength space
-            self.center_wavelength =\
-                np.interp(center, x, self.wavelet)
-            self.center_wavelength_stddev =\
-                np.interp(stddev[0] - center, x, self.wavelet)
+            pixel_to_wavelength = interp1d(self.pixlet, self.wavelet)
+            try:
+                self.center_wavelength = pixel_to_wavelength(self.center_pixel)
+            except ValueError as e:
+                self.center_wavelength = np.nan
+            try:
+                self.center_wavelength_stddev = \
+                    abs(
+                        pixel_to_wavelength(
+                            self.center_pixel + self.center_pixel_stddev
+                                            ) \
+                        - self.center_wavelength
+                        )
+            except ValueError as e:
+                self.center_wavelength_stddev = np.nan
         
         # Populate the fit parameters
         self.amplitude = amplitude
@@ -375,10 +408,12 @@ class Peak:
         `fit_erf_to_ccf_simplified.py` module
         """
         
+        mean_dwave = np.mean(np.diff(self.wavelet))
+        
         if space == "wavelength":
             x0 = np.mean(self.wavelet)
             x = self.wavelet - x0 # Centre about zero
-            mean_dx = np.abs(np.mean(np.diff(x)))
+            mean_dx = np.abs(mean_dwave)
             
         elif space == "pixel":
             x0 = np.mean(self.pixlet)
@@ -397,18 +432,18 @@ class Peak:
                 ]
         try:
             p, cov = curve_fit(
-                f=_conv_gauss_tophat,
-                xdata=x,
-                ydata=y,
-                p0=p0,
-                bounds=bounds,
-                # Setting tolerances on the fitting. Speeds up processing by ~2x
-                # ftol=1e-3,
-                # xtol=1e-9,
+                f = _conv_gauss_tophat,
+                xdata = x,
+                ydata = y,
+                p0 = p0,
+                bounds = bounds,
                 )
-        except (RuntimeError, ValueError) as e:
-            logging.warning(e)
-            p = cov = [np.nan] * len(p0)
+        except ValueError as e:
+            raise ValueError(e)
+        except RuntimeError as e:
+            # logger.warning(e)
+            self.remove_fit(fill_with_NaN = True)
+            return
         
         center, amplitude, sigma, boxhalfwidth, offset = p
         
@@ -416,18 +451,46 @@ class Peak:
         
         # Populate the fit parameters
         stddev = np.sqrt(np.diag(cov))
-        
-        if space == "wavelength":
+                
+        if space == "wavelength":           
             self.center_wavelength = x0 + center
-            self.center_wavelength_stddev = stddev[0]
+            self.center_wavelength_stddev = float(stddev[0])
+            # Also interpolate to pixel space
+            wavelength_to_pixel = interp1d(self.wavelet, self.pixlet)
+            try:
+                self.center_pixel = wavelength_to_pixel(self.center_wavelength)
+            except ValueError as e:
+                self.center_pixel = np.nan
+            try:
+                self.center_pixel_stddev = \
+                    abs(
+                    wavelength_to_pixel(
+                        self.center_wavelength + self.center_wavelength_stddev
+                                        ) \
+                    - self.center_pixel
+                    )
+            except ValueError as e:
+                self.center_pixel_stddev = np.nan
+                
         elif space == "pixel":
             self.center_pixel = x0 + center
             self.center_pixel_stddev = stddev[0]
             # Also interpolate to wavelength space
-            self.center_wavelength =\
-                np.interp(center, x, self.wavelet)
-            self.center_wavelength_stddev =\
-                np.interp(stddev[0] - center, x, self.wavelet)
+            pixel_to_wavelength = interp1d(self.pixlet, self.wavelet)
+            try:
+                self.center_wavelength = pixel_to_wavelength(self.center_pixel)
+            except ValueError as e:
+                self.center_wavelength = np.nan
+            try:
+                self.center_wavelength_stddev = \
+                    abs(
+                        pixel_to_wavelength(
+                            self.center_pixel + self.center_pixel_stddev
+                                            ) \
+                        - self.center_wavelength
+                        )
+            except ValueError as e:
+                self.center_wavelength_stddev = np.nan
         
         self.amplitude = amplitude * maxy
         self.sigma = sigma
@@ -1637,12 +1700,14 @@ class Spectrum:
             if self.num_located_peaks is None:
                 self.locate_peaks()
             
-            logger.info(f"{self.pp}Fitting {ol} peaks with {type} function...")
+            logger.info(
+                f"{self.pp}"+ \
+                f"Fitting {ol} peaks in {space} space with {type} function..."
+                )
             
-            #What to do about progress bars with logging???
             for o in tqdm(
                         self.orders(orderlet = ol),
-                        desc="Orders",
+                        desc=f"{self.pp}Orders",
                         unit="order",
                         ncols=100
                         ):
@@ -1770,8 +1835,7 @@ class Spectrum:
                 peaks_to_use = self.peaks(orderlet=ol)
             
             logger.info(
-                f"{self.pp}Saving {space}-space {ol} "\
-               +f"peak locations to {filename}..."
+                f"{self.pp}Saving {ol} peak {space} locations to {filename}..."
                 )
             with open(filename, "w") as f:
                 for p in peaks_to_use:
@@ -2043,9 +2107,14 @@ class Spectrum:
     
     def fit_parameters(
         self,
+        which: str = "all",
         orderlet: str | list[str] | None = None,
         ) -> dict:
+        """
+        which: "all", "filtered"
+        """
         
+        assert which in ["all", "filtered"]
         
         if isinstance(orderlet, str):
             assert orderlet in self.orderlets
@@ -2058,13 +2127,12 @@ class Spectrum:
         elif orderlet is None:
             orderlet = self.orderlets
             
-            
-        if self.filtered_peaks:
-            peaks_to_use =\
-                [p for ol in orderlet for p in self.filtered_peaks[ol]]
-        else:
-            peaks_to_use =\
+        if which == "all":
+            peaks_to_use = \
                 [p for ol in orderlet for p in self.peaks(orderlet=ol)]
+        elif which == "filtered":
+            peaks_to_use = \
+                [p for ol in orderlet for p in self.filtered_peaks[ol]]
             
         return {
             "fit_type": [p.fit_type for p in peaks_to_use],
@@ -2078,32 +2146,10 @@ class Spectrum:
                 [p.center_wavelength_stddev for p in peaks_to_use],
             "amplitude_stddev": [p.amplitude_stddev for p in peaks_to_use],
             "sigma_stddev": [p.sigma_stddev for p in peaks_to_use],
-            "boxhalfwidth_stddev": [p.boxhalfwidth_stddev for p in peaks_to_use],
+            "boxhalfwidth_stddev": \
+                [p.boxhalfwidth_stddev for p in peaks_to_use],
             "offset_stddev": [p.offset_stddev for p in peaks_to_use],
         }
-            
-        
-        fp = {
-            "fit_type": [],
-            "center_wavelength": [],
-            "amplitude": [],
-            "sigma": [],
-            "boxhalfwidth": [],
-            "offset": [],
-            
-            "center_wavelength_stddev": [],
-            "amplitude_stddev": [],
-            "sigma_stddev": [],
-            "boxhalfwidth_stddev": [],
-            "offset_stddev": [],
-        }
-        
-        for k in fp.keys():
-            fp[k] = [v for ol in orderlet
-                        for o in self.orders(orderlet=ol)
-                            for v in o.fit_parameters[k]]
-                
-        return fp
     
     
     def data2D(
