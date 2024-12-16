@@ -22,9 +22,12 @@ from datetime import datetime
 from pathlib import Path
 from functools import cached_property
 from operator import attrgetter
+from functools import partial
 
 import numpy as np
 from numpy.typing import ArrayLike
+
+from scipy.optimize import curve_fit
 
 from astropy import units as u
 from astropy.units import Quantity
@@ -44,15 +47,11 @@ except ImportError:
 plt.style.use(plotStyle)
 
 
-# A simple named tuple "classlet" for accessing mask details by field name
-Mask = namedtuple("Mask", ["date", "timeofday", "orderlet"])
-
-
 @dataclass
 class PeakDrift:
     
     reference_mask: str # Filename of the reference mask
-    reference_wavelength: float # Starting wavelength of the single peak to track
+    reference_wavelength: float # Starting wavelength of the single peak
     local_spacing: float # Local distance between wavelengths in reference mask
     
     masks: list[str] # List of filenames to search
@@ -71,8 +70,6 @@ class PeakDrift:
     fit_err: list[float] | None = None
     fit_slope: Quantity | None = None
     fit_slope_err: Quantity | None = None
-    fit_offset: Quantity | None = None
-    fit_offset_err: Quantity | None = None
     
     
     drift_file: str | Path | None = None
@@ -98,22 +95,7 @@ class PeakDrift:
                 self.track_drift()
                 
             else:
-                # Then load all the information from the file
-                # print(f"Loading drifts from file: {self.drift_file}")
-                file_dates, file_wls, file_sigmas =\
-                    np.transpose(np.loadtxt(self.drift_file))
-                
-                file_dates = [parse_yyyymmdd(d) for d in file_dates]
-                
-                self.dates = file_dates
-                self.wavelengths = file_wls
-                self.sigmas = file_sigmas
-                
-                self.valid = np.where(self.wavelengths, True, False)
-                
-                if sum(self.valid) <= 3:
-                    print("Too few located peaks for λ="+\
-                        f"{self.reference_wavelength:.2f} ({len(self.valid)})")
+                self.load_from_file()
             
         else:
             # No file exists, proceed as normal
@@ -122,6 +104,29 @@ class PeakDrift:
         if self.auto_fit:
             self.linear_fit()
         
+    
+    def load_from_file(self) -> None:
+        
+        # Then load all the information from the file
+        # print(f"Loading drifts from file: {self.drift_file}")
+        file_dates, file_wls, file_sigmas = \
+            np.transpose(np.loadtxt(self.drift_file))
+        
+        file_dates = [parse_yyyymmdd(d) for d in file_dates]
+        
+        self.dates = np.array(file_dates)
+        self.wavelengths = np.array(file_wls)
+        self.sigmas = np.array(file_sigmas)
+        self.sigmas[self.sigmas == 0] = np.nan
+        
+        self.valid = \
+            np.where(~np.isnan(self.wavelengths), True, False) & \
+            np.where(~np.isnan(self.sigmas), True, False)
+        
+        if sum(self.valid) <= 3:
+            print("Too few located peaks for λ=" + \
+                f"{self.reference_wavelength:.2f} ({len(self.valid)})")
+    
     
     @cached_property
     def valid_wavelengths(self) -> list[float]:
@@ -300,37 +305,34 @@ class PeakDrift:
             # Use absolute delta wavelengths
             deltas_to_use = self.deltas
         
+        def linear_model(x: float | list[float], slope: float) \
+            -> float | ArrayLike[float]:
+            
+            if isinstance(x, list):
+                x = np.array(x)
+            
+            return slope * x
+        
         try:
-            p, cov = np.polyfit(
-                x = self.days_since_reference_date,
-                y = deltas_to_use,
-                w = 1 / np.array(self.valid_sigmas),
-                deg = 1,
-                cov = True
+            p, cov = curve_fit(
+                f = linear_model,
+                xdata = self.days_since_reference_date,
+                ydata = deltas_to_use,
+                sigma = self.valid_sigmas,
+                p0 = [0],
+                absolute_sigma = True,
                 )
             
-            self.fit = np.poly1d(p) * u.Angstrom
-            self.fit_err = np.sqrt(np.diag(cov))
-            if fit_fractional:
-                self.fit_slope = p[0] * 1 / u.day
-                self.fit_slope_err = self.fit_err[0] * 1 / u.day
-            else:
-                self.fit_slope = p[0] * u.Angstrom / u.day
-                self.fit_slope_err = self.fit_err[0] * u.Angstrom / u.day
-            self.fit_offset = p[1] * u.Angstrom
-            self.fit_offset_err = self.fit_err[1] * u.Angstrom
+            self.fit = partial(linear_model, slope=p[0])
+            self.fit_err = np.sqrt(cov)
+            self.fit_slope = p[0] / u.day
+            self.fit_slope_err = np.sqrt(cov[0][0]) / u.day
             
         except Exception as e:
-            print(e)
-            
-            print(f"{np.shape(self.days_since_reference_date) = }")
-            print(f"{np.shape(deltas_to_use) = }")
-            print(f"{np.shape(self.valid_sigmas) = }")    
-            
             self.fit = lambda x: np.nan
             self.fit_err = np.nan
-            self.fit_slope = np.nan * u.Angstrom / u.day
-            self.fit_slope_err = np.nan * u.Angstrom / u.day
+            self.fit_slope = np.nan / u.day
+            self.fit_slope_err = np.nan / u.day
             
         return self
     
@@ -338,9 +340,11 @@ class PeakDrift:
     def fit_residuals(self, fractional: bool = False) -> list[float]:
         
         if fractional:
-            return (self.fractional_deltas - self.fit(self.days_since_reference_date).value)
+            return (self.fractional_deltas \
+                    - self.fit(self.days_since_reference_date).value)
         else:
-            return (self.deltas - self.fit(self.days_since_reference_date).value)
+            return (self.deltas \
+                    - self.fit(self.days_since_reference_date).value)
         
     
     def save_to_file(self, path: str | Path | None = None) -> PeakDrift:
@@ -409,89 +413,119 @@ class GroupDrift:
     
     @cached_property
     def mean_wavelength(self) -> float:
-        
         return np.mean([pd.reference_wavelength for pd in self.peakDrifts])
     
     
     @cached_property
     def min_wavelength(self) -> float:
-        
         return min(self.peakDrifts[0].reference_wavelength)
     
     
     @cached_property
     def max_wavelength(self) -> float:
-        
         return max(self.peakDrifts[-1].reference_wavelength)
 
     
     @property
     def all_dates(self) -> list[datetime]:
         
-        return list(np.array([pd.dates for pd in self.peakDrifts]).flatten())
+        all_dates = []
+        
+        for pd in self.peakDrifts:
+            all_dates.extend(pd.valid_dates)
+            
+        return all_dates
 
     
     @cached_property
     def reference_date(self) -> datetime:
-        
         return min(self.all_dates)
+    
+    
+    @cached_property
+    def all_days_since_reference_date(self) -> list[float]:
+        return [(d - self.reference_date).days for d in self.all_dates]
 
 
     @cached_property
     def unique_dates(self) -> list[datetime]:
-        
         return sorted(list(set(self.all_dates)))
         
     
     @cached_property
     def all_deltas(self) -> list[float]:
         
-        return list(np.array([pd.deltas for pd in self.peakDrifts]).flatten())
+        all_deltas = []
+        
+        for pd in self.peakDrifts:
+            all_deltas.extend(pd.fractional_deltas)
+            
+        return all_deltas
     
-        
+    
     @cached_property
-    def deltas(self) -> list[float]:
+    def all_sigmas(self) -> list[float]:
         
-        return list(np.array(self.all_deltas).flatten())
+        all_sigmas = []
+        
+        for pd in self.peakDrifts:
+            all_sigmas.extend(pd.valid_sigmas)
+            
+        return all_sigmas
+    
+    
+    @cached_property
+    def all_relative_sigmas(self) -> list[float]:
+        
+        all_relative_sigmas = []
+        
+        for pd in self.peakDrifts:
+            all_relative_sigmas.extend(
+                pd.valid_sigmas / pd.reference_wavelength
+                )
+            
+        return all_relative_sigmas
     
     
     @property
     def mean_deltas(self) -> list[float]:
-        
         all_deltas = [pd.deltas for pd in self.peakDrifts]
-        
         return list(np.mean(all_deltas, axis=1))
 
     
     def fit_group_drift(self, verbose: bool = False) -> None:
         
-        d0 = self.reference_date
-        days = [(d - d0).days for d in self.all_dates]
-        
-        # sortkey = np.argsort(days)
-        
         if verbose:
-            print(f"{days}")
+            print(f"{self.all_days_since_reference_date}")
             print(f"{self.all_deltas}")
         
-        try:
-            p, cov = np.polyfit(
-                x = days,
-                y = self.all_deltas,
-                deg = 1,
-                cov = True
-            )
+        def linear_model(x: float | list[float], slope: float) \
+            -> float | ArrayLike[float]:
             
-            self.group_fit = np.poly1d(p)
-            self.group_fit_err = np.sqrt(np.diag(cov))
-            self.group_fit_slope = p[0] * u.Angstrom / u.day
-            self.group_fit_slope_err = self.group_fit_err[0] * u.Angstrom / u.day
+            if isinstance(x, list):
+                x = np.array(x)
+            
+            return slope * x
+        
+        try:
+            p, cov = curve_fit(
+                f = linear_model,
+                xdata = self.all_days_since_reference_date,
+                ydata = self.all_deltas,
+                sigma = self.all_relative_sigmas,
+                p0 = [0],
+                absolute_sigma = True,
+                )
+            
+            self.group_fit = partial(linear_model, slope=p[0])
+            self.group_fit_err = np.sqrt(cov)
+            self.group_fit_slope = p[0]
+            self.group_fit_slope_err = np.sqrt(cov[0][0])
+            
             
         except Exception as e:
-            if verbose:
-                print(e)
-
-            self.fit = lambda x: np.nan
-            self.fit_err = np.nan
-            self.fit_slope = np.nan * u.Angstrom / u.day
-            self.fit_slope_err = np.nan * u.Angstrom / u.day
+            print(e)
+            self.group_fit = None
+            self.group_fit_err = None
+            self.group_fit_slope = None
+            self.group_fit_slope_err = None
