@@ -44,8 +44,8 @@ try:
     from polly.etalonanalysis import Spectrum
     from polly.fileselection import find_L1_etalon_files
     from polly.parsing import (
-        parse_num_list, parse_timesofday, parse_orderlets,
-        parse_bool, parse_orders, parse_yyyymmdd
+        parse_timesofday, parse_orderlets, parse_bool, parse_orders,
+        parse_yyyymmdd
         )
     from polly.plotStyle import plotStyle
 except ImportError:
@@ -53,8 +53,8 @@ except ImportError:
     from etalonanalysis import Spectrum
     from fileselection import find_L1_etalon_files
     from parsing import (
-        parse_num_list, parse_timesofday, parse_orderlets,
-        parse_bool, parse_orders, parse_yyyymmdd
+        parse_timesofday, parse_orderlets, parse_bool, parse_orders,
+        parse_yyyymmdd
         )
     from plotStyle import plotStyle
 

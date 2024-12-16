@@ -79,7 +79,7 @@ def parse_num_list(string_list: str) -> list[int]:
     if not m:
         raise argparse.ArgumentTypeError(
             f"'{string_list}' is not a range or number." + \
-            f"Expected forms like '1-12' or '6'."
+            "Expected forms like '1-12' or '6'."
             )
     
     start = m.group(1)

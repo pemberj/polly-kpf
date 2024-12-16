@@ -58,7 +58,7 @@ def savitzky_golay(
     try:
         window_size = abs(int(window_size))
         order = abs(int(order))
-    except ValueError as msg:
+    except ValueError:
         raise ValueError("window_size and order have to be of type int")
     if window_size % 2 != 1:
         print("window_size size must be a positive odd number. Adding 1")

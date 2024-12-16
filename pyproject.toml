@@ -1,7 +1,7 @@
 [project]
 name = "polly"
 version = "0.1.0"
-description = "Add your description here"
+description = "Analysis code for KPF etalon data"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
@@ -14,3 +14,27 @@ dependencies = [
     "jupyter>=1.1.1",
     "jupyterlab>=4.3.3",
 ]
+
+[tool.ruff.lint]
+select = [
+    # pycodestyle
+    "E",
+    # Pyflakes
+    "F",
+    # pyupgrade
+    # "UP",
+    # flake8-bugbear
+    # "B",
+    # flake8-simplify
+    # "SIM",
+    # isort
+    # "I",
+]
+ignore = [
+    "E722", # do not use bare 'except'
+    # "F401", # module imported but unused
+    ]
+
+
+[tool.ruff.lint.per-file-ignores]
+"*.ipynb" = ["E501"]

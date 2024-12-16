@@ -35,12 +35,10 @@ from astropy.units import Quantity
 from matplotlib import pyplot as plt
 
 try:
-    from polly.log import logger
     from polly.parsing import parse_filename, parse_yyyymmdd
     from polly.misc import savitzky_golay
     from polly.plotStyle import plotStyle
 except ImportError:
-    from log import logger
     from parsing import parse_filename, parse_yyyymmdd
     from misc import savitzky_golay
     from plotStyle import plotStyle
@@ -256,7 +254,7 @@ class PeakDrift:
             try: # Find the closest peak in the mask
                 closest_index =\
                     np.nanargmin(np.abs(peaks - last_wavelength))
-            except ValueError as e: # What would give us a ValueError here?
+            except ValueError: # What would give us a ValueError here?
                 self.wavelengths.append(None)
                 self.sigmas.append(None)
                 continue
@@ -328,7 +326,7 @@ class PeakDrift:
             self.fit_slope = p[0] / u.day
             self.fit_slope_err = np.sqrt(cov[0][0]) / u.day
             
-        except Exception as e:
+        except (ValueError, RuntimeError):
             self.fit = lambda x: np.nan
             self.fit_err = np.nan
             self.fit_slope = np.nan / u.day
@@ -382,7 +380,7 @@ class PeakDrift:
                 np.transpose([datestrings, wlstrings, sigmastrings]),
                 fmt="%s"
                 )
-        except FileExistsError as e:
+        except FileExistsError:
             # print(e)
             ...
             

@@ -332,7 +332,7 @@ class Peak:
                 )
         except ValueError as e:
             raise ValueError(e)
-        except RuntimeError as e:
+        except RuntimeError:
             # logger.warning(e)
             self.remove_fit(fill_with_NaN = True)
             return
@@ -351,7 +351,7 @@ class Peak:
             wavelength_to_pixel = interp1d(self.wavelet, self.pixlet)
             try:
                 self.center_pixel = wavelength_to_pixel(self.center_wavelength)
-            except ValueError as e:
+            except ValueError:
                 self.center_pixel = np.nan
             try:
                 self.center_pixel_stddev = \
@@ -361,7 +361,7 @@ class Peak:
                                         ) \
                     - self.center_pixel
                     )
-            except ValueError as e:
+            except ValueError:
                 self.center_pixel_stddev = np.nan
                 
         elif space == "pixel":
@@ -371,7 +371,7 @@ class Peak:
             pixel_to_wavelength = interp1d(self.pixlet, self.wavelet)
             try:
                 self.center_wavelength = pixel_to_wavelength(self.center_pixel)
-            except ValueError as e:
+            except ValueError:
                 self.center_wavelength = np.nan
             try:
                 self.center_wavelength_stddev = \
@@ -381,7 +381,7 @@ class Peak:
                                             ) \
                         - self.center_wavelength
                         )
-            except ValueError as e:
+            except ValueError:
                 self.center_wavelength_stddev = np.nan
         
         # Populate the fit parameters
@@ -437,7 +437,7 @@ class Peak:
                 )
         except ValueError as e:
             raise ValueError(e)
-        except RuntimeError as e:
+        except RuntimeError:
             # logger.warning(e)
             self.remove_fit(fill_with_NaN = True)
             return
@@ -456,7 +456,7 @@ class Peak:
             wavelength_to_pixel = interp1d(self.wavelet, self.pixlet)
             try:
                 self.center_pixel = wavelength_to_pixel(self.center_wavelength)
-            except ValueError as e:
+            except ValueError:
                 self.center_pixel = np.nan
             try:
                 self.center_pixel_stddev = \
@@ -466,7 +466,7 @@ class Peak:
                                         ) \
                     - self.center_pixel
                     )
-            except ValueError as e:
+            except ValueError:
                 self.center_pixel_stddev = np.nan
                 
         elif space == "pixel":
@@ -476,7 +476,7 @@ class Peak:
             pixel_to_wavelength = interp1d(self.pixlet, self.wavelet)
             try:
                 self.center_wavelength = pixel_to_wavelength(self.center_pixel)
-            except ValueError as e:
+            except ValueError:
                 self.center_wavelength = np.nan
             try:
                 self.center_wavelength_stddev = \
@@ -486,7 +486,7 @@ class Peak:
                                             ) \
                         - self.center_wavelength
                         )
-            except ValueError as e:
+            except ValueError:
                 self.center_wavelength_stddev = np.nan
         
         self.amplitude = amplitude * maxy
@@ -688,19 +688,25 @@ class Peak:
         """String generation"""
         
         if prop == "speclet":
-            if self.speclet is None: return "[ ]"
-            else: return "[x]"
+            if self.speclet is None:
+                return "[ ]"
+            else:
+                return "[x]"
         elif prop == "wavelet":
-            if self.wavelet is None: return "[ ]"
-            else: return "[x]"
+            if self.wavelet is None:
+                return "[ ]"
+            else:
+                return "[x]"
         elif prop == "fit":
-            if self.fit_type is None: return "[ ]"
-            else: return "[x]"
+            if self.fit_type is None:
+                return "[ ]"
+            else:
+                return "[x]"
   
 
     def __repr__(self) -> str:
         
-        return f"Peak(" + \
+        return "Peak(" + \
                f"order_i={self.order_i:.0f}, " + \
                f"coarse_wavelength={self.coarse_wavelength:.3f}, " + \
                f"speclet={self.speclet}, " + \
@@ -709,7 +715,7 @@ class Peak:
 
     def __str__(self) -> str:
         
-        return f"\nPeak(" + \
+        return "\nPeak(" + \
                f"order_i {self.order_i:.0f}, " + \
                f"coarse_wavelength {self.coarse_wavelength:.3f}, " + \
                f"{self.has('speclet')} speclet, " + \
@@ -1013,11 +1019,15 @@ class Order:
     def has(self, prop: str) -> str:
         """String generation"""
         if prop == "spec":
-            if self.spec is None: return "[ ]"
-            else: return "[x]"
+            if self.spec is None:
+                return "[ ]"
+            else:
+                return "[x]"
         elif prop == "wave":
-            if self.wave is None: return "[ ]"
-            else: return "[x]"
+            if self.wave is None:
+                return "[ ]"
+            else:
+                return "[x]"
     
 
     def __str__(self) -> str:
@@ -1029,7 +1039,7 @@ class Order:
 
     def __repr__(self) -> str:
         
-        return f"Order(" + \
+        return "Order(" + \
                f"orderlet={self.orderlet}, i={self.i}, " + \
                f"spec={self.spec}, " + \
                f"wave={self.wave})\n" + \
@@ -1331,12 +1341,6 @@ class Spectrum:
     def num_orders(self, orderlet: str = "SCI2") -> int:
         
         return len(self.orders(orderlet=orderlet))
-
-
-    @property
-    def timeofday(self) -> str:
-        # morn, eve, night, midnight?
-        return self.object.split("-")[-1]
     
     
     def peaks(self, orderlet: str | list[str] | None = None) -> list[Peak]:
@@ -1421,7 +1425,7 @@ class Spectrum:
             lines = f.readlines()
         
             self.reference_peaks = \
-                [float(l.strip().split(" ")[0]) for l in lines]
+                [float(line.strip().split(" ")[0]) for line in lines]
         
         return self
     
@@ -1625,7 +1629,8 @@ class Spectrum:
             # Otherwise, apply the wavelength solution to the appropriate orders
             else:
                 for i, w in enumerate(wave):
-                    try: self.orders(orderlet = ol, i = i) \
+                    try:
+                        self.orders(orderlet = ol, i = i) \
                                             .apply_wavelength_solution(wls = w)
                     except AttributeError as e:
                         logger.error(f"{self.pp}{e}")
@@ -1839,13 +1844,17 @@ class Spectrum:
                     
                     if space == "wavelength":
                         location = f"{p.center_wavelength:f}"
-                        if weights: weight = f"{p.center_wavelength_stddev:f}"
-                        else: weight = "1.0"
+                        if weights:
+                            weight = f"{p.center_wavelength_stddev:f}"
+                        else:
+                            weight = "1.0"
                     
                     elif space == "pixel":
                         location = f"{p.center_pixel:f}"
-                        if weights: weight = f"{p.center_pixel_stddev:f}"
-                        else: weight = "1.0"
+                        if weights:
+                            weight = f"{p.center_pixel_stddev:f}"
+                        else:
+                            weight = "1.0"
                         
                     f.write(f"{location}\t{weight}\n")
                     
@@ -2193,7 +2202,7 @@ class Spectrum:
         
     def __repr__(self) -> str:
         
-        return f"Spectrum(" + \
+        return "Spectrum(" + \
                f"spec_file={self.spec_file}, " + \
                f"wls_file={self.wls_file}, " + \
                f"orderlets_to_load={self.orderlets_to_load})"
