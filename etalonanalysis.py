@@ -504,8 +504,8 @@ class Peak:
         (JSON?) file
         """
         
-        return ""+\
-            ""
+        return "" + \
+               ""
             
             
     def evaluate_fit(
@@ -644,21 +644,21 @@ class Peak:
 
     def __repr__(self) -> str:
         
-        return f"Peak("+\
-               f"order_i={self.order_i:.0f}, "+\
-               f"coarse_wavelength={self.coarse_wavelength:.3f}, "+\
-               f"speclet={self.speclet}, "+\
+        return f"Peak(" + \
+               f"order_i={self.order_i:.0f}, " + \
+               f"coarse_wavelength={self.coarse_wavelength:.3f}, " + \
+               f"speclet={self.speclet}, " + \
                f"wavelet={self.wavelet})"
 
 
     def __str__(self) -> str:
         
-        return f"\nPeak("+\
-               f"order_i {self.order_i:.0f}, "+\
-               f"coarse_wavelength {self.coarse_wavelength:.3f}, "+\
-               f"{self.has('speclet')} speclet, "+\
-               f"{self.has('wavelet')} wavelet, "+\
-               f"{self.has('fit')} fit: "+\
+        return f"\nPeak(" + \
+               f"order_i {self.order_i:.0f}, " + \
+               f"coarse_wavelength {self.coarse_wavelength:.3f}, " + \
+               f"{self.has('speclet')} speclet, " + \
+               f"{self.has('wavelet')} wavelet, " + \
+               f"{self.has('fit')} fit: " + \
                f"center_wavelength {self.center_wavelength:.3f})"
                
 
@@ -870,12 +870,12 @@ class Order:
                     parent_ref = weakref.ref(self),
                     coarse_wavelength = self.wave[_p],
                     order_i = self.i,
-                    speclet =\
+                    speclet = \
                 self.spec[_p - window_to_save//2:_p + window_to_save//2 + 1],
-                    wavelet =\
+                    wavelet = \
                 self.wave[_p - window_to_save//2:_p + window_to_save//2 + 1],
                     starting_pixel = _p - window_to_save//2,
-                    distance_from_order_center =\
+                    distance_from_order_center = \
                                         abs(self.wave[_p] - self.mean_wave),
                 )
             for _p in p
@@ -966,18 +966,18 @@ class Order:
 
     def __str__(self) -> str:
         
-        return f"Order(orderlet={self.orderlet}, i={self.i}, "+\
-               f"{self.has('spec')} spec, {self.has('wave')} wave, "+\
+        return f"Order(orderlet={self.orderlet}, i={self.i}, " + \
+               f"{self.has('spec')} spec, {self.has('wave')} wave, " + \
                f"{len(self.peaks)} peaks)"
 
 
     def __repr__(self) -> str:
         
-        return f"Order("+\
-               f"orderlet={self.orderlet}, i={self.i}, "+\
-               f"spec={self.spec}, "+\
-               f"wave={self.wave})\n"+\
-               f"`spec` from {self.parent.spec_file}"+\
+        return f"Order(" + \
+               f"orderlet={self.orderlet}, i={self.i}, " + \
+               f"spec={self.spec}, " + \
+               f"wave={self.wave})\n" + \
+               f"`spec` from {self.parent.spec_file} " + \
                f"`wave` from {self.parent.wls_file}"
                
                
@@ -1209,9 +1209,13 @@ class Spectrum:
         """
         
         if isinstance(other, Spectrum):
-            return Spectrum(file = None, orders =\
-                [Order(i=o1.i, wave = o1.wave, spec = o1.spec + o2.spec)\
-                            for o1, o2 in zip(self.orders(), other.orders())])
+            return Spectrum(
+                file = None,
+                orders = [
+                    Order(i=o1.i, wave = o1.wave, spec = o1.spec + o2.spec) \
+                                for o1, o2 in zip(self.orders(), other.orders())
+                        ]
+                    )
         else:
             raise TypeError("Can only add two Spectrum objects together")
     
@@ -1246,7 +1250,7 @@ class Spectrum:
             if len(result) == 1:
                 return result[0]
             elif len(result) > 1:
-                logger.info(f"{self.pp}More than one Order matching "+\
+                logger.info(f"{self.pp}More than one Order matching " + \
                             f"orderlet={orderlet} and i={i}!")
                 logger.info(f"{self.pp}{result}")
                 return result
@@ -1342,7 +1346,7 @@ class Spectrum:
         ) -> int:
         
         if not self.filtered_peaks:
-            logger.warning(f"{self.pp}List of filtered peaks is empty. "+\
+            logger.warning(f"{self.pp}List of filtered peaks is empty. " + \
                            "Call Spectrum.filter_peaks() first")
             return 0
         
@@ -1360,7 +1364,7 @@ class Spectrum:
         with open(self.reference_mask) as f:
             lines = f.readlines()
         
-            self.reference_peaks =\
+            self.reference_peaks = \
                 [float(l.strip().split(" ")[0]) for l in lines]
         
         return self
@@ -1369,7 +1373,7 @@ class Spectrum:
     def apply_reference_mask(self) -> Spectrum:
         
         if not self.orders():
-            logger.warning(f"{self.pp}No order data - "+\
+            logger.warning(f"{self.pp}No order data - " + \
                             "first load data then apply reference mask")
             
             return self
@@ -1394,14 +1398,15 @@ class Spectrum:
     def load_spec(self) -> Spectrum:
         
         if isinstance(self.spec_file, str):
-            logger.info(f"{self.pp}Loading flux values from a single file: "+\
+            logger.info(f"{self.pp}Loading flux values from a single file: " + \
                         f"{self.spec_file.split('/')[-1]}...")
             
             _orders = []
             for ol in self.orderlets_to_load:
                 spec_green = fits.getdata(
                     self.spec_file,
-                    f"GREEN_{get_orderlet_name(ol)}_FLUX{get_orderlet_index(ol)}"
+                    f"GREEN_{get_orderlet_name(ol)}_" + \
+                        f"FLUX{get_orderlet_index(ol)}"
                     )
                 spec_red = fits.getdata(
                     self.spec_file,
@@ -1429,56 +1434,60 @@ class Spectrum:
             
             _orders = []
             for ol in self.orderlets_to_load:
-                logger.info(f"{self.pp}Loading {ol} flux values from a "+\
+                logger.info(f"{self.pp}Loading {ol} flux values from a " + \
                             f"list of {len(self.spec_file)} files...")
                 
                 spec_green = np.median([fits.getdata(f,
-                    f"GREEN_{get_orderlet_name(ol)}_FLUX{get_orderlet_index(ol)}")\
-                                            for f in self.spec_file], axis=0)
+                    f"GREEN_{get_orderlet_name(ol)}_" + \
+                        f"FLUX{get_orderlet_index(ol)}")\
+                            for f in self.spec_file], axis=0)
                 spec_red = np.median([fits.getdata(f,
-                    f"RED_{get_orderlet_name(ol)}_FLUX{get_orderlet_index(ol)}")\
-                                            for f in self.spec_file], axis=0)
+                    f"RED_{get_orderlet_name(ol)}_" + \
+                        f"FLUX{get_orderlet_index(ol)}") \
+                            for f in self.spec_file], axis=0)
                 
                 try:
-                    assert all([fits.getval(f, "SCI-OBJ") ==\
-                        fits.getval(self.spec_file[0], "SCI-OBJ")\
+                    assert all([fits.getval(f, "SCI-OBJ") == \
+                        fits.getval(self.spec_file[0], "SCI-OBJ") \
                                                     for f in self.spec_file])
                     self.sci_obj = fits.getval(self.spec_file[0], "SCI-OBJ")
                 except AssertionError:
-                    logger.warning(f"{self.pp}SCI-OBJ did not match between "+\
-                                    "input files!")
+                    logger.warning(
+                        f"{self.pp}SCI-OBJ did not match between input files!"
+                        )
                     logger.warning(f"{self.pp}{[f for f in self.spec_file]}")
                         
                 try:
-                    assert all([fits.getval(f, "CAL-OBJ") ==\
+                    assert all([fits.getval(f, "CAL-OBJ") == \
                         fits.getval(self.spec_file[0], "CAL-OBJ")\
                                                     for f in self.spec_file])
                     self.cal_obj = fits.getval(self.spec_file[0], "CAL-OBJ")
                 except AssertionError:
-                    logger.warning(f"{self.pp}CAL-OBJ did not match between "+\
+                    logger.warning(f"{self.pp}CAL-OBJ did not match between "+ \
                                     "input files!")
                     logger.warning(f"{self.pp}{[f for f in self.spec_file]}")
                     
                 try:
-                    assert all([fits.getval(f, "OBJECT") ==\
+                    assert all([fits.getval(f, "OBJECT") == \
                         fits.getval(self.spec_file[0], "OBJECT")\
                                                     for f in self.spec_file])
                     self.object = fits.getval(self.spec_file[0], "OBJECT")
                 except AssertionError:
-                    logger.warning(f"{self.pp}OBJECT did not match between "+\
+                    logger.warning(f"{self.pp}OBJECT did not match between " + \
                                     "input files!")
                     logger.warning(f"{self.pp}{[f for f in self.spec_file]}")
                     
                 try:
-                    assert all([fits.getval(f, "DATE-OBS") ==\
-                        fits.getval(self.spec_file[0], "DATE-OBS")\
+                    assert all([fits.getval(f, "DATE-OBS") == \
+                        fits.getval(self.spec_file[0], "DATE-OBS") \
                                                 for f in self.spec_file])
                     self.date = "".join(
                         fits.getval(self.spec_file[0], "DATE-OBS").split("-")
                         )
                 except AssertionError:
-                    logger.warning(f"{self.pp}DATE-OBS did not match between "+\
-                                    "input files!")
+                    logger.warning(
+                        f"{self.pp}DATE-OBS did not match between input files!"
+                        )
                     logger.warning(f"{self.pp}{[f for f in self.spec_file]}")
                     
                 spec = np.append(spec_green, spec_red, axis=0)
@@ -1505,18 +1514,18 @@ class Spectrum:
         
         if self.timeofday in ["night", "midnight"]:
             # Specifically look for "eve" WLS file
-            wls_file = f"/data/kpf/masters/{self.date}/kpf_{self.date}_"+\
+            wls_file = f"/data/kpf/masters/{self.date}/kpf_{self.date}_" + \
                         "master_WLS_autocal-lfc-all-eve_L1.fits"
         else:
             # Otherwise, look for the same time of day WLS file
             # (matching 'morn' or 'eve')
-            wls_file = f"/data/kpf/masters/{self.date}/kpf_{self.date}_"+\
+            wls_file = f"/data/kpf/masters/{self.date}/kpf_{self.date}_" + \
                     f"master_WLS_autocal-lfc-all-{self.timeofday}_L1.fits"
         
         try:
             assert "lfc" in fits.getval(wls_file, "OBJECT").lower()
         except AssertionError:
-            logger.warning(f"{self.pp}'lfc' not found in {self.timeofday} "+\
+            logger.warning(f"{self.pp}'lfc' not found in {self.timeofday} " + \
                             "WLS file 'OBJECT' value!")
         except FileNotFoundError:
             logger.warning(f"{self.pp}{self.timeofday} WLS file not found")
@@ -1560,7 +1569,7 @@ class Spectrum:
             # Otherwise, apply the wavelength solution to the appropriate orders
             else:
                 for i, w in enumerate(wave):
-                    try: self.orders(orderlet = ol, i = i)\
+                    try: self.orders(orderlet = ol, i = i) \
                                             .apply_wavelength_solution(wls = w)
                     except AttributeError as e:
                         logger.error(f"{self.pp}{e}")
@@ -1600,7 +1609,7 @@ class Spectrum:
                         )
                        
         else:
-            logger.info(f"{self.pp}Not locating peaks because "+\
+            logger.info(f"{self.pp}Not locating peaks because " + \
                          "a reference mask was passed in.")
         return self
         
@@ -1672,8 +1681,10 @@ class Spectrum:
         
         for ol in orderlet:
             
-            logger.info(f"{self.pp}Filtering {ol} peaks to remove identical "+\
-                         "peaks appearing in adjacent orders...")
+            logger.info(
+                f"{self.pp}Filtering {ol} peaks to remove identical peaks " + \
+                    "appearing in adjacent orders..."
+                    )
             
             peaks = self.peaks(orderlet = ol)
             
@@ -1822,14 +1833,14 @@ class Spectrum:
 
         if plot_peaks:
             if self.filtered_peaks.get(orderlet, None):
-                peaks_to_plot =\
+                peaks_to_plot = \
                     [
                     p for p in self.filtered_peaks[orderlet]
                         if xlims[0] <= p.wl <= xlims[1]
                     ]
                 
             else:                    
-                peaks_to_plot =\
+                peaks_to_plot = \
                     [
                     p for p in self.peaks(orderlet=orderlet)
                         if xlims[0] <= p.wl <= xlims[1]
@@ -1859,40 +1870,37 @@ class Spectrum:
         if ax is None:
             fig = plt.figure(figsize = (12, 4))
             ax = fig.gca()
-            ax.set_title(f"{orderlet} {self.date} {self.timeofday}\n"+\
+            ax.set_title(f"{orderlet} {self.date} {self.timeofday}\n" + \
                           "Residuals after peak fitting", size=20)
             
         if ax.get_xlim() == (0.0, 1.0):
             ax.set_xlim(4400, 8800)
         xlims = ax.get_xlim()
 
-        # plot the full spectrum
-        Col = plt.get_cmap("Spectral")
-
         # plot order by order
         for o in self.orders(orderlet = orderlet):
-            wvl_mean_ord = np.nanmean(o.wave)
-            wvl_norm = 1. - ((wvl_mean_ord) - 4200.) / (7200. - 4200.)
-            bluemask = o.wave / 10. > xlims[0]
-            redmask  = o.wave / 10. < xlims[1]
-            mask = bluemask & redmask
-            ax.plot(o.wave[mask], o.spec_residuals[mask], lw=1.5, color="k")
-            ax.plot(o.wave[mask], o.spec_residuals[mask],
-                                            lw=0.5, color=Col(wvl_norm))
-        ax.plot(0, 0, color="k", lw=1.5)
+            mask = (o.wave > xlims[0]) & (o.wave < xlims[1])
+            ax.plot(o.wave[mask], o.spec_residuals[mask], lw=0.5,
+                    color=wavelength_to_rgb(o.mean_wave),
+                    path_effects=[
+                        pe.Stroke(linewidth=1.5, foreground="k"),
+                        pe.Normal()
+                        ]
+                    )
+        # ax.plot(0, 0, color="k", lw=1.5)
         
         ax.axhline(y=0, ls="--", color="k", alpha=0.25, zorder=-1)
 
         if plot_peaks:
             if self.filtered_peaks.get(orderlet, None):
-                peaks_to_plot =\
+                peaks_to_plot = \
                     [
                     p for p in self.filtered_peaks[orderlet]
                         if xlims[0] <= p.wl <= xlims[1]
                     ]
                 
             else:                    
-                peaks_to_plot =\
+                peaks_to_plot = \
                     [
                     p for p in self.peaks(orderlet=orderlet)
                         if xlims[0] <= p.wl <= xlims[1]
@@ -1940,7 +1948,7 @@ class Spectrum:
             nanmask = ~np.isnan(wls)
             wls = wls[nanmask]
             
-            FSR = (constants.c * np.diff(wls)\
+            FSR = (constants.c * np.diff(wls) \
                                     / np.power(wls[:-1], 2)).to(unit).value
             
             return FSR
@@ -1984,7 +1992,7 @@ class Spectrum:
         mask = np.where(np.abs(delta_nu_FSR - estimate_FSR) <= 1)
         
         try:
-            model =\
+            model = \
                 _fit_spline(x = wls[mask], y = delta_nu_FSR[mask], knots = 21)
             label = f"{name}Spline fit"
         except ValueError as e:
@@ -2136,12 +2144,12 @@ class Spectrum:
         
     def __str__(self) -> str:
         
-        out_string =\
+        out_string = \
             f"Spectrum {self.spec_file} with {len(self.orderlets)} orderlets:"
         
         for ol in self.orderlets:
-            out_string += f"\n - {ol}:"+\
-                          f"{len(self.orders(orderlet = ol))} Orders"+\
+            out_string += f"\n - {ol}:" + \
+                          f"{len(self.orders(orderlet = ol))} Orders" + \
                           f" and {len(self.peaks(orderlet = ol))} total Peaks"
         
         return out_string
@@ -2149,9 +2157,9 @@ class Spectrum:
         
     def __repr__(self) -> str:
         
-        return f"Spectrum("+\
-               f"spec_file={self.spec_file}, "+\
-               f"wls_file={self.wls_file}, "+\
+        return f"Spectrum(" + \
+               f"spec_file={self.spec_file}, " + \
+               f"wls_file={self.wls_file}, " + \
                f"orderlets_to_load={self.orderlets_to_load})"
 
 
@@ -2231,9 +2239,9 @@ def test() -> None:
     DATAPATH = "/data/kpf/masters/"
     DATE = "20240520"
     
-    WLS_file    = f"{DATAPATH}{DATE}/"+\
+    WLS_file    = f"{DATAPATH}{DATE}/" + \
                   f"kpf_{DATE}_master_WLS_autocal-lfc-all-morn_L1.fits"
-    etalon_file = f"{DATAPATH}{DATE}/"+\
+    etalon_file = f"{DATAPATH}{DATE}/" + \
                   f"kpf_{DATE}_master_WLS_autocal-etalon-all-morn_L1.fits"
 
     s = Spectrum(
