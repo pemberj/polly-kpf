@@ -47,9 +47,6 @@ Peak
     The fitting is typically initiated from the higher level (Spectrum object),
     and inversely all of the Peak's data is also passed upward to be accessible
     from Order and Spectrum objects.
-        
-TODO: assert orderlets in ORDERLETS where they are inputs?
-
 """
 
 # Standard library
