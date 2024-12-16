@@ -85,12 +85,12 @@ try:
     from polly.log import logger
     from polly.kpf import THORIUM_ORDER_INDICES, LFC_ORDER_INDICES
     from polly.parsing import get_orderlet_name, get_orderlet_index
-    from polly.plotStyle import plotStyle
+    from polly.plotStyle import plotStyle, wavelength_to_rgb
 except ImportError:
     from log import logger
     from kpf import THORIUM_ORDER_INDICES, LFC_ORDER_INDICES
     from parsing import get_orderlet_name, get_orderlet_index
-    from plotStyle import plotStyle
+    from plotStyle import plotStyle, wavelength_to_rgb
 plt.style.use(plotStyle)
 
 
@@ -602,15 +602,11 @@ class Peak:
         residuals = (self.speclet - coarse_yfit) / maxy
         rms_residuals = np.std(residuals)
         
-        # Compute color for plotting raw data
-        Col = plt.get_cmap("Spectral")
-        wvl_mean_ord = self.center_wavelength
-        wvl_norm = 1. - ((wvl_mean_ord) - 4200.) / (7200. - 4200.)
-        
         ax.step(
             x, self.speclet/maxy, where="mid",
-            color=Col(wvl_norm), lw=2.5, label="Peak data",
-            path_effects=[pe.Stroke(linewidth=4, foreground="k"), pe.Normal()]
+            color=wavelength_to_rgb(self.center_wavelength), lw=2.5,
+            path_effects=[pe.Stroke(linewidth=4, foreground="k"), pe.Normal()],
+            label="Peak data",
             )
         
         ax.plot(xfit, yfit/maxy, color="k",
@@ -1816,20 +1812,17 @@ class Spectrum:
             ax.set_xlim(4400, 8800)
         xlims = ax.get_xlim()
 
-        # plot the full spectrum
-        Col = plt.get_cmap("Spectral")
-
         # plot order by order
         for o in self.orders(orderlet = orderlet):
-            wvl_mean_ord = np.nanmean(o.wave)
-            wvl_norm = 1. - ((wvl_mean_ord) - 4200.) / (7200. - 4200.)
-            bluemask = o.wave > xlims[0]
-            redmask  = o.wave < xlims[1]
-            mask = bluemask & redmask
-            ax.plot(o.wave[mask], o.spec[mask], lw=1.5, color="k")
-            ax.plot(o.wave[mask], o.spec[mask],
-                                            lw=0.5, color=Col(wvl_norm))
-        ax.plot(0, 0, color="k", lw=1.5)
+            mask = (o.wave > xlims[0]) & (o.wave < xlims[1])
+            ax.plot(o.wave[mask], o.spec_residuals[mask], lw=0.5,
+                    color=wavelength_to_rgb(o.mean_wave),
+                    path_effects=[
+                        pe.Stroke(linewidth=1.5, foreground="k"),
+                        pe.Normal()
+                        ]
+                    )
+        # ax.plot(0, 0, color="k", lw=1.5)
 
         if plot_peaks:
             if self.filtered_peaks.get(orderlet, None):
