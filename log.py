@@ -3,8 +3,8 @@ Polly
 
 log
 
-Set up the package's logging module. By default this logs into a single file
-in my directory, as well as to the console.
+Set up the package's logging module. By default this logs into a single file in my
+directory, as well as to the console.
 """
 
 import logging
@@ -12,9 +12,7 @@ import logging
 logger = logging.getLogger("Polly")
 
 # create file handler which logs even debug messages
-formatter = logging.Formatter(
-    "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    )
+formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 file_handler = logging.FileHandler("/scr/jpember/polly_outputs/polly.log")
 file_handler.setLevel(logging.DEBUG)
 file_handler.setFormatter(formatter)

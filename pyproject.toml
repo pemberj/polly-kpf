@@ -15,26 +15,36 @@ dependencies = [
     "jupyterlab>=4.3.3",
 ]
 
+
+[tool.ruff]
+line-length = 88
+
+
 [tool.ruff.lint]
 select = [
-    # pycodestyle
-    "E",
-    # Pyflakes
-    "F",
-    # pyupgrade
-    # "UP",
-    # flake8-bugbear
-    # "B",
-    # flake8-simplify
-    # "SIM",
-    # isort
-    # "I",
+    "E", # pycodestyle
+    # "W", # pycodestyle warnings
+    "F", # Pyflakes
+    # "D", # pydocstyle
+    # "UP", # pyupgrade
+    # "B", # flake8-bugbear
+    # "SIM", # flake8-simplify
+    # "I", # isort
+    # "N", # pep8-naming
 ]
 ignore = [
+    # "W605", # invalid escape sequence
+    # "E251", # unexpected spaces around keyword / parameter equals
     "E722", # do not use bare 'except'
     # "F401", # module imported but unused
     ]
 
 
 [tool.ruff.lint.per-file-ignores]
-"*.ipynb" = ["E501"]
+"*.ipynb" = [
+    "E501", # line too long
+    ]
+
+
+[tool.ruff.format]
+exclude = ["*.ipynb"]
