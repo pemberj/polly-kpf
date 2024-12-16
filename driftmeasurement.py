@@ -16,7 +16,6 @@ data in wavelength, or across several orderlets).
 
 from __future__ import annotations
 
-from collections import namedtuple
 from typing import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
