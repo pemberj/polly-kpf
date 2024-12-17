@@ -17,6 +17,13 @@ dependencies = [
     "jupyterlab>=4.3.3",
 ]
 
+[dependency-groups]
+dev = [
+    "pre-commit>=4.0.1",
+]
+
+
+
 [project.urls]
 Repository = "https://github.com/pemberj/polly"
 
