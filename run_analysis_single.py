@@ -59,9 +59,9 @@ def main(
         orderlets_to_load=orderlets,
         pp=pp,
     )
-    s.locate_peaks(fractional_height=0.01, window_to_save=14)
-    s.fit_peaks(type="conv_gauss_tophat")
-    s.filter_peaks(window=0.1)
+    s.locate_peaks()
+    s.fit_peaks()
+    s.filter_peaks()
 
     for ol in s.orderlets:
         try:
@@ -76,38 +76,32 @@ def main(
 
         if spectrum_plot:
             Path(f"{OUTDIR}/spectrum_plots").mkdir(parents=True, exist_ok=True)
-            for ol in orderlets:
-                s.plot_spectrum(orderlet=ol, plot_peaks=False)
-                plt.savefig(
-                    f"{OUTDIR}/spectrum_plots/"
-                    + f"{date}_{timeofday}_{ol}_spectrum.png"
-                )
-                plt.close()
+            s.plot_spectrum(orderlet=ol, plot_peaks=False)
+            plt.savefig(f"{OUTDIR}/spectrum_plots/{date}_{timeofday}_{ol}_spectrum.png")
+            plt.close()
 
         if fsr_plot:
             Path(f"{OUTDIR}/FSR_plots").mkdir(parents=True, exist_ok=True)
-            for ol in s.orderlets:
-                s.plot_FSR(orderlet=ol)
-                plt.savefig(
-                    f"{OUTDIR}/FSR_plots/" + f"{date}_{timeofday}_{ol}_etalon_FSR.png"
-                )
-                plt.close()
+            s.plot_FSR(orderlet=ol)
+            plt.savefig(
+                f"{OUTDIR}/FSR_plots/" + f"{date}_{timeofday}_{ol}_etalon_FSR.png"
+            )
+            plt.close()
 
         if fit_plot:
             Path(f"{OUTDIR}/fit_plots").mkdir(parents=True, exist_ok=True)
-            for ol in s.orderlets:
-                s.plot_peak_fits(orderlet=ol)
-                plt.savefig(
-                    f"{OUTDIR}/fit_plots/" + f"{date}_{timeofday}_{ol}_etalon_fits.png"
-                )
-                plt.close()
+            s.plot_peak_fits(orderlet=ol)
+            plt.savefig(
+                f"{OUTDIR}/fit_plots/" + f"{date}_{timeofday}_{ol}_etalon_fits.png"
+            )
+            plt.close()
 
 
 parser = argparse.ArgumentParser(
     prog="polly run_analysis_single",
-    description="""A utility to process KPF etalon data from an  individual file, 
-                specified by filename. Produces an output mask file with the 
-                wavelengths of each identified etalon peak, as well as optional 
+    description="""A utility to process KPF etalon data from an  individual file,
+                specified by filename. Produces an output mask file with the
+                wavelengths of each identified etalon peak, as well as optional
                 diagnostic plots.""",
 )
 

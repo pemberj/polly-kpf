@@ -1,4 +1,8 @@
 """
+polly
+
+kpf
+
 Parameters specific to the KPF spectrograph
 """
 

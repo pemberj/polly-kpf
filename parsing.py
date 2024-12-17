@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 import argparse
 from datetime import datetime
-from collections import namedtuple
+from typing import NamedTuple
 
 
 try:
@@ -19,7 +19,10 @@ except ImportError:
     from kpf import ORDERLETS, TIMESOFDAY, LFC_ORDER_INDICES, THORIUM_ORDER_INDICES
 
 
-Mask = namedtuple("Mask", ["date", "timeofday", "orderlet"])
+class Mask(NamedTuple):
+    date: datetime
+    timeofday: str
+    orderlet: str
 
 
 def parse_date_string(datestr: str) -> datetime:
@@ -46,20 +49,20 @@ def parse_filename(filename: str | list[str]) -> tuple[datetime, str, str]:
     return Mask(date=date, timeofday=timeofday, orderlet=orderlet)
 
 
-def parse_yyyymmdd(input: str | float | int) -> datetime:
-    if input == "now":
+def parse_yyyymmdd(yyyymmdd: str | float) -> datetime:
+    if yyyymmdd == "now":
         return datetime.now()
 
-    if isinstance(input, float):
-        input = str(int(input))
-    elif isinstance(input, int):
-        input = str(input)
+    if isinstance(yyyymmdd, float):
+        yyyymmdd = str(int(yyyymmdd))
+    elif isinstance(yyyymmdd, int):
+        yyyymmdd = str(yyyymmdd)
 
-    assert isinstance(input, str) and len(input) == 8
+    assert isinstance(yyyymmdd, str) and len(yyyymmdd) == 8  # noqa: PLR2004
 
-    yyyy = int(input[0:4])
-    mm = int(input[4:6])
-    dd = int(input[6:8])
+    yyyy = int(yyyymmdd[0:4])
+    mm = int(yyyymmdd[4:6])
+    dd = int(yyyymmdd[6:8])
 
     return datetime(year=yyyy, month=mm, day=dd)
 
@@ -91,56 +94,53 @@ def parse_orders(orders_str: str) -> list[int]:
     """
 
     if (orders_str == "all") or (orders_str is None):
-        return list(range((67)))
-    elif orders_str == "lfc":
+        return list(range(67))
+    if orders_str == "lfc":
         return LFC_ORDER_INDICES
-    elif orders_str == "thorium":
+    if orders_str == "thorium":
         return THORIUM_ORDER_INDICES
 
-    else:
-        try:
-            return parse_num_list(orders_str)
-        except Exception as e:
-            print(f"Exception raised when parsing orders: {e}")
-            print("Returning ALL orders")
-            return list(range((67)))
+    try:
+        return parse_num_list(orders_str)
+    except Exception as e:
+        print(f"Exception raised when parsing orders: {e}")
+        print("Returning ALL orders")
+        return list(range(67))
 
 
 def parse_timesofday(timesofday: str) -> list:
     if (timesofday == "all") or (timesofday is None):
         return TIMESOFDAY
 
-    elif "," in timesofday:
+    if "," in timesofday:
         return timesofday.split(sep=",")
 
-    else:
-        return [timesofday]
+    return [timesofday]
 
 
 def parse_orderlets(orderlets: str) -> list:
     if (orderlets == "all") or (orderlets is None):
         return ORDERLETS
 
-    elif "," in orderlets:
+    if "," in orderlets:
         orderlets = orderlets.split(sep=",")
         for ol in orderlets:
             assert ol in ORDERLETS
         return orderlets
 
-    else:
-        assert orderlets in ORDERLETS
-        return [orderlets]
+    assert orderlets in ORDERLETS
+    return [orderlets]
 
 
-def parse_bool(string):
-    if isinstance(string, bool):
-        return string
-    if string.lower() in ["yes", "true", "t", "y", "1"]:
+def parse_bool(input_string: str) -> bool:
+    if isinstance(input_string, bool):
+        return input_string
+    if input_string.lower() in ["yes", "true", "t", "y", "1"]:
         return True
-    elif string.lower() in ["no", "false", "f", "n", "0"]:
+    if input_string.lower() in ["no", "false", "f", "n", "0"]:
         return False
-    else:
-        raise argparse.ArgumentTypeError("Boolean value expected.")
+
+    raise argparse.ArgumentTypeError("Boolean value expected.")
 
 
 def get_orderlet_name(orderlet: str) -> str:
@@ -153,8 +153,8 @@ def get_orderlet_name(orderlet: str) -> str:
 
     if orderlet.startswith("SCI"):
         return "SCI"
-    else:
-        return orderlet
+
+    return orderlet
 
 
 def get_orderlet_index(orderlet: str) -> str:
@@ -167,5 +167,5 @@ def get_orderlet_index(orderlet: str) -> str:
 
     if orderlet.startswith("SCI"):
         return orderlet[-1]
-    else:
-        return ""
+
+    return ""

@@ -31,9 +31,12 @@ from pathlib import Path
 from datetime import datetime, timedelta
 
 import numpy as np
-from numpy.typing import ArrayLike
 
 from matplotlib import pyplot as plt
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from numpy.typing import ArrayLike
 
 try:
     from polly.log import logger
@@ -77,7 +80,7 @@ def run_analysis_batch(
     fit_space: str = "pixel",
     orders: list[int] | None = None,
     single_wls_file: str | Path | None = None,
-    verbose: bool = False,
+    verbose: bool = False,  # noqa: ARG001
 ) -> None:
     """
     single_wls_File
@@ -117,7 +120,7 @@ def run_analysis_batch(
             continue
 
         s.locate_peaks()
-        s.fit_peaks(type=fit_type, space=fit_space)
+        s.fit_peaks(fit_type=fit_type, space=fit_space)
         s.filter_peaks()
 
         for ol in s.orderlets:
@@ -155,9 +158,9 @@ def run_analysis_batch(
 
 parser = argparse.ArgumentParser(
     prog="polly run_analysis_batch",
-    description="""A utility to process KPF etalon data from multiple L1 files 
-            specified by observation date and time of day. Produces an output mask file 
-            with the wavelengths of each identified etalon peak, as well as optional 
+    description="""A utility to process KPF etalon data from multiple L1 files
+            specified by observation date and time of day. Produces an output mask file
+            with the wavelengths of each identified etalon peak, as well as optional
             diagnostic plots.""",
     formatter_class=argparse.ArgumentDefaultsHelpFormatter,
 )

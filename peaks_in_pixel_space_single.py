@@ -75,7 +75,7 @@ def main(
         [(p.i, p.center_pixel, p.center_pixel_stddev) for p in s.peaks()]
     )
 
-    for i, pix, dpix in zip(order_is, center_pixels, pixel_std_devs):
+    for i, pix, dpix in zip(order_is, center_pixels, pixel_std_devs, strict=True):
         print(f"{pp}Order i={i:<3.0f}| {pix:.3f} +/- {dpix:.4f}")
 
     # And save the output to a CSV with built-in methods like so:
@@ -94,19 +94,16 @@ def main(
 
         if fit_plot:
             Path(f"{OUTDIR}/fit_plots").mkdir(parents=True, exist_ok=True)
-            for ol in s.orderlets:
-                s.plot_peak_fits(orderlet=ol)
-                plt.savefig(
-                    f"{OUTDIR}/fit_plots/{date}_{timeofday}_{ol}_etalon_fits.png"
-                )
-                plt.close()
+            s.plot_peak_fits(orderlet=ol)
+            plt.savefig(f"{OUTDIR}/fit_plots/{date}_{timeofday}_{ol}_etalon_fits.png")
+            plt.close()
 
 
 parser = argparse.ArgumentParser(
     prog="polly peaks_in_pixel_space_single",
-    description="""A utility to process KPF etalon data from an individual file, 
-                specified by filename. Produces an output mask file with the pixel 
-                position of each identified etalon peak, as well as optional diagnostic 
+    description="""A utility to process KPF etalon data from an individual file,
+                specified by filename. Produces an output mask file with the pixel
+                position of each identified etalon peak, as well as optional diagnostic
                 plots.""",
 )
 

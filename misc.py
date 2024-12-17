@@ -58,8 +58,8 @@ def savitzky_golay(
     try:
         window_size = abs(int(window_size))
         order = abs(int(order))
-    except ValueError:
-        raise ValueError("window_size and order have to be of type int")
+    except ValueError as e:
+        raise ValueError("window_size and order have to be of type int") from e
     if window_size % 2 != 1:
         print("window_size size must be a positive odd number. Adding 1")
         window_size += 1
@@ -71,7 +71,7 @@ def savitzky_golay(
     order_range = range(order + 1)
     half_window = (window_size - 1) // 2
     # precompute coefficients
-    b = np.mat(
+    b = np.asmatrix(
         [[k**i for i in order_range] for k in range(-half_window, half_window + 1)]
     )
     m = np.linalg.pinv(b).A[deriv] * rate**deriv * factorial(deriv)

@@ -1,5 +1,5 @@
 """
-Polly
+polly
 
 driftmeasurement
 
@@ -18,17 +18,17 @@ from datetime import datetime
 from functools import cached_property, partial
 from operator import attrgetter
 from pathlib import Path
-from typing import Callable
+from typing import TYPE_CHECKING
 
 import numpy as np
-from numpy.typing import ArrayLike
-
 from astropy import units as u
-from astropy.units import Quantity
-
 from matplotlib import pyplot as plt
-
 from scipy.optimize import curve_fit
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+    from numpy.typing import ArrayLike
+    from astropy.units import Quantity
 
 try:
     from polly.misc import savitzky_golay
@@ -48,30 +48,24 @@ class PeakDrift:
     local_spacing: float  # Local distance between wavelengths in reference mask
 
     masks: list[str]  # List of filenames to search
-    dates: list[datetime] | None = None
+    dates: list[datetime] = field(default=None)
 
     # After initialisation, the single peak will be tracked as it appears in
     # each successive mask. The corresponding wavelengths at which it is found
     # will populate the `wavelengths` list.
     wavelengths: list[float | None] = field(default_factory=list)
     sigmas: list[float] = field(default_factory=list)
-    valid: ArrayLike | None = None
+    valid: ArrayLike = field(default=None)
 
     auto_fit: bool = True
 
-    fit:            Callable | None = None
-    fit_err:     list[float] | None = None
-    fit_slope:      Quantity | None = None
-    fit_slope_err:  Quantity | None = None
+    fit: Callable = field(default=None)
+    fit_err: list[float] = field(default=None)
+    fit_slope: Quantity = field(default=None)
+    fit_slope_err: Quantity = field(default=None)
 
-    drift_file: str | Path | None = None
+    drift_file: str | Path = field(default=None)
     force_recalculate: bool = False
-    # TODO: First check if there is an existing file. If so, check its length.
-    # If this is within 10% of the length of self.masks, don't recalculate
-    # unless self.force_recalculate == True
-
-    # File saving routine should use the drift_file path rather than taking one
-    # in (by default)
 
     def __post_init__(self) -> None:
         if isinstance(self.drift_file, str):
@@ -79,6 +73,10 @@ class PeakDrift:
 
         if self.drift_file.exists():
             # print(f"File exists for λ={self.reference_wavelength:.2f}")
+
+            # First check if there is an existing file. If so, check its length.
+            # If this is within 10% of the length of self.masks, don't recalculate
+            # unless self.force_recalculate == True?
 
             if self.force_recalculate:
                 # Then proceed as normal, track the drift from the masks
@@ -110,7 +108,7 @@ class PeakDrift:
         nansigma = np.where(~np.isnan(self.sigmas), True, False)
         self.valid = np.logical_and(nanwavelength, nansigma)
 
-        if sum(self.valid) <= 3:
+        if sum(self.valid) <= 3:  # noqa: PLR2004
             print(
                 "Too few located peaks for λ="
                 + f"{self.reference_wavelength:.2f} ({len(self.valid)})"
@@ -118,27 +116,24 @@ class PeakDrift:
 
     @cached_property
     def valid_wavelengths(self) -> list[float]:
-        if self.valid is not None:
-            return list(np.array(self.wavelengths)[self.valid])
-
-        else:
+        if self.valid is None:
             return self.wavelengths
+
+        return list(np.array(self.wavelengths)[self.valid])
 
     @cached_property
     def valid_sigmas(self) -> list[float]:
-        if self.valid is not None:
-            return list(np.array(self.sigmas)[self.valid])
-
-        else:
+        if self.valid is None:
             return self.sigmas
+
+        return list(np.array(self.sigmas)[self.valid])
 
     @cached_property
     def valid_dates(self) -> list[datetime]:
-        if self.valid is not None:
-            return list(np.array(self.dates)[self.valid])
-
-        else:
+        if self.valid is None:
             return self.dates
+
+        return list(np.array(self.dates)[self.valid])
 
     @cached_property
     def reference_date(self) -> datetime:
@@ -150,11 +145,11 @@ class PeakDrift:
 
     @cached_property
     def timesofday(self) -> list[str]:
-        if self.valid is not None:
-            valid_masks = list(np.array(self.masks)[self.valid])
+        if self.valid is None:
+            valid_masks = self.masks
 
         else:
-            valid_masks = self.masks
+            valid_masks = list(np.array(self.masks)[self.valid])
 
         return [parse_filename(m).timeofday for m in valid_masks]
 
@@ -181,8 +176,7 @@ class PeakDrift:
         if isinstance(date, list):
             return [self.get_delta_at_date(date=d) for d in date]
 
-        else:
-            assert isinstance(date, datetime)
+        assert isinstance(date, datetime)
 
         for i, d in enumerate(self.valid_dates):
             if d == date:
@@ -236,7 +230,6 @@ class PeakDrift:
             sigma = sigmas[closest_index]
 
             # Check if the new peak is within a search window around the last
-            # TODO: Maybe define this search window differently?
             if abs(last_wavelength - wavelength) <= self.local_spacing / 50:
                 self.wavelengths.append(wavelength)
                 last_wavelength = wavelength
@@ -268,11 +261,7 @@ class PeakDrift:
             print("Running PeakDrift.track_drift() first.")
             self.track_drift()
 
-        if fit_fractional:
-            deltas_to_use = self.fractional_deltas
-        else:
-            # Use absolute delta wavelengths
-            deltas_to_use = self.deltas
+        deltas_to_use = self.fractional_deltas if fit_fractional else self.deltas
 
         def linear_model(
             x: float | list[float], slope: float
@@ -298,7 +287,7 @@ class PeakDrift:
             self.fit_slope_err = np.sqrt(cov[0][0]) / u.day
 
         except (ValueError, RuntimeError):
-            self.fit = lambda x: np.nan
+            self.fit = lambda x: np.nan  # noqa: ARG005
             self.fit_err = np.nan
             self.fit_slope = np.nan / u.day
             self.fit_slope_err = np.nan / u.day
@@ -307,10 +296,11 @@ class PeakDrift:
 
     def fit_residuals(self, fractional: bool = False) -> list[float]:
         if fractional:
-            return \
+            return (
                 self.fractional_deltas - self.fit(self.days_since_reference_date).value
-        else:
-            return self.deltas - self.fit(self.days_since_reference_date).value
+            )
+
+        return self.deltas - self.fit(self.days_since_reference_date).value
 
     def save_to_file(self, path: str | Path | None = None) -> PeakDrift:
         """ """
@@ -319,7 +309,6 @@ class PeakDrift:
             if self.drift_file:
                 path = self.drift_file
             else:
-                # TODO: make this neater
                 raise Exception("No file path passed in and no drift_file specified")
 
         if isinstance(path, str):
@@ -361,12 +350,12 @@ class GroupDrift:
 
     peakDrifts: list[PeakDrift]
 
-    group_fit: Callable | None = None
-    group_fit_err: list[float] | None = None
-    group_fit_slope: float | None = None
-    group_fit_slope_err: float | None = None
+    group_fit: Callable = field(default=None)
+    group_fit_err: list[float] = field(default=None)
+    group_fit_slope: float = field(default=None)
+    group_fit_slope_err: float = field(default=None)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         self.peakDrifts = sorted(
             self.peakDrifts, key=attrgetter("reference_wavelength")
         )
@@ -402,7 +391,7 @@ class GroupDrift:
 
     @cached_property
     def unique_dates(self) -> list[datetime]:
-        return sorted(list(set(self.all_dates)))
+        return sorted(set(self.all_dates))
 
     @cached_property
     def all_deltas(self) -> list[float]:

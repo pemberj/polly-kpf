@@ -12,12 +12,10 @@ from matplotlib import pyplot as plt
 
 try:
     from polly.etalonanalysis import Spectrum
-    from polly.kpf import TIMESOFDAY, ORDERLETS
     from polly.parsing import parse_bool, parse_orderlets
     from polly.plotStyle import plotStyle
 except ImportError:
     from etalonanalysis import Spectrum
-    from kpf import TIMESOFDAY, ORDERLETS
     from parsing import parse_bool, parse_orderlets
     from plotStyle import plotStyle
 plt.style.use(plotStyle)
@@ -34,16 +32,9 @@ def main(
         orderlets = [orderlets]
 
     Path(f"{OUTDIR}/masks/").mkdir(parents=True, exist_ok=True)
-    if spectrum_plot:
-        Path(f"{OUTDIR}/spectrum_plots").mkdir(parents=True, exist_ok=True)
-    if fsr_plot:
-        Path(f"{OUTDIR}/FSR_plots").mkdir(parents=True, exist_ok=True)
-    if fit_plot:
-        Path(f"{OUTDIR}/fit_plots").mkdir(parents=True, exist_ok=True)
 
     date = "".join(fits.getval(filename, "DATE-OBS").split("-"))
     timeofday = fits.getval(filename, "OBJECT").split("-")[-1]
-    assert timeofday in TIMESOFDAY
 
     pp = f"{f'[{date} {timeofday:>5}]':<20}"  # Print/logging line prefix
 
@@ -69,37 +60,29 @@ def main(
             continue
 
         if spectrum_plot:
-            for ol in orderlets:
-                s.plot_spectrum(orderlet=ol, plot_peaks=False)
-                plt.savefig(
-                    f"{OUTDIR}/spectrum_plots/"
-                    + f"{date}_{timeofday}_{ol}_spectrum.png"
-                )
-                plt.close()
+            Path(f"{OUTDIR}/spectrum_plots").mkdir(parents=True, exist_ok=True)
+            s.plot_spectrum(orderlet=ol, plot_peaks=False)
+            plt.savefig(f"{OUTDIR}/spectrum_plots/{date}_{timeofday}_{ol}_spectrum.png")
+            plt.close()
 
         if fsr_plot:
-            for ol in s.orderlets:
-                s.plot_FSR(orderlet=ol)
-                plt.savefig(
-                    f"{OUTDIR}/FSR_plots/" + f"{date}_{timeofday}_{ol}_etalon_FSR.png"
-                )
-                plt.close()
+            Path(f"{OUTDIR}/FSR_plots").mkdir(parents=True, exist_ok=True)
+            s.plot_FSR(orderlet=ol)
+            plt.savefig(f"{OUTDIR}/FSR_plots/{date}_{timeofday}_{ol}_etalon_FSR.png")
+            plt.close()
 
         if fit_plot:
-            for ol in s.orderlets:
-                s.plot_peak_fits(orderlet=ol)
-                plt.savefig(
-                    f"{OUTDIR}/fit_plots/" + f"{date}_{timeofday}_{ol}_etalon_fits.png"
-                )
-                plt.close()
+            Path(f"{OUTDIR}/fit_plots").mkdir(parents=True, exist_ok=True)
+            s.plot_peak_fits(orderlet=ol)
+            plt.savefig(f"{OUTDIR}/fit_plots/{date}_{timeofday}_{ol}_etalon_fits.png")
+            plt.close()
 
 
 parser = argparse.ArgumentParser(
     prog="polly run_analysis_single",
-    description="""A utility to process KPF etalon data from an 
-                individual file, specified by filename. Produces an output 
-                mask file with the wavelengths of each identified etalon 
-                peak, as well as optional diagnostic plots.""",
+    description="""A utility to process KPF etalon data from an individual file,
+                specified by filename. Produces an output mask file with the wavelengths
+                of each identified etalon peak, as well as optional diagnostic plots""",
 )
 
 parser.add_argument("-f", "--filename", type=str)
@@ -126,11 +109,3 @@ if __name__ == "__main__":
         fsr_plot=True,
         fit_plot=True,
     )
-
-    # main(
-    #     filename = args.filename,
-    #     orderlets = args.orderlets,
-    #     spectrum_plot = args.spectrum_plot,
-    #     fsr_plot = args.fsr_plot,
-    #     fit_plot = args.fit_plot,
-    #     )
