@@ -29,25 +29,9 @@ indent-width = 4
 
 [tool.ruff.lint]
 select = [
-    
-    # "E",    # pycodestyle
-    # "E1",   # pycodestyle indentation
-    # "E2",   # pycodestyle whitespace
-    # "E3",   # pycodestyle blank lines
-    "E4",   # pycodestyle imports
-    # "E5",   # pycodestyle line length
-    "E7",   # pycodestyle statements
-    "E9",   # pycodestyle runtime
-    
-    "W",    # pycodestyle warnings
-
+    "E",    # pycodestyle
     "F",    # Pyflakes
-    # "C901", # McCabe complexity
-
-    # "D",  # pydocstyle
     "UP",   # pyupgrade
-    # "I",  # isort
-    # "N",  # pep8-naming
 
     "A",    # flake8-builtins
     "ANN",  # flake8-annotations
@@ -69,16 +53,11 @@ select = [
     "PTH",  # flake8-use-pathlib
     "FIX",  # flake8-fixme
 
-    "PGH", # pygrep-hooks
-
-    # "PL",   # pylint
     "PLC",  # pylint-convention
     "PLC",  # pylint-error
-    # "PLR",  # pylint-refactor
     "PLR2004",  # pylint magic values
-    "PLW",    # pylint-warning
+    "PLW",  # pylint-warning
 
-    # "TRY",  # tryceratops
     "FLY",  # flynt
     "NPY",  # numpy-specific rules
     "PERF", # perflint, performance
@@ -87,15 +66,15 @@ select = [
     "RUF",  # ruff developers' own rules
 ]
 ignore = [
-    "E251", # unexpected spaces around keyword / parameter equals
-    "E722", # do not use bare 'except'
-    "W605", # invalid escape sequence
-    # "F401", # module imported but unused
-    "PERF203", # try / except within a loopp
-    "SIM105",
-    "S101",   # use of assert
-    "DTZ001", # datetime.datetime used without explicit tzinfo=
-    "DTZ005", # datetime.now() used without explicit tzinfo=
+    "E251",     # unexpected spaces around keyword / parameter equals
+    "E722",     # do not use bare 'except'
+    "W605",     # invalid escape sequence
+    # "F401",   # module imported but unused
+    "PERF203",  # try / except within a loopp
+    "SIM105",   # recommends contextlib.suppress instead of try / except / pass
+    "S101",     # use of assert
+    "DTZ001",   # datetime.datetime used without explicit tzinfo=
+    "DTZ005",   # datetime.now() used without explicit tzinfo=
 ]
 
 
