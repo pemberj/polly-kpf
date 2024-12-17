@@ -67,6 +67,8 @@ def find_L1_etalon_files(
                 logger.error(f"{pp}{e}")
                 return None
 
+    p: Path = Path(f"/data/kpf/L1/{date}/")
+
     all_files: list[str] = p.glob("*.fits")
 
     out_files: list[str] = []
