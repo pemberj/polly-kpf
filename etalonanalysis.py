@@ -2193,7 +2193,7 @@ def test() -> None:
     print(f"{s.num_filtered_peaks() = }")
 
     s.save_peak_locations(
-        filename="/scr/jpember/temp/temp_mask_{DATE}.csv", orderlet="SCI2"
+        filename=f"/scr/jpember/temp/temp_mask_{DATE}.csv", orderlet="SCI2"
     )
 
     # s.save_peak_locations(f"./etalon_wavelengths_{orderlet}.csv")
