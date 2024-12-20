@@ -49,7 +49,6 @@ Peak
     and Spectrum objects.
 """
 
-# Standard library
 from __future__ import annotations
 
 import logging
