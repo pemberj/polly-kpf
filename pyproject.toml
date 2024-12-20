@@ -36,60 +36,58 @@ indent-width = 4
 
 [tool.ruff.lint]
 select = [
-    # Default: "E4", "E7", "E9", "F"
-    "E",    # pycodestyle
-    "F",    # Pyflakes
-    "UP",   # pyupgrade
-    "D",    # pydocstyle
+    "F", # Pyflakes
+    "E4", "E7", "E9", # pycodestyle errors
+    "W", # pycodestyle warnings
+    "D", # pydocstyle
 
-    "A",    # flake8-builtins
+    "UP",   # pyupgrade
+
     "ANN",  # flake8-annotations
+    "S",    # flake8-bandit (security)
     "B",    # flake8-bugbear, security warnings
+    "A",    # flake8-builtins
     "C4",   # flake8-comprehensions
     "DTZ",  # flake8-datetimez
-    # "ISC",  # flake8-implicit-str-concat
     "ICN",  # flake8-import-conventions
     "LOG",  # flake8-logging
     "G",    # flake8-logging-format
     "PIE",  # flake8-pie
     "PYI",  # flake8-pyi
     "RET",  # flake8-return
-    "S",    # flake8-bandit (security)
-    "SLF",  # flake8-self
     "SIM",  # flake8-simplify
     "TC",   # flake8-type-checking
     "ARG",  # flake8-unused-arguments
     "PTH",  # flake8-use-pathlib
-    "FIX",  # flake8-fixme
 
-    # "N",    # pep8-naming
-    "PLC",  # pylint-convention
+    # "N", # pep8-naming
+
+    "PLC",      # pylint-convention
+    "PLE",      # pylint-error
     "PLR2004",  # pylint magic values
-    "PLW",  # pylint-warning
+    "PLW",      # pylint-warning
 
-    "FLY",  # flynt
-    "NPY",  # numpy-specific rules
-    "PERF", # perflint, performance
-    "FURB", # refurb
+    # "FURB", # refurb
 
-    "RUF",  # ruff developers' own rules
+    "DOC", # pydoclint
+
+    "RUF", # ruff developers' own rules
 ]
 ignore = [
-    "E251",     # unexpected spaces around keyword / parameter equals
-    "E722",     # do not use bare 'except'
-    "W605",     # invalid escape sequence
+    "E722", # do not use bare 'except'
+    "W605", # invalid escape sequence
 
-    "D105",     # Missing docstring in magic (dunder) method
-    "D200",     # One-line docstring should fit on one line with quotes
-    "D202",     # No blank lines allowed after function docstring
-    "D203",     # No blank lines allowed before function docstring
-    "D205",     # Blank line between summary and description
-    "D212",     # multi-line docstring summary should start at the first line
-    "D400",     # first line should end with a period
-    "D401",     # first line should be in imperative mood
-    "D413",     # Missing blank line after last section
-    "D415",     # first line should end with a period, question mark, or exclamation point
-    "D417",     # Missing argument descriptions in the docstring
+    "D105", # Missing docstring in magic (dunder) method
+    "D200", # One-line docstring should fit on one line with quotes
+    "D202", # No blank lines allowed after function docstring
+    "D203", # No blank lines allowed before function docstring
+    "D205", # Blank line between summary and description
+    "D212", # multi-line docstring summary should start at the first line
+    "D400", # first line should end with a period
+    "D401", # first line should be in imperative mood
+    "D413", # Missing blank line after last section
+    "D415", # first line should end with a period, question mark, or exclamation point
+    "D417", # Missing argument descriptions in the docstring
 
     # "F401",   # module imported but unused
     "PERF203",  # try / except within a loopp
