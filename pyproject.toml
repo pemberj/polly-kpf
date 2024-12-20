@@ -1,0 +1,100 @@
+[project]
+name = "polly"
+version = "0.1.0"
+description = "Analysis code for KPF etalon data"
+keywords = ["KPF", "etalon", "analysis", "radial velocity", "RV", "chromatic drift"]
+authors = [{name = "Jake Pember", email = "jake.pember@kuleuven.be"}]
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=2.2.0",
+    "astropy>=6.1.7",
+    "scipy>=1.14.1",
+    "matplotlib>=3.10.0",
+    "tqdm>=4.67.1",
+    "ipython>=8.30.0",
+    "jupyter>=1.1.1",
+    "jupyterlab>=4.3.3",
+]
+
+[dependency-groups]
+dev = [
+    "pre-commit>=4.0.1",
+]
+
+
+
+[project.urls]
+Repository = "https://github.com/pemberj/polly"
+
+
+[tool.ruff]
+show-fixes = true
+line-length = 88
+indent-width = 4
+
+
+[tool.ruff.lint]
+select = [
+    # Default: "E4", "E7", "E9", "F"
+    "E",    # pycodestyle
+    "F",    # Pyflakes
+    "UP",   # pyupgrade
+
+    "A",    # flake8-builtins
+    "ANN",  # flake8-annotations
+    "B",    # flake8-bugbear, security warnings
+    "C4",   # flake8-comprehensions
+    "DTZ",  # flake8-datetimez
+    # "ISC",  # flake8-implicit-str-concat
+    "ICN",  # flake8-import-conventions
+    "LOG",  # flake8-logging
+    "G",    # flake8-logging-format
+    "PIE",  # flake8-pie
+    "PYI",  # flake8-pyi
+    "RET",  # flake8-return
+    "S",    # flake8-bandit (security)
+    "SLF",  # flake8-self
+    "SIM",  # flake8-simplify
+    "TC",   # flake8-type-checking
+    "ARG",  # flake8-unused-arguments
+    "PTH",  # flake8-use-pathlib
+    "FIX",  # flake8-fixme
+
+    # "N",    # pep8-naming
+    "PLC",  # pylint-convention
+    "PLR2004",  # pylint magic values
+    "PLW",  # pylint-warning
+
+    "FLY",  # flynt
+    "NPY",  # numpy-specific rules
+    "PERF", # perflint, performance
+    "FURB", # refurb
+
+    "RUF",  # ruff developers' own rules
+]
+ignore = [
+    "E251",     # unexpected spaces around keyword / parameter equals
+    "E722",     # do not use bare 'except'
+    "W605",     # invalid escape sequence
+    # "F401",   # module imported but unused
+    "PERF203",  # try / except within a loopp
+    "SIM105",   # recommends contextlib.suppress instead of try / except / pass
+    "S101",     # use of assert
+    "DTZ001",   # datetime.datetime used without explicit tzinfo=
+    "DTZ005",   # datetime.now() used without explicit tzinfo=
+]
+
+
+[tool.ruff.lint.per-file-ignores]
+"*.ipynb" = [
+    "E501", # line too long
+    ]
+
+
+[tool.ruff.format]
+exclude = ["*.ipynb"]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"

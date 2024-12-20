@@ -1,7 +1,10 @@
 #!/usr/bin/env python
 
 """
-Single file analysis command-line utility. Can be passed a filename as argument.
+Single file analysis command-line utility that outputs a CSV with the pixel location of
+identified and fit peaks.
+
+Takes a single filename as argument.
 """
 
 from __future__ import annotations
@@ -9,6 +12,8 @@ from __future__ import annotations
 import logging
 import argparse
 from pathlib import Path
+
+import numpy as np
 
 from astropy.io import fits
 
@@ -29,7 +34,7 @@ except ImportError:
 plt.style.use(plot_style)
 
 
-default_filename = (
+DEFAULT_FILENAME = (
     "/data/kpf/masters/"
     + "20240515/kpf_20240515_master_arclamp_autocal-etalon-all-eve_L1.fits"
 )
@@ -38,8 +43,6 @@ default_filename = (
 def main(
     filename: str,
     orderlets: str | list[str] | None,
-    spectrum_plot: bool,
-    fsr_plot: bool,
     fit_plot: bool,
 ) -> None:
     if isinstance(orderlets, str):
@@ -53,6 +56,8 @@ def main(
 
     pp = f"{f'[{date} {timeofday:>5}]':<20}"  # Print/logging line prefix
 
+    print(filename)
+
     s = Spectrum(
         spec_file=filename,
         wls_file=None,  # It will try to find the corresponding WLS file
@@ -60,57 +65,56 @@ def main(
         pp=pp,
     )
     s.locate_peaks()
-    s.fit_peaks()
-    s.filter_peaks()
+    s.fit_peaks(space="pixel")
 
+    # Now you can access peak locations with the following:
+    center_pixels = [p.center_pixel for p in s.peaks()]
+    pixel_std_devs = [p.center_pixel_stddev for p in s.peaks()]
+
+    order_is, center_pixels, pixel_std_devs = np.transpose(
+        [(p.i, p.center_pixel, p.center_pixel_stddev) for p in s.peaks()]
+    )
+
+    for i, pix, dpix in zip(order_is, center_pixels, pixel_std_devs, strict=True):
+        print(f"{pp}Order i={i:<3.0f}| {pix:.3f} +/- {dpix:.4f}")
+
+    # And save the output to a CSV with built-in methods like so:
     for ol in s.orderlets:
         try:
             s.save_peak_locations(
                 filename=f"{OUTDIR}/masks/"
                 + f"{date}_{timeofday}_{ol}_etalon_wavelengths.csv",
                 orderlet=ol,
+                space="pixel",
+                filtered=False,
             )
         except Exception as e:
             print(f"{pp}{e}")
             continue
 
-        if spectrum_plot:
-            Path(f"{OUTDIR}/spectrum_plots").mkdir(parents=True, exist_ok=True)
-            s.plot_spectrum(orderlet=ol, plot_peaks=False)
-            plt.savefig(f"{OUTDIR}/spectrum_plots/{date}_{timeofday}_{ol}_spectrum.png")
-            plt.close()
-
-        if fsr_plot:
-            Path(f"{OUTDIR}/FSR_plots").mkdir(parents=True, exist_ok=True)
-            s.plot_FSR(orderlet=ol)
-            plt.savefig(
-                f"{OUTDIR}/FSR_plots/" + f"{date}_{timeofday}_{ol}_etalon_FSR.png"
-            )
-            plt.close()
-
         if fit_plot:
             Path(f"{OUTDIR}/fit_plots").mkdir(parents=True, exist_ok=True)
             s.plot_peak_fits(orderlet=ol)
-            plt.savefig(
-                f"{OUTDIR}/fit_plots/" + f"{date}_{timeofday}_{ol}_etalon_fits.png"
-            )
+            plt.savefig(f"{OUTDIR}/fit_plots/{date}_{timeofday}_{ol}_etalon_fits.png")
             plt.close()
 
 
 parser = argparse.ArgumentParser(
-    prog="polly run_analysis_single",
-    description="""A utility to process KPF etalon data from an  individual file,
-                specified by filename. Produces an output mask file with the
-                wavelengths of each identified etalon peak, as well as optional
-                diagnostic plots.""",
+    prog="polly peaks_in_pixel_space_single",
+    description="""A utility to process KPF etalon data from an individual file,
+                specified by filename. Produces an output mask file with the pixel
+                position of each identified etalon peak, as well as optional diagnostic
+                plots.""",
 )
 
-parser.add_argument("-f", "--filename", default=default_filename)
-parser.add_argument("-o", "--orderlets", type=parse_orderlets, default=None)
-parser.add_argument("--outdir", default="/scr/jpember/polly_outputs")
-parser.add_argument("--spectrum_plot", type=parse_bool, default=False)
-parser.add_argument("--fsr_plot", type=parse_bool, default=True)
-parser.add_argument("--fit_plot", type=parse_bool, default=True)
+parser.add_argument("-f", "--filename", default=DEFAULT_FILENAME)
+
+parser.add_argument("-o", "--orderlets", type=parse_orderlets, default="all")
+parser.add_argument("--fit_plot", type=parse_bool, default=False)
+
+parser.add_argument(
+    "--outdir", type=lambda p: Path(p).absolute(), default="/scr/jpember/temp"
+)
 
 
 if __name__ == "__main__":
@@ -122,7 +126,5 @@ if __name__ == "__main__":
     main(
         filename=args.filename,
         orderlets=args.orderlets,
-        spectrum_plot=args.spectrum_plot,
-        fsr_plot=args.fsr_plot,
         fit_plot=args.fit_plot,
     )
