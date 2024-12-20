@@ -576,11 +576,10 @@ class Peak:
 
         if about_zero:
             center = 0
-        else:
-            if self.center_wavelength:
-                center = self.center_wavelength
-            elif self.center_pixel:
-                center = self.center_pixel
+        elif self.center_wavelength:
+            center = self.center_wavelength
+        elif self.center_pixel:
+            center = self.center_pixel
 
         if self.fit_type == "gaussian":
             yfit = _gaussian(
