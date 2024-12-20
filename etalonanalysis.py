@@ -173,6 +173,7 @@ class Peak:
             fine (fitted) center.
             Optionally accepts an axis object in which to plot, for calling the function
             in batch from some higher level.
+
     """
 
     parent_ref: weakref.ReferenceType
@@ -212,12 +213,16 @@ class Peak:
 
     @property
     def pixlet(self) -> list[int]:
+        """
+        A list of pixel numbers corresponding to the `speclet` and `wavelet` arrays.
+        """
+
         return [self.starting_pixel + i for i in range(len(self.wavelet))]
 
     @property
     def parent(self) -> Order:
         """
-        Return the Order to which this Peak belongs.
+        Return the `Order` object to which this Peak belongs.
         """
 
         try:
@@ -227,6 +232,11 @@ class Peak:
 
     @property
     def wl(self) -> float:
+        """
+        Alias for `center_wavelength` if it is defined, otherwise returns the value of
+        `coarse_wavelength`.
+        """
+
         if self.center_wavelength:
             return self.center_wavelength
 
@@ -234,14 +244,26 @@ class Peak:
 
     @property
     def i(self) -> int:
+        """
+        Alias for `order_i`.
+        """
+
         return self.order_i
 
     @property
     def d(self) -> float:
+        """
+        Alias for `distance_from_order_center`.
+        """
+
         return self.distance_from_order_center
 
     @property
     def scaled_rms(self) -> float:
+        """
+        Intended as a simple metric to measure the quality of the fit.
+        """
+
         if not self.center_wavelength:
             return None
 
@@ -249,7 +271,9 @@ class Peak:
 
     @property
     def fwhm(self) -> float:
-        """Convenience function to get the FWHM of a fit from its sigma value"""
+        """
+        Convenience function to get the FWHM of a fit from its sigma value.
+        """
 
         if self.sigma is None:
             return None
@@ -261,6 +285,11 @@ class Peak:
         fit_type: str = "conv_gauss_tophat",
         space: str = "wavelength",
     ) -> Peak:
+        """
+        Initiates the fitting routine. Essentially a wrapper around either
+        `_fit_gaussian` or `_fit_conv_gauss_tophat` depending on `fit_type`
+        """
+
         if fit_type not in ["gaussian", "conv_gauss_tophat"]:
             raise NotImplementedError
 
@@ -280,8 +309,8 @@ class Peak:
 
     def _fit_gaussian(self, space: str = "wavelength") -> None:
         """
-        `scipy.optimize.curve_fit` wrapper, with initial guesses `p0` and
-        bounds `bounds` coming from properties of the data themselves
+        `scipy.optimize.curve_fit` wrapper, with initial guesses `p0` and their `bounds`
+        coming from properties of the data themselves
 
         First centres the wavelength range about zero
 
@@ -376,13 +405,12 @@ class Peak:
 
     def _fit_conv_gauss_tophat(self, space: str = "wavelength") -> None:
         """
-        `scipy.optimize.curve_fit` wrapper, with initial guesses `p0` and
-        bounds `bounds` coming from properties of the data themselves
+        `scipy.optimize.curve_fit` wrapper, with initial guesses `p0` and their `bounds`
+        coming from properties of the data themselves
 
         First centres the wavelength range about zero
 
-        See `conv_gauss_tophat` function definition in
-        `fit_erf_to_ccf_simplified.py` module
+        See top-level `_conv_gauss_tophat` for function definition
         """
 
         mean_dwave = np.mean(np.diff(self.wavelet))
@@ -477,9 +505,8 @@ class Peak:
 
     def remove_fit(self, fill_with_nan: bool = False) -> Peak:
         """
-        Reset any previously fitted parameters, used in the case of fitting
-        again, perhaps with a different function, or in pixel space instead of
-        wavelength space.
+        Reset any previously fitted parameters, used in the case of fitting again,
+        perhaps with a different function, or in pixel space instead of wavelength space
         """
 
         if not fill_with_nan:
@@ -506,6 +533,10 @@ class Peak:
 
     @property
     def fit_parameters(self) -> dict:
+        """
+        Construct a dictionary of the fit parameters and their standard deviations
+        """
+
         return {
             "fit_type": self.fit_type,
             "fit_space": self.fit_space,
@@ -525,12 +556,10 @@ class Peak:
 
     def output_parameters(self) -> str:
         """
-        TODO
-        Construct a string with the parameters we want to save to an output
-        (JSON?) file
+        Construct a string with the parameters we want to save to an output (JSON?) file
         """
 
-        return "" + ""
+        raise NotImplementedError
 
     def evaluate_fit(
         self,
@@ -538,9 +567,9 @@ class Peak:
         about_zero: bool = False,
     ) -> ArrayLike | None:
         """
-        A function to evaluate the function fit to the peak across a wavelength
-        array. Used for computing residuals, and for plotting the fit across a
-        finer wavelength grid than the original pixels.
+        A function to evaluate the function fit to the peak across a wavelength array.
+        Used for computing residuals, and for plotting the fit across a finer wavelength
+        grid than the native pixels.
         """
 
         if self.fit_type is None:
@@ -578,8 +607,8 @@ class Peak:
     @property
     def residuals(self) -> ArrayLike | None:
         """
-        If a fit exists, return the residuals between the raw data and the fit,
-        after normalising to the max value of the fit.
+        If a fit exists, return the residuals between the raw data and the fit, after
+        normalising to the max value of the fit.
         """
 
         if self.fit_type is None:
@@ -594,8 +623,8 @@ class Peak:
 
     def plot_fit(self, ax: plt.Axes | None = None) -> None:
         """
-        Generates a plot of the (normalised) wavelet and speclet raw data, with
-        the functional fit overplotted on a denser grid of wavelengths.
+        Generates a plot of the (normalised) wavelet and speclet raw data, with the
+        functional fit overplotted on a denser grid of wavelengths.
 
         The central wavelength and RMS of the residuals are labelled.
         """
@@ -795,6 +824,7 @@ class Order:
 
         __repr__():
             Returns a one-line summary of the Order object. May be expanded in future.
+
     """
 
     parent_ref = weakref.ReferenceType
@@ -809,7 +839,7 @@ class Order:
     @property
     def parent(self) -> Spectrum:
         """
-        Return the Spectrum to which this Order belongs
+        Return the Spectrum object to which this Order belongs
         """
 
         try:
@@ -819,13 +849,25 @@ class Order:
 
     @property
     def peak_wavelengths(self) -> ArrayLike:
+        """
+        Return a list containing all the central wavelengths of the contained Peaks
+        """
+
         return [p.wl for p in self.peaks()]
 
     @property
     def mean_wave(self) -> float:
+        """
+        Return the mean wavelength of the Order's `wave` array (a float in Angstroms)
+        """
+
         return np.mean(self.wave)
 
     def apply_wavelength_solution(self, wls: ArrayLike) -> Order:
+        """
+        Basically a setter function to apply wavelength values to the `wave` array
+        """
+
         self.wave = wls
         return self
 
@@ -837,28 +879,31 @@ class Order:
         window_to_save: int = 16,
     ) -> Order:
         """
+        Short description
+
         A function using `scipy.signal.find_peaks` to roughly locate peaks within the
         Order.spec flux array, and uses the corresponding wavelengths in the Order.wave
         array to populate a list of Peak objects.
 
-        Parameters:
-            fractional_height: float = 0.1
+        Args:
+            fractional_height (float, optional). Defaults to 0.01.
                 The minimum height of the peak as a fraction of the maxmium value in the
                 flux array. Should account for the expected blaze efficiency curve
-            distance: float = 10
+            distance (float, optional). Defaults to 10.
                 The minimum distance between peaks (here in pixels)
-            width: float = 3
+            width (float, optional). Defaults to 3.
                 The minimum width of the peaks themselves. Setting this higher than 1-2
                 will avoid location of single-pixel noise spikes or cosmic rays, but the
                 setting should not exceed the resolution element sampling in the
                 spectrograph.
-
-            window_to_save: int = 16
+            window_to_save (int, optional). Defaults to 16.
                 The total number of pixels to save into each Peak object. A slice of
                 both the `wave` and `spec` arrays is stored in each Peak, where an
                 analytic function is fit to this data.
 
-        Returns the Order itself so methods may be chained
+        Returns:
+            Order: The Order object itself so methods may be chained
+
         """
 
         if self.spec is None or self.wave is None:
@@ -900,8 +945,24 @@ class Order:
     def fit_peaks(
         self,
         fit_type: str = "conv_gauss_tophat",
-        space: str = "wavelength",
+        space: str = "pixel",
     ) -> Order:
+        """
+        Call the fitting routine for all contained Peak objects.
+
+        Args:
+            fit_type (str, optional): The function with which peaks should be fit.
+                Defaults to "conv_gauss_tophat" (other option is "gaussian")
+            space (str, optional):
+                Can be either "wavelength" or "pixel". This determines whether the
+                fitting routine is done in wavelength space or pixel space. In general,
+                a resolved peak should be fit in wavelength space, while an unresolved
+                (delta function) peak should be fit in pixel space. Defaults to "pixel".
+
+        Returns:
+            Order: The Order object itself so methods may be chained
+        """
+
         for p in self.peaks:
             p.fit(fit_type=fit_type, space=space)
 
@@ -909,13 +970,18 @@ class Order:
 
     @property
     def num_peaks(self) -> int:
+        """
+        Simply returns the number of peaks in the Order
+        """
+
         return len(self.peaks)
 
     @property
     def spec_fit(self) -> ArrayLike:
         """
-        This function stitches together all peak fits where they exist, leaving `spec'
-        values not coverd by any wavelengths untouched.
+        Stitch together all peak fits where they exist, leaving `spec' values not coverd
+        by any wavelengths untouched. Useful for plotting the fit (and/or residuals) at
+        the full-order level.
         """
 
         spec_fit = self.spec.copy()
@@ -934,14 +1000,19 @@ class Order:
     @property
     def spec_residuals(self) -> ArrayLike:
         """
-        This function returns the full-order residuals between the original `spec' array
-        and the stitched `spec_fit' array of all of the peak fits.
+        Return the full-order residuals between the original `spec' array and the
+        stitched `spec_fit' array of all of the peak fits. See `spec_fit' for more
+        details.
         """
 
         return self.spec - self.spec_fit
 
     @property
     def fit_parameters(self) -> dict:
+        """
+        Construct a dictionary of the fit parameters and their standard deviations
+        """
+
         return {
             "fit_type": [p.fit_type for p in self.peaks],
             "center_wavelength": [p.center_wavelength for p in self.peaks],
@@ -959,7 +1030,16 @@ class Order:
         }
 
     def has(self, prop: str) -> str:
-        """String generation"""
+        """
+        String generation
+
+        Args:
+            prop (str): The property to check for, can be either `spec' or `wave'
+
+        Returns:
+            str: A checked box if the Order has the property, else an empty box
+        """
+
         if prop == "spec":
             if self.spec is None:
                 return "[ ]"
@@ -988,6 +1068,23 @@ class Order:
         )
 
     def __contains__(self, wl: float) -> bool:
+        """
+        Determine if a given wavelength is within the bounds of the Order.
+
+        Args:
+            wl (float): Wavelength value in Angstroms
+
+        Returns:
+            boolean evaluation if the wavelength is within the Order's bounds
+
+        Example usage::
+            order = Order(...)
+            query_wavelength = 6328.0
+
+            if (query_wavelength in order):
+                print(f"Yes, {query_wavelength} is in the Order!")
+        """
+
         return min(self.wave) <= wl <= max(self.wave)
 
 
@@ -1212,6 +1309,16 @@ class Spectrum:
 
     @property
     def timeofday(self) -> str:
+        """
+        Get the Spectrum's `timeofday` (time of day) property.
+
+        For a master etalon spectrum file, the time of day is recorded in the FITS
+        header as part of the OBJECT keyword, eg "etalon_autocal_all_night".
+
+        Returns:
+            str: One of `morn`, `eve`, `night`, or `midnight`
+        """
+
         return self.object.split("-")[-1]
 
     @property
@@ -1224,7 +1331,18 @@ class Spectrum:
         return np.unique([o.orderlet for o in self.orders()])
 
     def orders(self, orderlet: str | None = None, i: int | None = None) -> list[Order]:
-        """ """
+        """
+        Get a list of all contained Order objects, optionally filtered by orderlet or i
+
+        Args:
+            orderlet (str, optional): The orderlet to filter by. Defaults to None.
+                Options: "SCI1", "SCI2", "SCI3", "CAL", "SKY"
+            i (int, optional): The index of the order to filter by. Defaults to None.
+                Options: integers from 0 to 66
+
+        Returns:
+            list[Order]: A list of Order objects that match the input parameters
+        """
 
         if (orderlet is not None) and (i is not None):
             result = [o for o in self._orders if o.orderlet == orderlet and o.i == i]
@@ -1257,11 +1375,27 @@ class Spectrum:
         return sorted(self._orders, key=(attrgetter("orderlet", "i")))
 
     def num_orders(self, orderlet: str = "SCI2") -> int:
+        """
+        Get the number of contained Order objects, filtered by orderlet
+
+        Args:
+            orderlet (str, optional): The orderlet to filter by. Defaults to "SCI2".
+
+        Returns:
+            int: the number of Order objects that match the input orderlet
+        """
         return len(self.orders(orderlet=orderlet))
 
     def peaks(self, orderlet: str | list[str] | None = None) -> list[Peak]:
         """
         Find all peaks matching a particular orderlet
+
+        Args:
+            orderlet (str | list[str] | None, optional): The orderlet to filter by.
+                Defaults to None. In that case, the peaks for all orderlets are returned
+
+        Returns:
+            list[Peak]: A list of Peak objects that match the (optional) filter criteria
         """
 
         if isinstance(orderlet, str):
@@ -1280,6 +1414,16 @@ class Spectrum:
         return result
 
     def num_located_peaks(self, orderlet: str | list[str] | None = None) -> int:
+        """
+        Get the number of located peaks in the Spectrum's Orders.
+
+        Args:
+            orderlet (str | list[str] | None, optional): The orderlet to optionally
+            filter by. Defaults to None, in which case all orderlets are considered.
+
+        Returns:
+            int: The number of located peaks in the Spectrum's Orders
+        """
         if isinstance(orderlet, str):
             return sum(len(o.peaks) for o in self.orders(orderlet=orderlet))
 
@@ -1294,6 +1438,16 @@ class Spectrum:
         self,
         orderlet: str | list[str] | None = None,
     ) -> int:
+        """
+        Get the number of **successfully fit** peaks in the Spectrum's Orders.
+
+        Args:
+            orderlet (str | list[str] | None, optional): The orderlet to optionally
+            filter by. Defaults to None, in which case all orderlets are considered.
+
+        Returns:
+            int: The number of **successfull fit** peaks in the Spectrum's Orders
+        """
         if isinstance(orderlet, str):
             return sum(
                 1
@@ -1319,6 +1473,18 @@ class Spectrum:
         self,
         orderlet: str | list[str] | None = None,
     ) -> int:
+        """
+        Get the number of **successfully fit** peaks in the Spectrum's Orders **after
+        filtering**.
+
+        Args:
+            orderlet (str | list[str] | None, optional): The orderlet to optionally
+            filter by. Defaults to None, in which case all orderlets are considered.
+
+        Returns:
+            int: The number of **successfull fit** peaks in the Spectrum's Orders
+                **after filtering**
+        """
         if not self.filtered_peaks:
             logger.warning(
                 f"{self.pp}List of filtered peaks is empty. "
@@ -1335,6 +1501,13 @@ class Spectrum:
         return {ol: len(self.filtered_peaks[ol]) for ol in orderlet}
 
     def parse_reference_mask(self) -> Spectrum:
+        """
+        Not yet fully implemented. Designed to read in a reference mask file, which is
+        then to be used as the starting point for locating peaks in the Orders.
+
+        Returns:
+            Spectrum (self): The Spectrum object itself, so methods can be chained.
+        """
         p = Path(self.reference_mask)
         with p.open(mode="r") as f:
             lines = f.readlines()
@@ -1344,6 +1517,11 @@ class Spectrum:
         return self
 
     def apply_reference_mask(self) -> Spectrum:
+        """
+        Applying a reference mask to the Spectrum. Not yet implemented, but this method
+        would initiate the peak location process for each Order, using the reference
+        wavelengths as the starting point.
+        """
         raise NotImplementedError
 
         if not self.orders():
@@ -1369,6 +1547,20 @@ class Spectrum:
         return self
 
     def load_spec(self) -> Spectrum:
+        """
+        Load spectrum data
+
+        One of the main construction functions for a Spectrum object, called
+        automatically after initialisation. This method reads in the flux data from the
+        `spec_file` FITS file(s), and stores it in the `spec` attribute of each Order
+        (which this method also creates).
+
+        Raises:
+            NotImplementedError: if `spec_file` is not a string or list of strings
+
+        Returns:
+            Spectrum (self): The Spectrum object itself, so methods can be chained.
+        """
         if isinstance(self.spec_file, str):
             logger.info(
                 f"{self.pp}Loading flux values from a single file: "
@@ -1504,6 +1696,16 @@ class Spectrum:
         return self
 
     def find_wls_file(self) -> str:
+        """
+        Find the WLS file corresponding to the Spectrum's `spec_file` FITS file.
+
+        If the `spec_file` was taken at night, the corresponding "eve" WLS file is
+        located, likewise for "midnight". This method is automatically called only if no
+        `wls_file` filename is explicitly passed in.
+
+        Returns:
+            str: The path to the located matching WLS file
+        """
         wls_file: str = ""
 
         if self.timeofday in ["night", "midnight"]:
@@ -1538,6 +1740,16 @@ class Spectrum:
             self.wls_file = self.spec_file
 
     def load_wls(self) -> Spectrum:
+        """
+        Load the wavelength solution (WLS) data from the Spectrum's `wls_file` FITS file
+
+        Raises:
+            FileNotFoundError:
+            NotImplementedError:
+
+        Returns:
+            Spectrum (self): The Spectrum object itself, so methods can be chained.
+        """
         if self.wls_file is None:
             raise FileNotFoundError("No WLS file specified or found!")
 
@@ -1584,7 +1796,22 @@ class Spectrum:
         width: float = 3,
         window_to_save: int = 16,
     ) -> Spectrum:
-        """ """
+        """
+        Initiate the peak location process for each Order.
+
+        This method loops through each of the containted Order objects, and calls the
+        `locate_peaks` method for each one.
+
+        Args:
+            orderlet (str | list[str] | None, optional): Defaults to None.
+            fractional_height (float, optional): Defaults to 0.1.
+            distance (float, optional): Defaults to 10.
+            width (float, optional): Defaults to 3.
+            window_to_save (int, optional): Defaults to 16.
+
+        Returns:
+            Spectrum (self): The Spectrum object itself, so methods can be chained.
+        """
 
         if isinstance(orderlet, str):
             orderlet = [orderlet]
@@ -1617,6 +1844,22 @@ class Spectrum:
         space: str = "wavelength",
     ) -> Spectrum:
         """
+        Fit the Peaks in each contained Order object.
+
+        This method loops through each of the contained Order objects, and calls the
+        `fit_peaks` method for each. That method in turn loops through each Peak object
+        in the Order, and fits the peak using the specified `fit_type` function. The
+        package is designed so that this process can be initiated at any level,
+        typically starting at the Spectrum level.
+
+        Args:
+            orderlet (str | list[str] | None, optional): Defaults to None.
+            fit_type (str, optional): Defaults to "conv_gauss_tophat".
+            space (str, optional): Defaults to "wavelength".
+
+        Returns:
+            Spectrum (self): The Spectrum object itself, so methods can be chained.
+
         TODO: Run multiple fits at once, each in a separate process. The fitting
         routine(s) are naturally the most time-intensive part of running the analysis.
         Because they are individually fit, it should be relatively straightforward to
@@ -1655,6 +1898,8 @@ class Spectrum:
         self, orderlet: str | list[str] | None = None, window: float = 0.1
     ) -> Spectrum:
         """
+        Filter the peaks to remove identical peaks appearing in adjacent orders.
+
         Filter the peaks such that any peaks of a close enough wavelength, but appearing
         in different echelle orders, are selected so that only one remains. To do this,
         all Orders (and all Peaks) have an order index, so we can tell which order a
@@ -1663,7 +1908,15 @@ class Spectrum:
         is further from its order's mean wavelength (`distance_from_order_center' is
         also storedinside each Peak).
 
-        `window' is in wavelength units of Angstroms
+        Args:
+            orderlet (str | list[str] | None, optional): The orderlet name. Defaults to
+                None, in which case all orderlets are considered.
+            window (float, optional): Wavelength value in Angstroms. This is the range
+                around each peak that will be searched for any other peaks in adjacent
+                orders. Defaults to 0.1.
+
+        Returns:
+            Spectrum (self): The Spectrum object itself, so methods can be chained.
         """
 
         if isinstance(orderlet, str):
@@ -1739,8 +1992,30 @@ class Spectrum:
         weights: bool = False,
     ) -> Spectrum:
         """
-        Save the identified and fitted peak locations (in either pixel space or
-        wavelength space) to a CSV file on disk.
+        Save the identified and fitted peak locations to a CSV file.
+
+        _extended_summary_
+
+        Args:
+            filename (str): The destination file.
+            orderlet (str | list[str] | None): The orderlet name(s) selecting the peak
+                locations to save. In the intended usage, each output file contains
+                peaks corresponding to a single orderlet.
+            space (str, optional): Either "pixel" or "wavelength", selecting which
+                peak location should be saved to the file. Defaults to "wavelength".
+            filtered (bool, optional): Save the filtered peaks?. Defaults to True. If
+                False, all fitted peaks are saved, and there will be peaks appearing
+                from adjacent spectral orders.
+            weights (bool, optional): Save a weight for each peak? Defaults to False.
+                If True, this will save the standard deviation of the peak location
+                fit in a second column of the CSV file. If False (default behabviour),
+                this column is still present, but all weights are set to `1.0'.
+
+        Raises:
+            NotImplementedError
+
+        Returns:
+            Spectrum (self): The Spectrum object itself, so methods can be chained.
         """
 
         if space not in ["wavelength", "pixel"]:
@@ -1783,7 +2058,22 @@ class Spectrum:
         ax: plt.Axes | None = None,
         plot_peaks: bool = True,
     ) -> plt.Axes:
-        """ """
+        """
+        Plot the spectrum (flux as a function of wavelength) for a given orderlet.
+
+        Args:
+            orderlet (str): The orderlet name. Options: "SCI1", "SCI2", "SCI3", "CAL",
+                "SKY"
+            ax (plt.Axes | None, optional): A Matplotlib Pyplot axis object in which
+                to plot. Defaults to None, in which case a new Pyplot figure and axis
+                are created and used.
+            plot_peaks (bool, optional): Defaults to True, in which case the location of
+                each peak is indicated with a vertical line.
+
+        Returns:
+            plt.Axes: The Pyplot axis object in which the plot was made.
+        """
+
         logger.info(f"{self.pp}Plotting {orderlet} spectrum...")
 
         assert orderlet in self.orderlets
@@ -1838,7 +2128,21 @@ class Spectrum:
         ax: plt.Axes | None = None,
         plot_peaks: bool = True,
     ) -> plt.Axes:
-        """ """
+        """
+        Plot the residuals between the full spectrum and the peak fits.
+
+        Args:
+            orderlet (str): The orderlet name.
+            ax (plt.Axes | None, optional): A Matplotlib Pyplot axis object in which
+                to plot. Defaults to None, in which case a new Pyplot figure and axis
+                are created and used.
+            plot_peaks (bool, optional): Defaults to True, in which case the location of
+                each peak is indicated with a vertical line.
+
+        Returns:
+            plt.Axes: The Pyplot axis object in which the plot was made.
+        """
+
         logger.info(f"{self.pp}Plotting {orderlet} residuals...")
 
         assert orderlet in self.orderlets
@@ -1895,7 +2199,20 @@ class Spectrum:
 
     def delta_nu_FSR(self, orderlet: str, unit: u.core.Unit = u.GHz) -> ArrayLike:
         """
-        Calculates and returns the FSR of the etalon spectrum in GHz
+        Calculate and return the FSR of the etalon spectrum in GHz
+
+        The free spectral range (or FSR) of an etalon is the spacing between adjacent
+        peaks in the etalon spectrum. This is typically reported in the frequency
+        domain, as it is here, where the default unit is GHz.
+
+        Args:
+            orderlet (str): The orderlet name. Options: "SCI1", "SCI2", "SCI3", "CAL",
+                "SKY"
+            unit (u.core.Unit, optional): The frequency-domain unit (in astropy.units)
+                which the FSR values should be reported in. Defaults to u.GHz.
+
+        Returns:
+            ArrayLike: The calculated free spectral range values in the specified unit.
         """
 
         assert orderlet in self.orderlets
@@ -1924,6 +2241,24 @@ class Spectrum:
         ax: plt.Axes | None = None,
         name: str = "",
     ) -> Spectrum:
+        """
+        Plot the etalon FSR as a function of wavelength
+
+        This method takes the FSR values as computed by the `delta_nu_FSR` method, and
+        plots them, also fitting a function to the data.
+
+        Args:
+            orderlet (str): The orderlet name. Options: "SCI1", "SCI2", "SCI3", "CAL",
+                "SKY"
+            ax (plt.Axes | None, optional): A Matplotlib Pyplot axis object in which to
+                plot the data. Defaults to None, in which case a new Pyplot figure and
+                axis are created and used.
+            name (str, optional): A name (title) for the plot. Defaults to an empty
+                string.
+
+        Returns:
+            Spectrum (self): The Spectrum object itself, so methods can be chained.
+        """
         logger.info(f"{self.pp}Plotting {orderlet} Etalon FSR...")
 
         assert orderlet in self.orderlets
@@ -1987,6 +2322,17 @@ class Spectrum:
         return self
 
     def plot_peak_fits(self, orderlet: str) -> Spectrum:
+        """
+        Generate a diagnostic plot showing example peak data and the corresponding
+        fitted functions.
+
+        Args:
+            orderlet (str): The orderlet name. Options: "SCI1", "SCI2", "SCI3", "CAL",
+                "SKY".
+
+        Returns:
+            Spectrum (self): The Spectrum object itself, so methods can be chained.
+        """
         logger.info(f"{self.pp}Plotting fits of {orderlet} etalon peaks...")
 
         assert orderlet in self.orderlets
@@ -2015,7 +2361,16 @@ class Spectrum:
         orderlet: str | list[str] | None = None,
     ) -> dict:
         """
-        which: "all", "filtered"
+        Get the fit parameters for all or a subset of the contained Peak objects.
+
+        Args:
+            which (str, optional): Which Peaks to return parameters for. Options: "all",
+            "filtered". Defaults to "all".
+            orderlet (str | list[str] | None, optional): The orderlet name(s) to
+            consider. Defaults to None, in which case all orderlets are considered.
+
+        Returns:
+            dict: A dictionary containing the fit parameters for the selected Peaks.
         """
 
         assert which in ["all", "filtered"]
@@ -2058,10 +2413,25 @@ class Spectrum:
         data: str = "spec",  # spec, wave, spec_fit, spec_residuals
     ) -> ArrayLike | dict[str:ArrayLike]:
         """
-        A method that returns a full raw data array for a single orderlet.
+        A method that returns a full raw data array corresponding to a single orderlet.
 
-        choices for data are `spec', `wave', `spec_fit', `spec_residuals'
+        `data` is used to select which data is returned. This can be either the raw
+        flux values (`spec`), the wavelength values (`wave`), the fitted spectrum
+        (`spec_fit`), or the residuals between the fit and the original data
+        (`spec_residuals`).
+
+        Args:
+            orderlet (str): The orderlet name.
+            data (str, optional): The data type to return. Options: "spec", "wave",
+                "spec_fit", "spec_residuals". Defaults to "spec".
+
+        Raises:
+            ValueError if an invalid data type or orderlet is passed.
+
+        Returns:
+            _type_: _description_
         """
+
         if data not in ["spec", "wave", "spec_fit", "spec_residuals"]:
             raise ValueError("Invalid data type")
 
@@ -2073,6 +2443,12 @@ class Spectrum:
         )
 
     def save_config_file(self) -> None:
+        """
+        Not yet implemented method to save a configuration file for the Spectrum object.
+
+        Raises:
+            NotImplementedError
+        """
         raise NotImplementedError
 
     def __str__(self) -> str:
@@ -2102,7 +2478,20 @@ def _fit_spline(
     knots: int = 21,
 ) -> Callable:
     """
-    Fits a B-spline to the input data with a given number of knots
+    Fit a B-spline to the input data with a given number of knots
+
+    This is a wrapper around the `scipy.interpolate.splrep` function, which simply sets
+    up the fit for a given number of spline knots. This method is used to fit the free
+    spectral range (FSR) of the etalon peaks.
+
+    Args:
+        x (ArrayLike): The x-axis data
+        y (ArrayLike): The y-axis data
+        knots (int, optional): The number of knots to use. Defaults to 21.
+
+    Returns:
+        Callable: The fitted B-spline function, which can then be evaluated at any
+            point.
     """
 
     # model = UnivariateSpline(x, y, k=5)
@@ -2122,6 +2511,16 @@ def _gaussian(
 ) -> ArrayLike:
     """
     A parametrised Gaussian function, optionally used for peak fitting.
+
+    Args:
+        x (ArrayLike): The x-axis values
+        amplitude (float, optional): The height of the Gaussian function. Defaults to 1.
+        center (float, optional): The x-axis offset. Defaults to 0.
+        sigma (float, optional): The width of the Gaussian fucntion. Defaults to 1.
+        offset (float, optional): A constant y-axis offset. Defaults to 0.
+
+    Returns:
+        ArrayLike: The Gaussian function evaluated at the input x values.
     """
 
     return amplitude * np.exp(-(((x - center) / (2 * sigma)) ** 2)) + offset
@@ -2137,20 +2536,38 @@ def _conv_gauss_tophat(
     normalize: bool = False,
 ) -> ArrayLike:
     """
-    A piecewise analytical description of a convolution of a gaussian with a
-    finite-width tophat function (super-Gaussian). This accounts for a finite width of
-    the summed fibre cross-disperion profile (~flat-top) as well as the optical image
-    quality (~Gaussian).
+    An analytical description of a convolution of a Gaussian with a finite-width tophat
+
+    This is a piecewise analytical description of a convolution of a gaussian with a
+    finite-width tophat function (sometimes called a super-Gaussian). This accounts for
+    a finite width of the summed fibre cross-disperion profile (~flat-top) as well as
+    the optical image quality (~Gaussian).
 
     Adapted from a script by Sam Halverson, Ryan Terrien & Arpita Roy
-    (`fit_erf_to_ccf_simplified.py')
+    (originally in a script `fit_erf_to_ccf_simplified.py')
 
     Changes since that script:
-      * Re-express the arguments
-      * Add small value meaning zero `boxhalfwidth' corresponds to convolution
-        with ~a delta function, producing a normal Gaussian as expected
-      * Normalise the function so that `amp' corresponds to the highest value
+      * The arguments have be re-expressed in terms of familiar Gaussian parameters
+      * Added a small value, meaning zero `boxhalfwidth' corresponds to convolution
+        with ~a delta function, producing a normal Gaussian as expected if zero
+        `boxhalfwidth' is passed
+      * Optionally normalise the function so that `amp' corresponds to the highest value
+
+    Args:
+        x (ArrayLike): The x-axis values at which to evaluate the function
+        center (float, optional): The center x-coordinate. Defaults to 0.
+        amp (float, optional): The height of the function. Defaults to 1.
+        sigma (float, optional): The width of the Gaussian component(s). Defaults to 1.
+        boxhalfwidth (float, optional): The width of the top-hat component.
+            Defaults to 1.
+        offset (float, optional): A constant y-axis ofset. Defaults to 0.
+        normalize (bool, optional): Whether or not to normalise the function and make
+            `amp' the maximum value. Defaults to False.
+
+    Returns:
+        ArrayLike: The function evaluated at the input x values.
     """
+
     from scipy.special import erf
 
     arg1 = (x - center + (boxhalfwidth / 2 + 1e-6)) / (2 * sigma)
@@ -2164,8 +2581,12 @@ def _conv_gauss_tophat(
 
 
 def test() -> None:
-    # A basic test case: loading in data from master files; locating, fitting,
-    # fitlering peaks
+    """
+    A basic test case
+
+    This self-contained script will load in data from master files and locate, fit, and
+    filter peaks.
+    """
 
     DATAPATH = "/data/kpf/masters/"
     DATE = "20240520"

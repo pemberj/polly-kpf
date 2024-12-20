@@ -40,6 +40,7 @@ select = [
     "E",    # pycodestyle
     "F",    # Pyflakes
     "UP",   # pyupgrade
+    "D",    # pydocstyle
 
     "A",    # flake8-builtins
     "ANN",  # flake8-annotations
@@ -77,6 +78,19 @@ ignore = [
     "E251",     # unexpected spaces around keyword / parameter equals
     "E722",     # do not use bare 'except'
     "W605",     # invalid escape sequence
+
+    "D105",     # Missing docstring in magic (dunder) method
+    "D200",     # One-line docstring should fit on one line with quotes
+    "D202",     # No blank lines allowed after function docstring
+    "D203",     # No blank lines allowed before function docstring
+    "D205",     # Blank line between summary and description
+    "D212",     # multi-line docstring summary should start at the first line
+    "D400",     # first line should end with a period
+    "D401",     # first line should be in imperative mood
+    "D413",     # Missing blank line after last section
+    "D415",     # first line should end with a period, question mark, or exclamation point
+    "D417",     # Missing argument descriptions in the docstring
+
     # "F401",   # module imported but unused
     "PERF203",  # try / except within a loopp
     "SIM105",   # recommends contextlib.suppress instead of try / except / pass
