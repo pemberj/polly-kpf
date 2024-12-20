@@ -17,40 +17,36 @@ def savitzky_golay(
     y: ArrayLike, window_size: int, order: int, deriv: int = 0, rate: float = 1
 ) -> ArrayLike:
     # FROM: https://scipy.github.io/old-wiki/pages/Cookbook/SavitzkyGolay
-
     """
     Smooth (and optionally differentiate) data with a Savitzky-Golay filter.
+
     The Savitzky-Golay filter removes high frequency noise from data.
     It has the advantage of preserving the original shape andf features of the signal
     better than other types of filtering approaches, such as moving averages techniques.
 
-    Parameters
-    ----------
-    y : array_like, shape (N,)
-        the values of the time history of the signal.
-    window_size : int
-        the length of the window. Must be an odd integer number.
-    order : int
-        the order of the polynomial used in the filtering.
-        Must be less then `window_size` - 1.
-    deriv: int
-        the order of the derivative to compute (default = 0 means only smoothing)
-    Returns
-    -------
-    ys : ndarray, shape (N)
-        the smoothed signal (or it's n-th derivative).
-    Notes
-    -----
-    The Savitzky-Golay is a type of low-pass filter, particularly
-    suited for smoothing noisy data. The main idea behind this
-    approach is to make for each point a least-square fit with a
-    polynomial of high order over a odd-sized window centered at
-    the point.
-    ----------
-    .. [1] A. Savitzky, M. J. E. Golay, Smoothing and Differentiation of
+    Args:
+        y (array_like, shape (N,)): The y values of the time history of the signal.
+        window_size (int): the length of the window. Must be an odd integer number.
+        order (int): the order of the polynomial used in the filtering. Must be less
+            than (`window_size` - 1).
+        deriv (int): the order of the derivative to compute. Default: 0, which
+            corresponds to only smoothing
+
+    Returns:
+        ys : ndarray, shape (N)
+            the smoothed signal (or it's n-th derivative).
+
+    Notes:
+    The Savitzky-Golay is a type of low-pass filter, particularly suited for smoothing
+    noisy data. The main idea behind this approach is to make for each point a least
+    squares fit with a polynomial of high order over a odd-sized window centered at the
+    point.
+
+
+    [1] A. Savitzky, M. J. E. Golay, Smoothing and Differentiation of
         Data by Simplified Least Squares Procedures. Analytical
         Chemistry, 1964, 36 (8), pp 1627-1639.
-    .. [2] Numerical Recipes 3rd Edition: The Art of Scientific Computing
+    [2] Numerical Recipes 3rd Edition: The Art of Scientific Computing
         W.H. Press, S.A. Teukolsky, W.T. Vetterling, B.P. Flannery
         Cambridge University Press ISBN-13: 9780521880688
     """
