@@ -33,12 +33,12 @@ if TYPE_CHECKING:
 try:
     from polly.misc import savitzky_golay
     from polly.parsing import parse_filename, parse_yyyymmdd
-    from polly.plotStyle import plotStyle
+    from polly.plotting import plot_style
 except ImportError:
     from misc import savitzky_golay
     from parsing import parse_filename, parse_yyyymmdd
-    from plotStyle import plotStyle
-plt.style.use(plotStyle)
+    from plotting import plot_style
+plt.style.use(plot_style)
 
 
 @dataclass
@@ -66,6 +66,7 @@ class PeakDrift:
 
     drift_file: str | Path = field(default=None)
     force_recalculate: bool = False
+    recalculated: bool = False
 
     def __post_init__(self) -> None:
         if isinstance(self.drift_file, str):
@@ -242,6 +243,7 @@ class PeakDrift:
 
         # Assign self.valid as a mask where wavelengths were successfully found
         self.valid = np.where(self.wavelengths, True, False)
+        self.recalculated = True
 
         return self
 
@@ -319,7 +321,7 @@ class PeakDrift:
         else:
             path.parent.mkdir(parents=True, exist_ok=True)
 
-        if path.exists():
+        if path.exists() and not self.recalculated:
             # Then don't need to save the file again
             return self
 

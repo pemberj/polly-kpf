@@ -79,13 +79,13 @@ try:
     from polly.kpf import LFC_ORDER_INDICES, THORIUM_ORDER_INDICES
     from polly.log import logger
     from polly.parsing import get_orderlet_index, get_orderlet_name
-    from polly.plotStyle import plotStyle, wavelength_to_rgb
+    from polly.plotting import plot_style, wavelength_to_rgb
 except ImportError:
     from kpf import LFC_ORDER_INDICES, THORIUM_ORDER_INDICES
     from log import logger
     from parsing import get_orderlet_index, get_orderlet_name
-    from plotStyle import plotStyle, wavelength_to_rgb
-plt.style.use(plotStyle)
+    from plotting import plot_style, wavelength_to_rgb
+plt.style.use(plot_style)
 
 
 @dataclass
@@ -241,7 +241,7 @@ class Peak:
         return self.distance_from_order_center
 
     @property
-    def scaled_RMS(self) -> float:
+    def scaled_rms(self) -> float:
         if not self.center_wavelength:
             return None
 
@@ -319,7 +319,7 @@ class Peak:
             raise ValueError from e
         except RuntimeError:
             # logger.warning(e)
-            self.remove_fit(fill_with_NaN=True)
+            self.remove_fit(fill_with_nan=True)
             return
 
         amplitude, center, sigma, offset = p
@@ -419,7 +419,7 @@ class Peak:
             raise ValueError from e
         except RuntimeError:
             # logger.warning(e)
-            self.remove_fit(fill_with_NaN=True)
+            self.remove_fit(fill_with_nan=True)
             return
 
         center, amplitude, sigma, boxhalfwidth, offset = p
@@ -475,18 +475,18 @@ class Peak:
         self.boxhalfwidth_stddev = stddev[3]
         self.offset_stddev = stddev[4]
 
-    def remove_fit(self, fill_with_NaN: bool = False) -> Peak:
+    def remove_fit(self, fill_with_nan: bool = False) -> Peak:
         """
         Reset any previously fitted parameters, used in the case of fitting
         again, perhaps with a different function, or in pixel space instead of
         wavelength space.
         """
 
-        if not fill_with_NaN:
+        if not fill_with_nan:
             self.fit_type = None
             self.fit_space = None
 
-        ___ = np.nan if fill_with_NaN else None
+        ___ = np.nan if fill_with_nan else None
 
         self.center_wavelength = ___
         self.center_pixel = ___
@@ -1946,38 +1946,38 @@ class Spectrum:
         nanmask = ~np.isnan(wls)
         wls = wls[nanmask]
 
-        delta_nu_FSR = self.delta_nu_FSR(orderlet=orderlet, unit=u.GHz)
-        estimate_FSR = np.nanmedian(delta_nu_FSR)
+        fsr = self.delta_nu_FSR(orderlet=orderlet, unit=u.GHz)
+        estimate_fsr = np.nanmedian(fsr)
         # Remove last wls value to make it the same length as FSR array
         wls = wls[:-1]
 
         # Coarse removal of >= 1GHz outliers
-        mask = np.where(np.abs(delta_nu_FSR - estimate_FSR) <= 1)
+        mask = np.where(np.abs(fsr - estimate_fsr) <= 1)
 
         try:
-            model = _fit_spline(x=wls[mask], y=delta_nu_FSR[mask], knots=21)
+            model = _fit_spline(x=wls[mask], y=fsr[mask], knots=21)
             label = f"{name}Spline fit"
         except ValueError as e:
             logger.error(f"{self.pp}{e}")
             logger.error(f"{self.pp}Spline fit failed. Fitting with polynomial.")
 
-            model = np.poly1d(np.polyfit(wls[mask], delta_nu_FSR[mask], 5))
+            model = np.poly1d(np.polyfit(wls[mask], fsr[mask], 5))
             label = f"{name}Polynomial fit"
 
         ax.plot(wls, model(wls), label=label, linestyle="--")
 
         try:
             # Remove >= 250MHz outliers from model
-            mask = np.where(np.abs(delta_nu_FSR - model(wls)) <= 0.25)  # noqa: PLR2004
+            mask = np.where(np.abs(fsr - model(wls)) <= 0.25)  # noqa: PLR2004
         except ValueError:  # eg. operands could not be broadcast together
             ...
 
         ax.scatter(
             wls[mask],
-            delta_nu_FSR[mask],
+            fsr[mask],
             marker=".",
             alpha=0.2,
-            label=f"Data (n = {len(mask[0]):,}/{len(delta_nu_FSR):,})",
+            label=f"Data (n = {len(mask[0]):,}/{len(fsr):,})",
         )
 
         ax.legend(loc="lower right")

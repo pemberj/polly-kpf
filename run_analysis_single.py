@@ -19,14 +19,14 @@ try:
     from polly.kpf import TIMESOFDAY
     from polly.parsing import parse_bool, parse_orderlets
     from polly.etalonanalysis import Spectrum
-    from polly.plotStyle import plotStyle
+    from polly.plotting import plot_style
 except ImportError:
     from log import logger
     from kpf import TIMESOFDAY
     from parsing import parse_bool, parse_orderlets
     from etalonanalysis import Spectrum
-    from plotStyle import plotStyle
-plt.style.use(plotStyle)
+    from plotting import plot_style
+plt.style.use(plot_style)
 
 
 default_filename = (

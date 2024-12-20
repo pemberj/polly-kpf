@@ -49,7 +49,7 @@ try:
         parse_orders,
         parse_yyyymmdd,
     )
-    from polly.plotStyle import plotStyle
+    from polly.plotting import plot_style
 except ImportError:
     from log import logger
     from etalonanalysis import Spectrum
@@ -61,9 +61,9 @@ except ImportError:
         parse_orders,
         parse_yyyymmdd,
     )
-    from plotStyle import plotStyle
+    from plotting import plot_style
 
-plt.style.use(plotStyle)
+plt.style.use(plot_style)
 
 
 def run_analysis_batch(

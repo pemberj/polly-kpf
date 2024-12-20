@@ -12,7 +12,7 @@ fm.FontManager.addfont(fm.fontManager, path="/scr/jpember/polly/Quicksand-Regula
 
 lw = 1.3
 
-plotStyle = {
+plot_style = {
     # Set font to the beautiful Quicksand:
     # https://github.com/andrew-paglinawan/QuicksandFamily
     "font.family": "Quicksand",
@@ -88,47 +88,47 @@ def wavelength_to_rgb(
 
     if wavelength >= 3800 and wavelength <= 4400:  # noqa: PLR2004
         attenuation = 0.3 + 0.7 * (wavelength - 3800) / (4400 - 3800)
-        R = ((-(wavelength - 4400) / (4400 - 3800)) * attenuation) ** gamma
-        G = 0.0
-        B = (1.0 * attenuation) ** gamma
+        r = ((-(wavelength - 4400) / (4400 - 3800)) * attenuation) ** gamma
+        g = 0.0
+        b = (1.0 * attenuation) ** gamma
 
     elif wavelength >= 4400 and wavelength <= 4900:  # noqa: PLR2004
-        R = 0.0
-        G = ((wavelength - 4400) / (4900 - 4400)) ** gamma
-        B = 1.0
+        r = 0.0
+        g = ((wavelength - 4400) / (4900 - 4400)) ** gamma
+        b = 1.0
 
     elif wavelength >= 4900 and wavelength <= 5100:  # noqa: PLR2004
-        R = 0.0
-        G = 1.0
-        B = (-(wavelength - 5100) / (5100 - 4900)) ** gamma
+        r = 0.0
+        g = 1.0
+        b = (-(wavelength - 5100) / (5100 - 4900)) ** gamma
 
     elif wavelength >= 5100 and wavelength <= 5800:  # noqa: PLR2004
-        R = ((wavelength - 5100) / (5800 - 5100)) ** gamma
-        G = 1.0
-        B = 0.0
+        r = ((wavelength - 5100) / (5800 - 5100)) ** gamma
+        g = 1.0
+        b = 0.0
 
     elif wavelength >= 5800 and wavelength <= 6450:  # noqa: PLR2004
-        R = 1.0
-        G = (-(wavelength - 6450) / (6450 - 5800)) ** gamma
-        B = 0.0
+        r = 1.0
+        g = (-(wavelength - 6450) / (6450 - 5800)) ** gamma
+        b = 0.0
 
     elif wavelength >= 6450 and wavelength <= 7500:  # noqa: PLR2004
         attenuation = 0.3 + 0.7 * (7500 - wavelength) / (7500 - 6450)
-        R = (1.0 * attenuation) ** gamma
-        G = 0.0
-        B = 0.0
+        r = (1.0 * attenuation) ** gamma
+        g = 0.0
+        b = 0.0
 
     else:
-        R = 0.0
-        G = 0.0
-        B = 0.0
+        r = 0.0
+        g = 0.0
+        b = 0.0
 
-    return fade((R, G, B), fade_factor=fade_factor)
+    return fade((r, g, b), fade_factor=fade_factor)
 
 
 def fade(
-    RGB: tuple[float, float, float], fade_factor: float = 0.8
+    rgb: tuple[float, float, float], fade_factor: float = 0.8
 ) -> tuple[float, float, float]:
-    h, s, v = colorsys.rgb_to_hsv(*RGB)
+    h, s, v = colorsys.rgb_to_hsv(*rgb)
 
     return colorsys.hsv_to_rgb(h=h, s=fade_factor * s, v=v)
