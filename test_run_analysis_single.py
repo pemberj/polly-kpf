@@ -28,6 +28,11 @@ def main(
     fsr_plot: bool,
     fit_plot: bool,
 ) -> None:
+    """
+    Main function for the command-line utility. Processes a single file and saves the
+    output to a CSV file in the output directory.
+    """
+
     if isinstance(orderlets, str):
         orderlets = [orderlets]
 

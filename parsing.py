@@ -1,4 +1,11 @@
-""" """
+"""
+polly
+
+parsing
+
+Contains functions to parse various types of input, such as dates, filenames, numeric
+ranges, etc.
+"""
 
 from __future__ import annotations
 
@@ -20,36 +27,51 @@ except ImportError:
 
 
 class Mask(NamedTuple):
+    """
+    A simple class to more easily couple a date, time of day, and orderlet together.
+    """
+
     date: datetime
     timeofday: str
     orderlet: str
 
 
-def parse_date_string(datestr: str) -> datetime:
-    # Handle dates like "2024-12-31"
-    if "-" in datestr:
-        datestr = "".join(datestr.split("-"))
-    # Now it should be "20241231"
-
-    year = int(datestr[:4])
-    month = int(datestr[4:6])
-    day = int(datestr[6:])
-
-    return datetime(year=year, month=month, day=day)
-
-
 def parse_filename(filename: str | list[str]) -> tuple[datetime, str, str]:
+    """
+    Parse a filename that is supposed to contain a date, time of day, and orderlet, and
+    return a tuple of these three elements.
+
+    Args:
+        filename (str | list[str]): The input filename(s)
+
+    Returns:
+        tuple[datetime, str, str]: A tuple containing the date, time of day, and
+            orderlet, or a list of such tuples.
+    """
+
     if isinstance(filename, list):
         return [parse_filename(f) for f in filename]
 
     filename = filename.split("/")[-1]
     datestr, timeofday, orderlet, *_ = filename.split("_")[:3]
-    date = parse_date_string(datestr)
+    date = parse_yyyymmdd(datestr)
 
     return Mask(date=date, timeofday=timeofday, orderlet=orderlet)
 
 
 def parse_yyyymmdd(yyyymmdd: str | float) -> datetime:
+    """
+    Parse both strings and floats (or ints) representing dates in the format "YYYYMMDD"
+    or "YYYY-MM-DD" (if a string) and return the corresponding datetime object.
+
+    Args:
+        yyyymmdd (str | float): The input string or numeric value representing a date,
+            perhaps a command-line argument
+
+    Returns:
+        datetime: A datetime object representing the date passed as input
+    """
+
     if yyyymmdd == "now":
         return datetime.now()
 
@@ -57,6 +79,11 @@ def parse_yyyymmdd(yyyymmdd: str | float) -> datetime:
         yyyymmdd = str(int(yyyymmdd))
     elif isinstance(yyyymmdd, int):
         yyyymmdd = str(yyyymmdd)
+
+    # Handle dates like "2024-12-31"
+    elif not isinstance(yyyymmdd, str) and "-" in yyyymmdd:
+        yyyymmdd = "".join(yyyymmdd.split("-"))
+        # Now it should be "20241231"
 
     assert isinstance(yyyymmdd, str) and len(yyyymmdd) == 8  # noqa: PLR2004
 
@@ -109,6 +136,18 @@ def parse_orders(orders_str: str) -> list[int]:
 
 
 def parse_timesofday(timesofday: str) -> list:
+    """
+    Parse a string representing a time of day or a list of times of day, and return a
+    list of these times of day.
+
+    Args:
+        timesofday (str): The input string
+
+    Returns:
+        list: A list of time of day strings (each one of the form "morn", "eve",
+        "night", "midnight)
+    """
+
     if (timesofday == "all") or (timesofday is None):
         return TIMESOFDAY
 
@@ -119,6 +158,18 @@ def parse_timesofday(timesofday: str) -> list:
 
 
 def parse_orderlets(orderlets: str) -> list:
+    """
+    Parse a string representing an orderlet or a list of orderlets, and return a list of
+    these orderlets.
+
+    Args:
+        orderlets (str): The input string
+
+    Returns:
+        list: A list of orderlet strings (each one of the form "SCI1", "SCI2", "SCI3",
+        "CAL", "SKY")
+    """
+
     if (orderlets == "all") or (orderlets is None):
         return ORDERLETS
 
@@ -133,6 +184,19 @@ def parse_orderlets(orderlets: str) -> list:
 
 
 def parse_bool(input_string: str) -> bool:
+    """
+    Parse a boolean input string and return the corresponding boolean value.
+
+    Args:
+        input_string (str): The input string (a command line argument)
+
+    Raises:
+        argparse.ArgumentTypeError
+
+    Returns:
+        bool: The corresponding boolean value
+    """
+
     if isinstance(input_string, bool):
         return input_string
     if input_string.lower() in ["yes", "true", "t", "y", "1"]:

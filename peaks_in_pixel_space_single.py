@@ -45,6 +45,10 @@ def main(
     orderlets: str | list[str] | None,
     fit_plot: bool,
 ) -> None:
+    """
+    Main function for the peaks_in_pixel_space_single command-line utility.
+    """
+
     if isinstance(orderlets, str):
         orderlets = [orderlets]
 

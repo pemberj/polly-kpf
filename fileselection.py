@@ -18,11 +18,11 @@ from astropy.io import fits
 try:
     from polly.log import logger
     from polly.kpf import ORDERLETS, TIMESOFDAY
-    from polly.parsing import parse_date_string, parse_filename
+    from polly.parsing import parse_yyyymmdd, parse_filename
 except ImportError:
     from log import logger
     from kpf import ORDERLETS, TIMESOFDAY
-    from parsing import parse_date_string, parse_filename
+    from parsing import parse_yyyymmdd, parse_filename
 
 
 def find_L1_etalon_files(
@@ -126,7 +126,7 @@ def find_mask(
             print(date)
 
     if datestr:
-        date = parse_date_string(datestr)
+        date = parse_yyyymmdd(datestr)
 
     for m in masks:
         mdate, mtimeofday, morderlet = parse_filename(m)

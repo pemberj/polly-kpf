@@ -42,6 +42,10 @@ def main(
     fsr_plot: bool,
     fit_plot: bool,
 ) -> None:
+    """
+    The main script to run the analysis on a single file.
+    """
+
     if isinstance(orderlets, str):
         orderlets = [orderlets]
 

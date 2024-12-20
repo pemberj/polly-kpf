@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
-This script runs the etalon analysis for a single date or range of dates. See the
+A script to run the etalon analysis for a single date or range of dates. See the
 section at the bottom for how it's currently set up.
 
 The script wraps around the functionality in `etalonanalysis.py` with an additional
@@ -14,13 +14,10 @@ object (where peaks are fitted), creates a spectrum plot, outputs a list of the 
 wavelengths, and generates a plot of etalon FSR as a function of wavelength.
 
 
-TODO:
- * Run from .cfg file, draw input parameters from that
- * Transition all print statements to logging (can still output to stdout, but also to a
-   log file)
- * Requires also implementing argparse to take .cfg filename from command line arguments
- * Move generation of FSR plot from here into another module (or at least the
-   calculation of FSR as a function of wavelength)
+TODO: Run from .cfg file, draw input parameters from that
+TODO: Transition all print statements to logging (can still output to stdout, but also to a log file)
+TODO: Requires also implementing argparse to take .cfg filename from command line arguments
+TODO: Move generation of FSR plot from here into another module (or at least the calculation of FSR as a function of wavelength)
 """
 
 from __future__ import annotations
