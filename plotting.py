@@ -1,4 +1,11 @@
-""" """
+"""
+polly
+
+plotting
+
+Contains the main plot_style dictionary, used to define custom defaults for matplotlib
+plots, as well as functions used to get an RGB colour value for an input wavelength.
+"""
 
 import colorsys
 
@@ -70,14 +77,15 @@ plot_style = {
 
 
 def wavelength_to_rgb(
-    wavelength: float, gamma: float = 3, fade_factor: float = 0.5
+    wavelength: float,
+    gamma: float = 3,
+    fade_factor: float = 0.5,
 ) -> tuple[float, float, float]:
     """
-    This converts a given wavelength of light to an approximate RGB color value.
-    Colors are returned for wavelengths in the range from 3800 A to 7500 A, otherwise
-    black is returned.
+    Compute the RGB colour values corresponding to a given wavelength of light.
 
-    Wavelength must be passed in Angstroms
+    Colors are returned for wavelengths in the range from 3800 A to 7500 A, otherwise
+    black is returned. Wavelength must be passed in Angstroms.
 
     Based on code by Dan Bruton
     http://www.physics.sfasu.edu/astro/color/spectra.html
@@ -127,8 +135,13 @@ def wavelength_to_rgb(
 
 
 def fade(
-    rgb: tuple[float, float, float], fade_factor: float = 0.8
+    rgb: tuple[float, float, float],
+    fade_factor: float = 0.8,
 ) -> tuple[float, float, float]:
+    """
+    Applies a saturation fade to a given RGB colour tuple.
+    """
+
     h, s, v = colorsys.rgb_to_hsv(*rgb)
 
     return colorsys.hsv_to_rgb(h=h, s=fade_factor * s, v=v)

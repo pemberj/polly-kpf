@@ -3,11 +3,11 @@ polly
 
 Polly put the Ketalon?
 
-Etalon analysis tools for KPF data products
+etalonanalysis
 
-This package contains a class structure to be used for general analysis of etalon
-spectra from KPF. A short description of the three levels and what happens within each,
-from the top down:
+Etalon analysis tools for KPF data products. Contains a class structure to be used for
+general analysis of etalon spectra from KPF. A short description of the three levels
+and what happens within each, from the top down:
 
 Spectrum
     A Spectrum object represents data corresponding to a single FITS file, including all

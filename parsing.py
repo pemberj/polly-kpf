@@ -23,7 +23,12 @@ try:
         THORIUM_ORDER_INDICES,
     )
 except ImportError:
-    from kpf import ORDERLETS, TIMESOFDAY, LFC_ORDER_INDICES, THORIUM_ORDER_INDICES
+    from kpf import (
+        ORDERLETS,
+        TIMESOFDAY,
+        LFC_ORDER_INDICES,
+        THORIUM_ORDER_INDICES,
+    )
 
 
 class Mask(NamedTuple):

@@ -2,8 +2,18 @@
 name = "polly"
 version = "0.1.0"
 description = "Analysis code for KPF etalon data"
-keywords = ["KPF", "etalon", "analysis", "radial velocity", "RV", "chromatic drift"]
-authors = [{name = "Jake Pember", email = "jake.pember@kuleuven.be"}]
+keywords = [
+    "KPF",
+    "high-resolution spectroscopy",
+    "radial velocity",
+    "RV",
+    "data analysis",
+    "etalon",
+    "chromatic drift",
+    ]
+authors = [
+    { name = "Jake Pember", email = "jake.pember@kuleuven.be" }
+    ]
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
@@ -22,17 +32,19 @@ dev = [
     "pre-commit>=4.0.1",
 ]
 
-
-
 [project.urls]
 Repository = "https://github.com/pemberj/polly"
 
+[build-system]
+requires = [
+    "hatchling",
+    ]
+build-backend = "hatchling.build"
 
 [tool.ruff]
 show-fixes = true
 line-length = 88
 indent-width = 4
-
 
 [tool.ruff.lint]
 select = [
@@ -73,6 +85,7 @@ select = [
 
     "RUF", # ruff developers' own rules
 ]
+
 ignore = [
     "E722", # do not use bare 'except'
     "W605", # invalid escape sequence
@@ -97,15 +110,15 @@ ignore = [
     "DTZ005",   # datetime.now() used without explicit tzinfo=
 ]
 
-
 [tool.ruff.lint.per-file-ignores]
 "*.ipynb" = [
     "E501", # line too long
     ]
 
-
 [tool.ruff.format]
-exclude = ["*.ipynb"]
+exclude = [
+    "*.ipynb",
+    ]
 quote-style = "double"
 indent-style = "space"
 skip-magic-trailing-comma = false
