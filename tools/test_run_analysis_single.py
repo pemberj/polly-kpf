@@ -1,5 +1,13 @@
 #!/usr/bin/env python
 
+# /// script
+# dependencies = [
+#     "polly-kpf>=0.2.0",
+# ]
+# [tool.uv.sources]
+# polly-kpf = { path = ".." }
+# ///
+
 """
 Single file analysis command-line utility. Can be passed a filename as argument.
 """
@@ -10,15 +18,10 @@ import argparse
 from astropy.io import fits
 from matplotlib import pyplot as plt
 
-try:
-    from polly.etalonanalysis import Spectrum
-    from polly.parsing import parse_bool, parse_orderlets
-    from polly.plotStyle import plotStyle
-except ImportError:
-    from etalonanalysis import Spectrum
-    from parsing import parse_bool, parse_orderlets
-    from plotStyle import plotStyle
-plt.style.use(plotStyle)
+from polly.etalonanalysis import Spectrum
+from polly.parsing import parse_bool, parse_orderlets
+from polly.plotting import plot_style
+plt.style.use(plot_style)
 
 
 def main(

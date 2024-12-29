@@ -1,5 +1,13 @@
 #!/usr/bin/env python
 
+# /// script
+# dependencies = [
+#     "polly-kpf>=0.2.0",
+# ]
+# [tool.uv.sources]
+# polly-kpf = { path = ".." }
+# ///
+
 """
 A script to run the etalon analysis for a single date or range of dates. See the
 section at the bottom for how it's currently set up.
@@ -35,31 +43,17 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from numpy.typing import ArrayLike
 
-try:
-    from polly.log import logger
-    from polly.etalonanalysis import Spectrum
-    from polly.fileselection import find_L1_etalon_files
-    from polly.parsing import (
-        parse_timesofday,
-        parse_orderlets,
-        parse_bool,
-        parse_orders,
-        parse_yyyymmdd,
-    )
-    from polly.plotting import plot_style
-except ImportError:
-    from log import logger
-    from etalonanalysis import Spectrum
-    from fileselection import find_L1_etalon_files
-    from parsing import (
-        parse_timesofday,
-        parse_orderlets,
-        parse_bool,
-        parse_orders,
-        parse_yyyymmdd,
-    )
-    from plotting import plot_style
-
+from polly.log import logger
+from polly.etalonanalysis import Spectrum
+from polly.fileselection import find_L1_etalon_files
+from polly.parsing import (
+    parse_timesofday,
+    parse_orderlets,
+    parse_bool,
+    parse_orders,
+    parse_yyyymmdd,
+)
+from polly.plotting import plot_style
 plt.style.use(plot_style)
 
 

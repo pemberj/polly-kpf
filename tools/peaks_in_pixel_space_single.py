@@ -1,5 +1,13 @@
 #!/usr/bin/env python
 
+# /// script
+# dependencies = [
+#     "polly-kpf>=0.2.0",
+# ]
+# [tool.uv.sources]
+# polly-kpf = { path = ".." }
+# ///
+
 """
 Single file analysis command-line utility that outputs a CSV with the pixel location of
 identified and fit peaks.
@@ -19,18 +27,11 @@ from astropy.io import fits
 
 from matplotlib import pyplot as plt
 
-try:
-    from polly.log import logger
-    from polly.kpf import TIMESOFDAY
-    from polly.parsing import parse_bool, parse_orderlets
-    from polly.etalonanalysis import Spectrum
-    from polly.plotting import plot_style
-except ImportError:
-    from log import logger
-    from kpf import TIMESOFDAY
-    from parsing import parse_bool, parse_orderlets
-    from etalonanalysis import Spectrum
-    from plotting import plot_style
+from polly.log import logger
+from polly.kpf import TIMESOFDAY
+from polly.parsing import parse_bool, parse_orderlets
+from polly.etalonanalysis import Spectrum
+from polly.plotting import plot_style
 plt.style.use(plot_style)
 
 
