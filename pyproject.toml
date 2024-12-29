@@ -31,11 +31,11 @@ dependencies = [
     "astropy>=6.1.7",
     "scipy>=1.14.1",
     "matplotlib>=3.10.0",
+    "pyfonts>=0.0.2",
     "tqdm>=4.67.1",
     "ipython>=8.30.0",
     "jupyter>=1.1.1",
     "jupyterlab>=4.3.3",
-    "pyfonts>=0.0.2",
 ]
 
 [dependency-groups]
