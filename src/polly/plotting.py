@@ -9,13 +9,15 @@ plots, as well as functions used to get an RGB colour value for an input wavelen
 
 import colorsys
 
+from pyfonts import load_font
 import numpy as np
-
-# Definition of custom plot style
 import matplotlib.font_manager as fm
 
-# Import new font for plots
-fm.FontManager.addfont(fm.fontManager, path="/scr/jpember/polly/Quicksand-Regular.ttf")
+# load Quicksand font
+url = "https://github.com/andrew-paglinawan/QuicksandFamily/blob/master/" + \
+                                                "fonts/statics/Quicksand-Regular.ttf"
+quicksand = load_font(font_url=f"{url}?raw=true")
+fm.FontManager.addfont(fm.fontManager, path=quicksand._file)
 
 lw = 1.3
 
@@ -145,3 +147,30 @@ def fade(
     h, s, v = colorsys.rgb_to_hsv(*rgb)
 
     return colorsys.hsv_to_rgb(h=h, s=fade_factor * s, v=v)
+
+
+def test_font() -> None:
+    """
+    A simple test plot to check that the Quicksand font is being correctly loaded.
+    """
+
+    import matplotlib.pyplot as plt
+    plt.style.use(plot_style)
+
+    fig = plt.figure()
+    ax = fig.gca()
+
+    x = np.linspace(0, 10, 100)
+
+    ax.plot(x, np.sin(x), label="y = sin(x)")
+    ax.set_xlabel("x")
+    ax.set_ylabel("y")
+    ax.legend()
+    ax.set_title("Test plot")
+
+    plt.savefig("test_plot.png")
+
+
+if __name__ == "__main__":
+
+    test_font()
