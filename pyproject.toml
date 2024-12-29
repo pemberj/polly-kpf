@@ -1,9 +1,10 @@
 [project]
-name = "polly"
-version = "0.1.0"
+name = "polly-kpf"
+version = "0.2"
 description = "Analysis code for KPF etalon data"
 keywords = [
     "KPF",
+    "Keck Planet Finder",
     "high-resolution spectroscopy",
     "radial velocity",
     "RV",
@@ -15,6 +16,15 @@ authors = [
     { name = "Jake Pember", email = "jake.pember@kuleuven.be" }
     ]
 readme = "README.md"
+license = {file = "LICENSE"}
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Programming Language :: Python",
+    "License :: OSI Approved :: MIT License",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Astronomy",
+    ]
 requires-python = ">=3.10"
 dependencies = [
     "numpy>=2.2.0",
