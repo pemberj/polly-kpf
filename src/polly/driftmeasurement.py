@@ -43,6 +43,17 @@ plt.style.use(plot_style)
 
 @dataclass
 class PeakDrift:
+    """
+    A class that tracks the drift of a single wavelength peak over time, and optionally
+    fits a linear slope to the drift. The peak is tracked starting from a single peak in
+    a reference mask (single wavelength value). The peak is then tracked in time across
+    a series of masks, with the closest wavelength found in those masks taken to be the
+    new peak position (within a given window). Tracking peaks in this way allows for
+    drifts that exceed the search window to be tracked over time, even to the point of
+    a peak drifting by a full etalon FSR, just as long as it does not drift between two
+    adjacent masks by such a large amount.
+    """
+
     reference_mask: str  # Filename of the reference mask
     reference_wavelength: float  # Starting wavelength of the single peak
     local_spacing: float  # Local distance between wavelengths in reference mask
@@ -94,6 +105,11 @@ class PeakDrift:
             self.linear_fit()
 
     def load_from_file(self) -> None:
+        """
+        Loads pre-traced drifts from a file on disk to allow for faster recomputation,
+        eg. for iterative plot generation.
+        """
+
         # Then load all the information from the file
         # print(f"Loading drifts from file: {self.drift_file}")
         file_dates, file_wls, file_sigmas = np.transpose(np.loadtxt(self.drift_file))
@@ -117,6 +133,10 @@ class PeakDrift:
 
     @cached_property
     def valid_wavelengths(self) -> list[float]:
+        """
+        Returns all wavelengths for dates that satisfy the validity condition (see the
+        `valid` property)
+        """
         if self.valid is None:
             return self.wavelengths
 
@@ -124,6 +144,10 @@ class PeakDrift:
 
     @cached_property
     def valid_sigmas(self) -> list[float]:
+        """
+        Returns all sigma values for dates that satisfy the validity condition (see the
+        `valid` property)
+        """
         if self.valid is None:
             return self.sigmas
 
@@ -131,6 +155,10 @@ class PeakDrift:
 
     @cached_property
     def valid_dates(self) -> list[datetime]:
+        """
+        Returns all measurement dates that satisfy the validity condition (see the
+        `valid` property)
+        """
         if self.valid is None:
             return self.dates
 
@@ -138,14 +166,28 @@ class PeakDrift:
 
     @cached_property
     def reference_date(self) -> datetime:
+        """
+        Simply parses the date from the reference mask filename and returns it in a
+        datetime object
+        """
         return parse_filename(self.reference_mask).date
 
     @cached_property
     def days_since_reference_date(self) -> list[float]:
+        """
+        Returns an array containing the number of days since the reference date for each
+        valid date in the dataset. This is used for fitting the drift over time, where
+        the absolute date is not important, but the relative time steps are.
+        """
         return [(d - self.reference_date).days for d in self.valid_dates]
 
     @cached_property
     def timesofday(self) -> list[str]:
+        """
+        Returns the (valid) time of day for each mask in the dataset. This is useful for
+        identifying any systematic drifts that occur at certain times of day. See also
+        the `valid` property.
+        """
         if self.valid is None:
             valid_masks = self.masks
 
@@ -156,10 +198,18 @@ class PeakDrift:
 
     @cached_property
     def smoothed_wavelengths(self) -> list[float]:
+        """
+        Returns a smoothed version of the (valid) wavelengths using a Savitzky-Golay
+        filter. Dsed in plitting and to exclude outliers.
+        """
         return savitzky_golay(y=self.valid_wavelengths, window_size=21, order=3)
 
     @cached_property
     def deltas(self) -> list[float]:
+        """
+        Returns the difference between the valid wavelengths and the reference
+        wavelength -- this is the drift of the peak over time.
+        """
         return self.valid_wavelengths - self.reference_wavelength
 
     def get_delta_at_date(
@@ -186,16 +236,35 @@ class PeakDrift:
 
     @cached_property
     def fractional_deltas(self) -> list[float]:
+        """
+        Returns the drift of the peak over time __as a fraction of the reference
+        wavelength__. This is more useful than the absolute drift for analysing drift
+        as a function of wavelength. Also used to compute the radial velocity-space
+        shift over time (multiplying by the speed of light in the desired units).
+        """
         return self.deltas / self.reference_wavelength
 
     def get_fractional_delta_at_date(
         self,
         date: datetime | list[datetime],
     ) -> float | list[float]:
+        """
+        Returns the fractional delta value for a given date. If there is no data for a
+        given date, returns NaN.
+
+        Args:
+            date (datetime | list[datetime]): the requested date(s)
+
+        Returns:
+            float | list[float]: the fractional delta value(s) for the requested date(s)
+        """
         return self.get_delta_at_date(date) / self.reference_wavelength
 
     @cached_property
     def smoothed_deltas(self) -> list[float]:
+        """
+        Returns a smoothed version of the (valid) deltas using a Savitzky-Golay filter.
+        """
         return savitzky_golay(y=self.deltas, window_size=21, order=3)
 
     def track_drift(self) -> PeakDrift:
@@ -252,10 +321,15 @@ class PeakDrift:
         fit_fractional: bool = False,
     ) -> PeakDrift:
         """
-        - Fit the tracked drift with a linear function
-        - Assign self.fit with a Callable function
-        - Assign self.fit_slope with the slope of that function in relevant units.
-          picometers per day? Millimetres per second radial velocity per day?
+        Fits a linear trend to the tracked (optionally fractional) drift over time.
+        The fit is done using the scipy.optimize.curve_fit function, which fits a
+        linear model to the data, with the slope as the only free parameter (i.e. it
+        assumes that the drift is starting from zero at the reference date).
+
+        This method assigns the self.fit property with a (Callable) function, and
+        self.fit_slope with the slope of that function in relevant units.
+
+        What unit should be used by default? Absolute pm/day? RV mm/s/day?
         """
 
         if len(self.valid_wavelengths) == 0:
@@ -297,6 +371,10 @@ class PeakDrift:
         return self
 
     def fit_residuals(self, fractional: bool = False) -> list[float]:
+        """
+        Returns the residuals between the linear fit and the tracked drift for each
+        (valid) date.
+        """
         if fractional:
             return (
                 self.fractional_deltas - self.fit(self.days_since_reference_date).value
@@ -305,7 +383,9 @@ class PeakDrift:
         return self.deltas - self.fit(self.days_since_reference_date).value
 
     def save_to_file(self, path: str | Path | None = None) -> PeakDrift:
-        """ """
+        """
+        Saves the tracked drifts to a file on disk.
+        """
 
         if not path:
             if self.drift_file:
@@ -364,18 +444,32 @@ class GroupDrift:
 
     @cached_property
     def mean_wavelength(self) -> float:
+        """
+        Returns the mean wavelength of the peaks in the group.
+        """
         return np.mean([pd.reference_wavelength for pd in self.peakDrifts])
 
     @cached_property
     def min_wavelength(self) -> float:
+        """
+        Returns the smallest wavelength of the peaks in the group.
+        """
         return min(self.peakDrifts[0].reference_wavelength)
 
     @cached_property
     def max_wavelength(self) -> float:
+        """
+        Returns the largest wavelength of the peaks in the group.
+        """
         return max(self.peakDrifts[-1].reference_wavelength)
 
     @property
     def all_dates(self) -> list[datetime]:
+        """
+        Returns a list of all dates for which drifts have been measured in the group.
+        There may be some PeakDrifts that have no data for a given date, so this list
+        may be longer than the list of unique dates.
+        """
         all_dates = []
 
         for pd in self.peakDrifts:
@@ -385,18 +479,32 @@ class GroupDrift:
 
     @cached_property
     def reference_date(self) -> datetime:
+        """
+        Returns the earliest date for which drifts have been measured in the group.
+        """
         return min(self.all_dates)
 
     @cached_property
     def all_days_since_reference_date(self) -> list[float]:
+        """
+        Returns an array containing the number of days since the reference date for each
+        date in the dataset. This is used for fitting the drift over time, where the
+        absolute date is not important, but the relative time steps are.
+        """
         return [(d - self.reference_date).days for d in self.all_dates]
 
     @cached_property
     def unique_dates(self) -> list[datetime]:
+        """
+        Returns a list of unique dates for which drifts have been measured in the group.
+        """
         return sorted(set(self.all_dates))
 
     @cached_property
     def all_deltas(self) -> list[float]:
+        """
+        Returns all deltas for all peaks in the group.
+        """
         all_deltas = []
 
         for pd in self.peakDrifts:
@@ -406,6 +514,9 @@ class GroupDrift:
 
     @cached_property
     def all_sigmas(self) -> list[float]:
+        """
+        Returns all sigma values for all peaks in the group.
+        """
         all_sigmas = []
 
         for pd in self.peakDrifts:
@@ -415,6 +526,9 @@ class GroupDrift:
 
     @cached_property
     def all_relative_sigmas(self) -> list[float]:
+        """
+        Returns all __relative__ sigma values for all peaks in the group.
+        """
         all_relative_sigmas = []
 
         for pd in self.peakDrifts:
@@ -424,10 +538,19 @@ class GroupDrift:
 
     @property
     def mean_deltas(self) -> list[float]:
+        """
+        Returns the mean drift across all the wavelengths in the group. The output is a
+        list of drifts as a function of time.
+        """
         all_deltas = [pd.deltas for pd in self.peakDrifts]
         return list(np.mean(all_deltas, axis=1))
 
     def fit_group_drift(self, verbose: bool = False) -> None:
+        """
+        Fits a linear trend to the group drift over time. This is done by fitting a
+        linear model to the data, with the slope as the only free parameter (i.e. it
+        assumes that the drift is starting from zero at the reference date).
+        """
         if verbose:
             print(f"{self.all_days_since_reference_date}")
             print(f"{self.all_deltas}")
