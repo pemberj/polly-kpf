@@ -277,7 +277,7 @@ class Peak:
     def fit(
         self,
         fit_type: str = "conv_gauss_tophat",
-        space: str = "wavelength",
+        space: str = "pixel",
     ) -> Peak:
         """
         Initiates the fitting routine. Essentially a wrapper around either
@@ -301,7 +301,7 @@ class Peak:
 
         return self
 
-    def _fit_gaussian(self, space: str = "wavelength") -> None:
+    def _fit_gaussian(self, space: str = "pixel") -> None:
         """
         `scipy.optimize.curve_fit` wrapper, with initial guesses `p0` and their `bounds`
         coming from properties of the data themselves
@@ -397,7 +397,7 @@ class Peak:
         self.sigma_stddev = stddev[2]
         self.offset_stddev = stddev[3]
 
-    def _fit_conv_gauss_tophat(self, space: str = "wavelength") -> None:
+    def _fit_conv_gauss_tophat(self, space: str = "pixel") -> None:
         """
         `scipy.optimize.curve_fit` wrapper, with initial guesses `p0` and their `bounds`
         coming from properties of the data themselves
@@ -1834,7 +1834,7 @@ class Spectrum:
         self,
         orderlet: str | list[str] | None = None,
         fit_type: str = "conv_gauss_tophat",
-        space: str = "wavelength",
+        space: str = "pixel",
     ) -> Spectrum:
         """
         Fit the Peaks in each contained Order object.
@@ -1980,7 +1980,7 @@ class Spectrum:
         self,
         filename: str,
         orderlet: str | list[str] | None,
-        space: str = "wavelength",
+        locations: str = "wavelength",
         filtered: bool = True,
         weights: bool = False,
     ) -> Spectrum:
@@ -1994,7 +1994,7 @@ class Spectrum:
             orderlet (str | list[str] | None): The orderlet name(s) selecting the peak
                 locations to save. In the intended usage, each output file contains
                 peaks corresponding to a single orderlet.
-            space (str, optional): Either "pixel" or "wavelength", selecting which
+            locations (str, optional): Either "pixel" or "wavelength", selecting which
                 peak location should be saved to the file. Defaults to "wavelength".
             filtered (bool, optional): Save the filtered peaks?. Defaults to True. If
                 False, all fitted peaks are saved, and there will be peaks appearing
@@ -2005,13 +2005,13 @@ class Spectrum:
                 this column is still present, but all weights are set to `1.0'.
 
         Raises:
-            NotImplementedError
+            NotImplementedError if `locations` is not either "wavelength" or "pixel"
 
         Returns:
             Spectrum (self): The Spectrum object itself, so methods can be chained.
         """
 
-        if space not in ["wavelength", "pixel"]:
+        if locations not in ["wavelength", "pixel"]:
             raise NotImplementedError
 
         if isinstance(orderlet, str):
@@ -2029,15 +2029,17 @@ class Spectrum:
             else:
                 peaks_to_use = self.peaks(orderlet=ol)
 
-            logger.info(f"{self.pp}Saving {ol} peak {space} locations to {filename}...")
+            logger.info(
+                f"{self.pp}Saving {ol:<4} peak {locations} locations to {filename}..."
+            )
             p = Path(filename)
             with p.open(mode="w") as f:
                 for p in peaks_to_use:
-                    if space == "wavelength":
+                    if locations == "wavelength":
                         location = f"{p.center_wavelength:f}"
                         weight = f"{p.center_wavelength_stddev:f}" if weights else "1.0"
 
-                    elif space == "pixel":
+                    elif locations == "pixel":
                         location = f"{p.center_pixel:f}"
                         weight = f"{p.center_pixel_stddev:f}" if weights else "1.0"
 
