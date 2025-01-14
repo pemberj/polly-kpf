@@ -14,8 +14,10 @@ import numpy as np
 import matplotlib.font_manager as fm
 
 # load Quicksand font
-url = "https://github.com/andrew-paglinawan/QuicksandFamily/blob/master/" + \
-                                                "fonts/statics/Quicksand-Regular.ttf"
+url = (
+    "https://github.com/andrew-paglinawan/QuicksandFamily/blob/master/"
+    + "fonts/statics/Quicksand-Regular.ttf"
+)
 quicksand = load_font(font_url=f"{url}?raw=true")
 fm.FontManager.addfont(fm.fontManager, path=quicksand._file)
 
@@ -155,6 +157,7 @@ def test_font() -> None:
     """
 
     import matplotlib.pyplot as plt
+
     plt.style.use(plot_style)
 
     fig = plt.figure()
@@ -172,5 +175,4 @@ def test_font() -> None:
 
 
 if __name__ == "__main__":
-
     test_font()
