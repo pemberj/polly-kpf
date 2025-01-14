@@ -702,21 +702,21 @@ class Peak:
     def __repr__(self) -> str:
         return (
             "Peak("
-            + f"order_i={self.order_i:.0f}, "
-            + f"coarse_wavelength={self.coarse_wavelength:.3f}, "
-            + f"speclet={self.speclet}, "
-            + f"wavelet={self.wavelet})"
+            f"order_i={self.order_i:.0f}, "
+            f"coarse_wavelength={self.coarse_wavelength:.3f}, "
+            f"speclet={self.speclet}, "
+            f"wavelet={self.wavelet})"
         )
 
     def __str__(self) -> str:
         return (
             "\nPeak("
-            + f"order_i {self.order_i:.0f}, "
-            + f"coarse_wavelength {self.coarse_wavelength:.3f}, "
-            + f"{self.has('speclet')} speclet, "
-            + f"{self.has('wavelet')} wavelet, "
-            + f"{self.has('fit')} fit: "
-            + f"center_wavelength {self.center_wavelength:.3f})"
+            f"order_i {self.order_i:.0f}, "
+            f"coarse_wavelength {self.coarse_wavelength:.3f}, "
+            f"{self.has('speclet')} speclet, "
+            f"{self.has('wavelet')} wavelet, "
+            f"{self.has('fit')} fit: "
+            f"center_wavelength {self.center_wavelength:.3f})"
         )
 
     def __add__(self, other: float | Peak) -> bool:
@@ -1046,18 +1046,18 @@ class Order:
     def __str__(self) -> str:
         return (
             f"Order(orderlet={self.orderlet}, i={self.i}, "
-            + f"{self.has('spec')} spec, {self.has('wave')} wave, "
-            + f"{len(self.peaks)} peaks)"
+            f"{self.has('spec')} spec, {self.has('wave')} wave, "
+            f"{len(self.peaks)} peaks)"
         )
 
     def __repr__(self) -> str:
         return (
             "Order("
-            + f"orderlet={self.orderlet}, i={self.i}, "
-            + f"spec={self.spec}, "
-            + f"wave={self.wave})\n"
-            + f"`spec` from {self.parent.spec_file} "
-            + f"`wave` from {self.parent.wls_file}"
+            f"orderlet={self.orderlet}, i={self.i}, "
+            f"spec={self.spec}, "
+            f"wave={self.wave})\n"
+            f"`spec` from {self.parent.spec_file} "
+            f"`wave` from {self.parent.wls_file}"
         )
 
     def __contains__(self, wl: float) -> bool:
@@ -1354,7 +1354,7 @@ class Spectrum:
             if len(result) > 1:
                 logger.info(
                     f"{self.pp}"
-                    + f"More than one Order matching orderlet={orderlet} and i={i}!"
+                    f"More than one Order matching orderlet={orderlet} and i={i}!"
                 )
                 logger.info(f"{self.pp}{result}")
                 return result
@@ -1484,13 +1484,13 @@ class Spectrum:
             filter by. Defaults to None, in which case all orderlets are considered.
 
         Returns:
-            int: The number of **successfull fit** peaks in the Spectrum's Orders
+            int: The number of **successfully fit** peaks in the Spectrum's Orders
                 **after filtering**
         """
         if not self.filtered_peaks:
             logger.warning(
-                f"{self.pp}List of filtered peaks is empty. "
-                + "Call Spectrum.filter_peaks() first"
+                f"{self.pp}"
+                "List of filtered peaks is empty. Call Spectrum.filter_peaks() first."
             )
             return 0
 
@@ -1568,7 +1568,7 @@ class Spectrum:
         if isinstance(self.spec_file, Path):
             logger.info(
                 f"{self.pp}Loading flux values from a single file: "
-                + f"{self.spec_file.name}..."
+                f"{self.spec_file.name}..."
             )
 
             _orders = []
@@ -1602,7 +1602,7 @@ class Spectrum:
             for ol in self.orderlets_to_load:
                 logger.info(
                     f"{self.pp}Loading {ol} flux values from a list of "
-                    + f"{len(self.spec_file)} files..."
+                    f"{len(self.spec_file)} files..."
                 )
 
                 spec_green = np.median(
@@ -1737,8 +1737,7 @@ class Spectrum:
             assert "lfc" in fits.getval(wls_file, "OBJECT").lower()
         except AssertionError:
             logger.warning(
-                f"{self.pp}'lfc' not found in {self.timeofday} "
-                + "WLS file 'OBJECT' value!"
+                f"{self.pp}'lfc' not found in {self.timeofday} WLS file 'OBJECT' value!"
             )
         except FileNotFoundError:
             logger.warning(f"{self.pp}{self.timeofday} WLS file not found")
@@ -1891,7 +1890,7 @@ class Spectrum:
 
             logger.info(
                 f"{self.pp}"
-                + f"Fitting {ol} peaks in {space} space with {fit_type} function..."
+                f"Fitting {ol} peaks in {space} space with {fit_type} function..."
             )
 
             for o in tqdm(
@@ -1938,7 +1937,7 @@ class Spectrum:
         for ol in orderlet:
             logger.info(
                 f"{self.pp}Filtering {ol:<4} peaks "
-                + "to remove identical peaks appearing in adjacent orders..."
+                "to remove identical peaks appearing in adjacent orders..."
             )
 
             peaks = self.peaks(orderlet=ol)
@@ -2164,7 +2163,7 @@ class Spectrum:
             ax = fig.gca()
             ax.set_title(
                 f"{orderlet} {self.date} {self.timeofday}\n"
-                + "Residuals after peak fitting",
+                "Residuals after peak fitting",
                 size=20,
             )
 
@@ -2467,8 +2466,8 @@ class Spectrum:
         for ol in self.orderlets:
             out_string += (
                 f"\n - {ol:<4}:"
-                + f"{len(self.orders(orderlet=ol))} Orders"
-                + f" and {len(self.peaks(orderlet=ol))} total Peaks"
+                f"{len(self.orders(orderlet=ol))} Orders"
+                f" and {len(self.peaks(orderlet=ol))} total Peaks"
             )
 
         return out_string
@@ -2476,9 +2475,9 @@ class Spectrum:
     def __repr__(self) -> str:
         return (
             "Spectrum("
-            + f"spec_file={self.spec_file}, "
-            + f"wls_file={self.wls_file}, "
-            + f"orderlets_to_load={self.orderlets_to_load})"
+            f"spec_file={self.spec_file}, "
+            f"wls_file={self.wls_file}, "
+            f"orderlets_to_load={self.orderlets_to_load})"
         )
 
 
