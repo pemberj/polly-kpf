@@ -1766,6 +1766,10 @@ class Spectrum:
         if isinstance(self.wls_file, list):
             raise NotImplementedError("wls_file must be a single filename only")
 
+        logger.info(
+            f"{self.pp}Loading WLS values from a single file: {self.wls_file.name}..."
+        )
+
         for ol in self.orderlets_to_load:
             wave_green = fits.getdata(
                 self.wls_file,
