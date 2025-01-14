@@ -1092,25 +1092,25 @@ class Spectrum:
     be accessed again at the Spectrum level.
 
     Properties:
-        spec_file: str | list[str] | None = None
+        spec_file: Path | str | list[Path] | list[str]
             The path (or a list of paths) of the L1 file(s) containing flux data to be
             loaded. If a list of files is passed, the flux data is median-combined.
-        wls_file: str | None = None
+        wls_file: Path | str
             The path of a single file to draw the wavelength solution (WLS) from. This
             is typically the master L1 WLS file for the same date as the flux data.
-        orderlets_to_load: str | list[str] | None = None
+        orderlets_to_load: str | list[str]
             Which orderlets should be loaded into the Spectrum (and Orders).
 
-        reference_mask: str = None
+        reference_mask: str
             [Not yet implemented], path to a file containing a list of wavelengths
             corresponding to etalon line locations in a reference file. Rather than
             locating peaks in each order, the code should take these reference
             wavelengths as its starting point.
-        reference_peaks: list[float] = None
+        reference_peaks: list[float]
             [Not yet implemented], the list of wavelengths as parsed from
             `reference_mask'
 
-        _orders: list[Order] = empty list
+        _orders: list[Order]
             A list of Order objects (see Order definition)
             See also the .orders() method, the main interface to the Order
             objects.
@@ -1118,16 +1118,16 @@ class Spectrum:
         orderlets: list[str]
             Returns all unique orderlets that the contained Order objects correspond to.
 
-        date: str | None = None
+        date: str
             The date of observation, as read from the FITS header of `spec_file'
-        sci_obj: str | None = None
+        sci_obj: str
             The SCI-OBJ keyword from the FITS header of `spec_file'
-        cal_obj: str | None = None
+        cal_obj: str
             The CAL-OBJ keyword from the FITS header of `spec_file'
-        object: str | None = None
+        object: str
             The OBJECT keyword from the FITS header of `spec_file'
 
-        filtered_peaks: list[Peak] = None
+        filtered_peaks: list[Peak]
             A list of Peak objects after locating, fitting, and filtering.
 
         pp: str = ""
@@ -1236,8 +1236,8 @@ class Spectrum:
          * ???
     """
 
-    spec_file: str | list[str] = field(default=None)
-    wls_file: str = field(default=None)
+    spec_file: Path | str | list[Path] | list[str] = field(default=None)
+    wls_file: Path | str = field(default=None)
     orders_to_load: list[int] = field(default=None)
     orderlets_to_load: str | list[str] = field(default=None)
 
@@ -1258,6 +1258,15 @@ class Spectrum:
     pp: str = ""  # Print prefix
 
     def __post_init__(self) -> None:
+        if isinstance(self.spec_file, str):
+            self.spec_file = Path(self.spec_file)
+
+        elif isinstance(self.spec_file, list):
+            self.spec_file = [Path(f) for f in self.spec_file]
+
+        if isinstance(self.wls_file, str):
+            self.wls_file = Path(self.wls_file)
+
         if isinstance(self.orderlets_to_load, str):
             self.orderlets_to_load = [self.orderlets_to_load]
 
@@ -1321,7 +1330,7 @@ class Spectrum:
         that the data corresponds to.
         """
 
-        return np.unique([o.orderlet for o in self.orders()])
+        return list({o.orderlet for o in self.orders()})
 
     def orders(self, orderlet: str | None = None, i: int | None = None) -> list[Order]:
         """
@@ -1344,13 +1353,13 @@ class Spectrum:
                 return result[0]
             if len(result) > 1:
                 logger.info(
-                    f"{self.pp}More than one Order matching "
-                    + f"orderlet={orderlet} and i={i}!"
+                    f"{self.pp}"
+                    + f"More than one Order matching orderlet={orderlet} and i={i}!"
                 )
                 logger.info(f"{self.pp}{result}")
                 return result
 
-            logger.info(f"{self.pp}seNo matching order found!")
+            logger.info(f"{self.pp}No matching order found!")
             return None
 
         if orderlet is not None:
@@ -1553,18 +1562,20 @@ class Spectrum:
 
         Returns:
             Spectrum (self): The Spectrum object itself, so methods can be chained.
+
+        TODO: Allow for pathlib.Path objects to be passed in
         """
-        if isinstance(self.spec_file, str):
+        if isinstance(self.spec_file, Path):
             logger.info(
                 f"{self.pp}Loading flux values from a single file: "
-                + f"{self.spec_file.split('/')[-1]}..."
+                + f"{self.spec_file.name}..."
             )
 
             _orders = []
             for ol in self.orderlets_to_load:
                 spec_green = fits.getdata(
                     self.spec_file,
-                    f"GREEN_{get_orderlet_name(ol)}_" + f"FLUX{get_orderlet_index(ol)}",
+                    f"GREEN_{get_orderlet_name(ol)}_FLUX{get_orderlet_index(ol)}",
                 )
                 spec_red = fits.getdata(
                     self.spec_file,
@@ -1590,8 +1601,8 @@ class Spectrum:
             _orders = []
             for ol in self.orderlets_to_load:
                 logger.info(
-                    f"{self.pp}Loading {ol} flux values from a "
-                    + f"list of {len(self.spec_file)} files..."
+                    f"{self.pp}Loading {ol} flux values from a list of "
+                    + f"{len(self.spec_file)} files..."
                 )
 
                 spec_green = np.median(
@@ -1639,7 +1650,7 @@ class Spectrum:
                     self.cal_obj = fits.getval(self.spec_file[0], "CAL-OBJ")
                 except AssertionError:
                     logger.warning(
-                        f"{self.pp}CAL-OBJ did not match between " + "input files!"
+                        f"{self.pp}CAL-OBJ did not match between input files!"
                     )
                     logger.warning(f"{self.pp}{self.spec_file}")
 
@@ -1652,7 +1663,7 @@ class Spectrum:
                     self.object = fits.getval(self.spec_file[0], "OBJECT")
                 except AssertionError:
                     logger.warning(
-                        f"{self.pp}OBJECT did not match between " + "input files!"
+                        f"{self.pp}OBJECT did not match between input files!"
                     )
                     logger.warning(f"{self.pp}{self.spec_file}")
 
@@ -1683,7 +1694,7 @@ class Spectrum:
 
         else:  # self.spec_file is something else entirely
             raise NotImplementedError(
-                "spec_file must be a single filename or list of filenames"
+                "`spec_file` must be a single Path or list of Paths"
             )
 
         return self
@@ -1695,24 +1706,31 @@ class Spectrum:
         If the `spec_file` was taken at night, the corresponding "eve" WLS file is
         located, likewise for "midnight". This method is automatically called only if no
         `wls_file` filename is explicitly passed in.
-
-        Returns:
-            str: The path to the located matching WLS file
         """
-        wls_file: str = ""
+        wls_file = None
 
         if self.timeofday in ["night", "midnight"]:
             # Specifically look for "eve" WLS file
-            wls_file = (
-                f"/data/kpf/masters/{self.date}/kpf_{self.date}_"
-                + "master_WLS_autocal-lfc-all-eve_L1.fits"
+            # wls_file = (
+            #     f"/data/kpf/masters/{self.date}/kpf_{self.date}_"
+            #     + "master_WLS_autocal-lfc-all-eve_L1.fits"
+            # )
+            wls_file: Path = (
+                MASTERS_DIR
+                / f"{self.date}"
+                / f"kpf_{self.date}_master_WLS_autocal-lfc-all-eve_L1.fits"
             )
         else:
             # Otherwise, look for the same time of day WLS file
             # (matching 'morn' or 'eve')
-            wls_file = (
-                f"/data/kpf/masters/{self.date}/kpf_{self.date}_"
-                + f"master_WLS_autocal-lfc-all-{self.timeofday}_L1.fits"
+            # wls_file = (
+            #     f"/data/kpf/masters/{self.date}/kpf_{self.date}_"
+            #     + f"master_WLS_autocal-lfc-all-{self.timeofday}_L1.fits"
+            # )
+            wls_file: Path = (
+                MASTERS_DIR
+                / f"{self.date}"
+                / f"kpf_{self.date}_master_WLS_autocal-lfc-all-{self.timeofday}_L1.fits"
             )
 
         try:
@@ -1727,7 +1745,7 @@ class Spectrum:
 
         if wls_file:
             self.wls_file = wls_file
-            logger.info(f"{self.pp}Using WLS file: {wls_file.split('/')[-1]}")
+            logger.info(f"{self.pp}Using WLS file: {wls_file.name}")
         else:
             # Use the WLS embedded in the spec_file?
             self.wls_file = self.spec_file
@@ -1825,8 +1843,7 @@ class Spectrum:
 
         else:
             logger.info(
-                f"{self.pp}Not locating peaks because "
-                + "a reference mask was passed in."
+                f"{self.pp}Not locating peaks because a reference mask was passed in."
             )
         return self
 
@@ -1920,8 +1937,8 @@ class Spectrum:
 
         for ol in orderlet:
             logger.info(
-                f"{self.pp}Filtering {ol} peaks to remove identical peaks "
-                + "appearing in adjacent orders..."
+                f"{self.pp}Filtering {ol:<4} peaks "
+                + "to remove identical peaks appearing in adjacent orders..."
             )
 
             peaks = self.peaks(orderlet=ol)
@@ -2213,9 +2230,7 @@ class Spectrum:
         assert orderlet in self.orderlets
 
         if not self.filtered_peaks[orderlet]:
-            logger.info(
-                f"{self.pp}" + "You may want to filter peaks before computing FSR"
-            )
+            logger.info(f"{self.pp}You may want to filter peaks before computing FSR")
             peaks_to_use = self.peaks(orderlet=orderlet)
             # self.filter_peaks(orderlet = ol)
 
@@ -2451,9 +2466,9 @@ class Spectrum:
 
         for ol in self.orderlets:
             out_string += (
-                f"\n - {ol}:"
-                + f"{len(self.orders(orderlet = ol))} Orders"
-                + f" and {len(self.peaks(orderlet = ol))} total Peaks"
+                f"\n - {ol:<4}:"
+                + f"{len(self.orders(orderlet=ol))} Orders"
+                + f" and {len(self.peaks(orderlet=ol))} total Peaks"
             )
 
         return out_string
