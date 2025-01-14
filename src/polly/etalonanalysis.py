@@ -2107,7 +2107,7 @@ class Spectrum:
             mask = (o.wave > xlims[0]) & (o.wave < xlims[1])
             ax.plot(
                 o.wave[mask],
-                o.spec_residuals[mask],
+                o.spec[mask],
                 lw=0.5,
                 color=wavelength_to_rgb(o.mean_wave),
                 path_effects=[pe.Stroke(linewidth=1.5, foreground="k"), pe.Normal()],
