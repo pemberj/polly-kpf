@@ -74,16 +74,11 @@ if TYPE_CHECKING:
     from collections.abc import Callable
     from numpy.typing import ArrayLike
 
-try:
-    from polly.kpf import LFC_ORDER_INDICES, THORIUM_ORDER_INDICES
-    from polly.log import logger
-    from polly.parsing import get_orderlet_index, get_orderlet_name
-    from polly.plotting import plot_style, wavelength_to_rgb
-except ImportError:
-    from kpf import LFC_ORDER_INDICES, THORIUM_ORDER_INDICES
-    from log import logger
-    from parsing import get_orderlet_index, get_orderlet_name
-    from plotting import plot_style, wavelength_to_rgb
+from polly.kpf import LFC_ORDER_INDICES, THORIUM_ORDER_INDICES, MASTERS_DIR
+from polly.log import logger
+from polly.parsing import get_orderlet_index, get_orderlet_name
+from polly.plotting import plot_style, wavelength_to_rgb
+
 plt.style.use(plot_style)
 
 
@@ -2586,19 +2581,20 @@ def test() -> None:
     filter peaks.
     """
 
-    DATAPATH = "/data/kpf/masters/"
     DATE = "20240520"
 
-    WLS_file = (
-        f"{DATAPATH}{DATE}/" + f"kpf_{DATE}_master_WLS_autocal-lfc-all-morn_L1.fits"
-    )
     etalon_file = (
-        f"{DATAPATH}{DATE}/" + f"kpf_{DATE}_master_WLS_autocal-etalon-all-morn_L1.fits"
+        MASTERS_DIR
+        / f"{DATE}"
+        / f"kpf_{DATE}_master_WLS_autocal-etalon-all-morn_L1.fits"
+    )
+    wls_file = (
+        MASTERS_DIR / f"{DATE}" / f"kpf_{DATE}_master_WLS_autocal-thar-all-morn_L1.fits"
     )
 
     s = Spectrum(
         spec_file=etalon_file,
-        wls_file=WLS_file,
+        wls_file=wls_file,
         orderlets_to_load="SCI2",
     )
 

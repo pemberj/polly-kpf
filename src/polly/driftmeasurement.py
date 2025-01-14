@@ -30,14 +30,10 @@ if TYPE_CHECKING:
     from numpy.typing import ArrayLike
     from astropy.units import Quantity
 
-try:
-    from polly.misc import savitzky_golay
-    from polly.parsing import parse_filename, parse_yyyymmdd
-    from polly.plotting import plot_style
-except ImportError:
-    from misc import savitzky_golay
-    from parsing import parse_filename, parse_yyyymmdd
-    from plotting import plot_style
+from polly.misc import savitzky_golay
+from polly.parsing import parse_filename, parse_yyyymmdd
+from polly.plotting import plot_style
+
 plt.style.use(plot_style)
 
 

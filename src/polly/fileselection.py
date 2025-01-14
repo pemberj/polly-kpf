@@ -15,14 +15,9 @@ from pathlib import Path
 from astropy.io import fits
 
 
-try:
-    from polly.log import logger
-    from polly.kpf import ORDERLETS, TIMESOFDAY
-    from polly.parsing import parse_yyyymmdd, parse_filename
-except ImportError:
-    from log import logger
-    from kpf import ORDERLETS, TIMESOFDAY
-    from parsing import parse_yyyymmdd, parse_filename
+from polly.log import logger
+from polly.kpf import ORDERLETS, TIMESOFDAY, MASTERS_DIR, L1_DIR
+from polly.parsing import parse_yyyymmdd, parse_filename
 
 
 def find_L1_etalon_files(
@@ -45,7 +40,7 @@ def find_L1_etalon_files(
     assert timeofday in TIMESOFDAY
 
     if masters:
-        p = Path(f"/data/kpf/masters/{date}/")
+        p = MASTERS_DIR / f"{date}"
 
         files = p.glob(
             f"kpf_{date}_master_arclamp_autocal-etalon-all-{timeofday}_L1.fits"
@@ -67,7 +62,7 @@ def find_L1_etalon_files(
                 logger.error(f"{pp}{e}")
                 return None
 
-    p: Path = Path(f"/data/kpf/L1/{date}/")
+    p: Path = L1_DIR / f"{date}"
 
     all_files: list[str] = p.glob("*.fits")
 
