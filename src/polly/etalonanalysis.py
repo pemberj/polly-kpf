@@ -1384,7 +1384,7 @@ class Spectrum:
     """
 
     spec_file: Path | str | list[Path] | list[str] = field(default=None)
-    wls_file: Path | str = field(default=None)
+    wls_file: Path | str | dict[str, Path] = field(default=None)
     auto_load_wls: bool = True
     orders_to_load: list[int] = field(default=None)
     orderlets_to_load: str | list[str] = field(default=None)
@@ -1415,6 +1415,11 @@ class Spectrum:
         if isinstance(self.wls_file, str):
             self.wls_file = Path(self.wls_file)
 
+        if isinstance(self.wls_file, dict):
+            self.wls_file = {
+                k: Path(f) for k, f in self.wls_file.items() if isinstance(f, str)
+            }
+
         if isinstance(self.orderlets_to_load, str):
             self.orderlets_to_load = [self.orderlets_to_load]
 
@@ -1438,7 +1443,7 @@ class Spectrum:
             if self.wls_file:
                 self.load_wls()
             elif self.auto_load_wls:
-                self.find_wls_file()
+                self.find_wls_files()
                 if self.wls_file:
                     self.load_wls()
             if self.reference_mask:
@@ -1879,59 +1884,79 @@ class Spectrum:
 
         return self
 
-    def find_wls_file(self) -> str:
+    def find_wls_files(self) -> str:
         """
-        Find the WLS file corresponding to the Spectrum's `spec_file` FITS file.
+        Find the WLS files matching the date and time of the Spectrum's `spec_file` FITS
+        file. This function will locate the matching LFC and ThAr WLS files.
 
-        If the `spec_file` was taken at night, the corresponding "eve" WLS file is
+        If the `spec_file` was taken at night, the corresponding "eve" WLS files are
         located, likewise for "midnight". This method is automatically called only if no
-        `wls_file` filename is explicitly passed in.
+        `wls_file` filename is explicitly passed in, and if `auto_load_wls` is True.
         """
-        wls_file = None
+
+        wls_to_find = []
+
+        # Using set intersections to determine if there is any overlap
+        if set(self.orders_to_load) & set(LFC_ORDER_INDICES):
+            wls_to_find.append("lfc")
+        if set(self.orders_to_load) & set(THORIUM_ORDER_INDICES):
+            wls_to_find.append("thar")
+
+        wls_files = None
 
         if self.timeofday in ["night", "midnight"]:
-            # Specifically look for "eve" WLS file
-            # wls_file = (
-            #     f"/data/kpf/masters/{self.date}/kpf_{self.date}_"
-            #     + "master_WLS_autocal-lfc-all-eve_L1.fits"
-            # )
-            wls_file: Path = (
-                MASTERS_DIR
-                / f"{self.date}"
-                / f"kpf_{self.date}_master_WLS_autocal-lfc-all-eve_L1.fits"
-            )
+            wls_files: dict[str, Path] = {
+                wls_type: (
+                    MASTERS_DIR
+                    / f"{self.date}"
+                    / f"kpf_{self.date}_master_WLS_autocal-{wls_type}-all-eve_L1.fits"
+                )
+                for wls_type in wls_to_find
+            }
+
         else:
-            # Otherwise, look for the same time of day WLS file
-            # (matching 'morn' or 'eve')
-            # wls_file = (
-            #     f"/data/kpf/masters/{self.date}/kpf_{self.date}_"
-            #     + f"master_WLS_autocal-lfc-all-{self.timeofday}_L1.fits"
-            # )
-            wls_file: Path = (
-                MASTERS_DIR
-                / f"{self.date}"
-                / f"kpf_{self.date}_master_WLS_autocal-lfc-all-{self.timeofday}_L1.fits"
-            )
+            wls_files: dict[str, Path] = {
+                wls_type: (
+                    MASTERS_DIR / f"{self.date}" / f"kpf_{self.date}_master_WLS_"
+                    f"autocal-{wls_type}-all-{self.timeofday}_L1.fits"
+                )
+                for wls_type in wls_to_find
+            }
 
-        try:
-            assert "lfc" in fits.getval(wls_file, "OBJECT").lower()
-        except AssertionError:
-            logger.warning(
-                f"{self.pp}'lfc' not found in {self.timeofday} WLS file 'OBJECT' value!"
-            )
-        except FileNotFoundError:
-            logger.warning(f"{self.pp}{self.timeofday} WLS file not found")
+        if "lfc" in wls_files:
+            try:
+                assert "lfc" in fits.getval(wls_files["lfc"], "OBJECT").lower()
+            except AssertionError:
+                logger.warning(
+                    f"{self.pp}"
+                    f"'lfc' not found in {self.timeofday} WLS file 'OBJECT' value!"
+                )
+            except FileNotFoundError:
+                logger.warning(f"{self.pp}{self.timeofday} WLS file not found")
 
-        if wls_file:
-            self.wls_file = wls_file
-            logger.info(f"{self.pp}Using WLS file: {wls_file.name}")
+        if "thar" in wls_files:
+            try:
+                assert "thar" in fits.getval(wls_files["thar"], "OBJECT").lower()
+            except AssertionError:
+                logger.warning(
+                    f"{self.pp}"
+                    f"'thar' not found in {self.timeofday} WLS file 'OBJECT' value!"
+                )
+            except FileNotFoundError:
+                logger.warning(f"{self.pp}{self.timeofday} WLS file not found")
+
+        if wls_files is not None:
+            self.wls_file = wls_files
         else:
             # Use the WLS embedded in the spec_file?
             self.wls_file = self.spec_file
 
     def load_wls(self) -> Spectrum:
         """
-        Load the wavelength solution (WLS) data from the Spectrum's `wls_file` FITS file
+        Load the wavelength solution (WLS) data from the Spectrum's `wls_file` FITS
+        file(s). `wls_file` can either be a single file or (especially if the
+        corresponding files were automatically located) a dictionary of filenames
+        corresponding to two different (LFC and ThAr) WLS files.
 
         Raises:
             FileNotFoundError:
@@ -1944,19 +1969,56 @@ class Spectrum:
             raise FileNotFoundError("No WLS file specified or found!")
 
         if isinstance(self.wls_file, list):
-            raise NotImplementedError("wls_file must be a single filename only")
+            raise NotImplementedError(
+                "wls_file must be either a single filename or a dictionary."
+            )
+
+        if isinstance(self.wls_file, Path):
+            self.load_single_wls(wls_file=self.wls_file)
+
+        elif isinstance(self.wls_file, dict):
+            if "lfc" in self.wls_file:
+                self.load_partial_wls(
+                    wls_file=self.wls_file["lfc"],
+                    valid_i=LFC_ORDER_INDICES,
+                )
+            if "thar" in self.wls_file:
+                self.load_partial_wls(
+                    wls_file=self.wls_file["thar"],
+                    valid_i=THORIUM_ORDER_INDICES,
+                )
+
+        return self
+
+    def load_single_wls(self, wls_file: Path) -> Spectrum:
+        """
+        Load a single wavelength solution file.
+
+        This method is called by `load_wls` if the `wls_file` is a single filename. It
+        reads the wavelength solution data from the file, and stores it in the `wave`
+        attribute of each Order object.
+
+        Raises:
+            FileNotFoundError: If the WLS file is not found
+
+        Returns:
+            Spectrum (self): The Spectrum object itself, so methods can be chained.
+        """
+
+        if not self.wls_file.is_file():
+            raise FileNotFoundError(f"WLS file not found: {wls_file.name}")
 
         logger.info(
-            f"{self.pp}Loading WLS values from a single file: {self.wls_file.name}..."
+            f"{self.pp}Loading WLS values from a single file: {wls_file.name}..."
         )
 
         for ol in self.orderlets_to_load:
             wave_green = fits.getdata(
-                self.wls_file,
+                wls_file,
                 f"GREEN_{get_orderlet_name(ol)}_WAVE{get_orderlet_index(ol)}",
             )
             wave_red = fits.getdata(
-                self.wls_file,
+                wls_file,
                 f"RED_{get_orderlet_name(ol)}_WAVE{get_orderlet_index(ol)}",
             )
 
