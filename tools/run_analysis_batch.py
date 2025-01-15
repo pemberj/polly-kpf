@@ -5,7 +5,7 @@
 #     "polly-kpf>=0.2.0",
 # ]
 # [tool.uv.sources]
-# polly-kpf = { path = ".." }
+# polly-kpf = { path = "../", editable = true }
 # ///
 
 """
@@ -54,6 +54,7 @@ from polly.parsing import (
     parse_yyyymmdd,
 )
 from polly.plotting import plot_style
+
 plt.style.use(plot_style)
 
 

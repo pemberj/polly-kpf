@@ -5,7 +5,7 @@
 #     "polly-kpf>=0.2.0",
 # ]
 # [tool.uv.sources]
-# polly-kpf = { path = ".." }
+# polly-kpf = { path = "../", editable = true }
 # ///
 
 """
@@ -14,8 +14,6 @@ identified and fit peaks.
 
 Takes a single filename as argument.
 """
-
-from __future__ import annotations
 
 import logging
 import argparse
@@ -32,6 +30,7 @@ from polly.kpf import TIMESOFDAY
 from polly.parsing import parse_bool, parse_orderlets
 from polly.etalonanalysis import Spectrum
 from polly.plotting import plot_style
+
 plt.style.use(plot_style)
 
 
@@ -61,14 +60,14 @@ def main(
 
     pp = f"{f'[{date} {timeofday:>5}]':<20}"  # Print/logging line prefix
 
-    print(filename)
-
     s = Spectrum(
         spec_file=filename,
-        wls_file=None,  # It will try to find the corresponding WLS file
+        wls_file=None,  # It will try to find the corresponding WLS file(s)
+        auto_load_wls=True,
         orderlets_to_load=orderlets,
         pp=pp,
     )
+
     s.locate_peaks()
     s.fit_peaks(space="pixel")
 
@@ -80,8 +79,8 @@ def main(
         [(p.i, p.center_pixel, p.center_pixel_stddev) for p in s.peaks()]
     )
 
-    for i, pix, dpix in zip(order_is, center_pixels, pixel_std_devs, strict=True):
-        print(f"{pp}Order i={i:<3.0f}| {pix:.3f} +/- {dpix:.4f}")
+    # for i, pix, dpix in zip(order_is, center_pixels, pixel_std_devs, strict=True):
+    #     print(f"{pp}Order i={i:<3.0f}| {pix:.3f} +/- {dpix:.4f}")
 
     # And save the output to a CSV with built-in methods like so:
     for ol in s.orderlets:
@@ -90,7 +89,7 @@ def main(
                 filename=f"{OUTDIR}/masks/"
                 + f"{date}_{timeofday}_{ol}_etalon_wavelengths.csv",
                 orderlet=ol,
-                space="pixel",
+                locations="pixel",
                 filtered=False,
             )
         except Exception as e:
@@ -114,7 +113,7 @@ parser = argparse.ArgumentParser(
 
 parser.add_argument("-f", "--filename", default=DEFAULT_FILENAME)
 
-parser.add_argument("-o", "--orderlets", type=parse_orderlets, default="all")
+parser.add_argument("-o", "--orderlets", type=parse_orderlets, default="SCI2")
 parser.add_argument("--fit_plot", type=parse_bool, default=False)
 
 parser.add_argument(

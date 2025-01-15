@@ -5,7 +5,7 @@
 #     "polly-kpf>=0.2.0",
 # ]
 # [tool.uv.sources]
-# polly-kpf = { path = ".." }
+# polly-kpf = { path = "../", editable = true }
 # ///
 
 """
@@ -21,6 +21,7 @@ from matplotlib import pyplot as plt
 from polly.etalonanalysis import Spectrum
 from polly.parsing import parse_bool, parse_orderlets
 from polly.plotting import plot_style
+
 plt.style.use(plot_style)
 
 
