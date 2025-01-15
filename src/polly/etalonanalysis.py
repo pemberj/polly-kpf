@@ -74,7 +74,14 @@ if TYPE_CHECKING:
     from collections.abc import Callable
     from numpy.typing import ArrayLike
 
-from polly.kpf import LFC_ORDER_INDICES, THORIUM_ORDER_INDICES, MASTERS_DIR
+from polly.kpf import (
+    ORDERLETS,
+    ALL_ORDER_INDICES,
+    LFC_ORDER_INDICES,
+    THORIUM_ORDER_INDICES,
+    TEST_ORDER_INDICES,  # noqa: F401
+    MASTERS_DIR,
+)
 from polly.log import logger
 from polly.parsing import get_orderlet_index, get_orderlet_name
 from polly.plotting import plot_style, wavelength_to_rgb
@@ -355,8 +362,18 @@ class Peak:
         if space == "wavelength":
             self.center_wavelength = x0 + center
             self.center_wavelength_stddev = float(stddev[0])
+
             # Also interpolate to pixel space
-            wavelength_to_pixel = interp1d(self.wavelet, self.pixlet)
+            def wavelength_to_pixel(
+                wavelength_value: float | list[float],
+            ) -> float | list[float]:
+                mapping = interp1d(self.wavelet, self.pixlet)
+
+                if isinstance(wavelength_value, list):
+                    return [float(mapping(pv)[()]) for pv in wavelength_value]
+
+                return float(mapping(wavelength_value)[()])
+
             try:
                 self.center_pixel = wavelength_to_pixel(self.center_wavelength)
             except ValueError:
@@ -371,15 +388,29 @@ class Peak:
             except ValueError:
                 self.center_pixel_stddev = np.nan
 
+            self.sigma = sigma
+            self.sigma_stddev = stddev[2]
+
         elif space == "pixel":
             self.center_pixel = x0 + center
             self.center_pixel_stddev = stddev[0]
+
             # Also interpolate to wavelength space
-            pixel_to_wavelength = interp1d(self.pixlet, self.wavelet)
+            def pixel_to_wavelength(
+                pixel_value: float | list[float],
+            ) -> float | list[float]:
+                mapping = interp1d(self.pixlet, self.wavelet)
+
+                if isinstance(pixel_value, list):
+                    return [float(mapping(pv)[()]) for pv in pixel_value]
+
+                return float(mapping(pixel_value)[()])
+
             try:
                 self.center_wavelength = pixel_to_wavelength(self.center_pixel)
             except ValueError:
                 self.center_wavelength = np.nan
+
             try:
                 self.center_wavelength_stddev = abs(
                     pixel_to_wavelength(self.center_pixel + self.center_pixel_stddev)
@@ -388,14 +419,27 @@ class Peak:
             except ValueError:
                 self.center_wavelength_stddev = np.nan
 
-        # Populate the fit parameters
-        self.amplitude = amplitude
-        self.sigma = sigma
-        self.offset = offset
+            try:
+                self.sigma = abs(
+                    pixel_to_wavelength(self.center_pixel + sigma)
+                    - self.center_wavelength
+                )
+            except ValueError:
+                self.sigma = np.nan
 
-        self.amplitude_stddev = stddev[0]
-        self.sigma_stddev = stddev[2]
-        self.offset_stddev = stddev[3]
+            try:
+                self.sigma_stddev = abs(
+                    pixel_to_wavelength(self.center_pixel + stddev[2])
+                    - self.center_wavelength
+                )
+            except ValueError:
+                self.sigma_stddev = np.nan
+
+        # Populate the fit parameters
+        self.amplitude = float(amplitude * maxy)
+        self.amplitude_stddev = float(stddev[0])
+        self.offset = float(offset * maxy)
+        self.offset_stddev = float(stddev[3])
 
     def _fit_conv_gauss_tophat(self, space: str = "pixel") -> None:
         """
@@ -454,8 +498,18 @@ class Peak:
         if space == "wavelength":
             self.center_wavelength = x0 + center
             self.center_wavelength_stddev = float(stddev[0])
+
             # Also interpolate to pixel space
-            wavelength_to_pixel = interp1d(self.wavelet, self.pixlet)
+            def wavelength_to_pixel(
+                wavelength_value: float | list[float],
+            ) -> float | list[float]:
+                mapping = interp1d(self.wavelet, self.pixlet)
+
+                if isinstance(wavelength_value, list):
+                    return [float(mapping(pv)[()]) for pv in wavelength_value]
+
+                return float(mapping(wavelength_value)[()])
+
             try:
                 self.center_pixel = wavelength_to_pixel(self.center_wavelength)
             except ValueError:
@@ -470,15 +524,31 @@ class Peak:
             except ValueError:
                 self.center_pixel_stddev = np.nan
 
+            self.sigma = sigma
+            self.sigma_stddev = stddev[2]
+            self.boxhalfwidth = boxhalfwidth
+            self.boxhalfwidth_stddev = stddev[3]
+
         elif space == "pixel":
-            self.center_pixel = x0 + center
-            self.center_pixel_stddev = stddev[0]
+            self.center_pixel = float(x0 + center)
+            self.center_pixel_stddev = float(stddev[0])
+
             # Also interpolate to wavelength space
-            pixel_to_wavelength = interp1d(self.pixlet, self.wavelet)
+            def pixel_to_wavelength(
+                pixel_value: float | list[float],
+            ) -> float | list[float]:
+                mapping = interp1d(self.pixlet, self.wavelet)
+
+                if isinstance(pixel_value, list):
+                    return [float(mapping(pv)[()]) for pv in pixel_value]
+
+                return float(mapping(pixel_value)[()])
+
             try:
                 self.center_wavelength = pixel_to_wavelength(self.center_pixel)
             except ValueError:
                 self.center_wavelength = np.nan
+
             try:
                 self.center_wavelength_stddev = abs(
                     pixel_to_wavelength(self.center_pixel + self.center_pixel_stddev)
@@ -487,25 +557,48 @@ class Peak:
             except ValueError:
                 self.center_wavelength_stddev = np.nan
 
-        self.amplitude = amplitude * maxy
-        self.sigma = sigma
-        self.boxhalfwidth = boxhalfwidth
-        self.offset = offset * maxy
+            try:
+                self.sigma = abs(
+                    pixel_to_wavelength(self.center_pixel + sigma)
+                    - self.center_wavelength
+                )
+            except ValueError:
+                self.sigma = np.nan
 
-        self.amplitude_stddev = stddev[1]
-        self.sigma_stddev = stddev[2]
-        self.boxhalfwidth_stddev = stddev[3]
-        self.offset_stddev = stddev[4]
+            try:
+                self.sigma_stddev = abs(
+                    pixel_to_wavelength(self.center_pixel + stddev[2])
+                    - self.center_wavelength
+                )
+            except ValueError:
+                self.sigma_stddev = np.nan
+
+            try:
+                self.boxhalfwidth = abs(
+                    pixel_to_wavelength(self.center_pixel + boxhalfwidth)
+                    - self.center_wavelength
+                )
+            except ValueError:
+                self.boxhalfwidth = np.nan
+
+            try:
+                self.boxhalfwidth_stddev = abs(
+                    pixel_to_wavelength(self.center_pixel + stddev[3])
+                    - self.center_wavelength
+                )
+            except ValueError:
+                self.boxhalfwidth_stddev = np.nan
+
+        self.amplitude = float(amplitude * maxy)
+        self.amplitude_stddev = float(stddev[1])
+        self.offset = float(offset * maxy)
+        self.offset_stddev = float(stddev[4])
 
     def remove_fit(self, fill_with_nan: bool = False) -> Peak:
         """
         Reset any previously fitted parameters, used in the case of fitting again,
         perhaps with a different function, or in pixel space instead of wavelength space
         """
-
-        if not fill_with_nan:
-            self.fit_type = None
-            self.fit_space = None
 
         ___ = np.nan if fill_with_nan else None
 
@@ -614,6 +707,17 @@ class Peak:
 
         return (self.speclet - coarse_yfit) / maxy
 
+    @property
+    def rms_residuals(self) -> float | None:
+        """
+        If a fit exists, return the RMS of the residuals.
+        """
+
+        if self.residuals is None:
+            return None
+
+        return np.std(self.residuals)
+
     def plot_fit(self, ax: plt.Axes | None = None) -> None:
         """
         Generates a plot of the (normalised) wavelet and speclet raw data, with the
@@ -634,7 +738,9 @@ class Peak:
         if ax.get_xlim() == (0.0, 1.0):
             ax.set_xlim(min(x), max(x))
 
-        ax.set_ylim(0, 1.2)
+        ax.set_ylim(-0.1, 1.5)
+        ax.set_yticks([0, 0.25, 0.5, 0.75, 1])
+        ax.set_yticklabels([f"{yt:.2g}" for yt in ax.get_yticks()])
 
         xfit = np.linspace(min(x), max(x), 100)
         yfit = self.evaluate_fit(x=xfit, about_zero=True)
@@ -643,10 +749,6 @@ class Peak:
             return
 
         maxy = max(yfit)
-        coarse_yfit = self.evaluate_fit(x=self.wavelet, about_zero=True)
-
-        residuals = (self.speclet - coarse_yfit) / maxy
-        rms_residuals = np.std(residuals)
 
         ax.step(
             x,
@@ -662,8 +764,9 @@ class Peak:
             xfit,
             yfit / maxy,
             color="k",
-            label=f"{self.fit_type}\nRMS(residuals)={rms_residuals:.2e}",
+            label=f"{self.fit_type}\nRMS(residuals)={self.rms_residuals:.2e}",
         )
+
         ax.axvline(
             x=0,
             color="r",
@@ -674,7 +777,7 @@ class Peak:
 
         ax.set_xlabel("$\lambda$ [$\AA$]")
         ax.set_ylabel("")
-        ax.legend(loc="lower center", fontsize="small", frameon=True)
+        ax.legend(loc="upper center", fontsize="small", frameon=True)
 
         if show:
             plt.show()
@@ -702,7 +805,7 @@ class Peak:
     def __repr__(self) -> str:
         return (
             "Peak("
-            f"order_i={self.order_i:.0f}, "
+            f"order_i={self.order_i:<2}, "
             f"coarse_wavelength={self.coarse_wavelength:.3f}, "
             f"speclet={self.speclet}, "
             f"wavelet={self.wavelet})"
@@ -711,7 +814,7 @@ class Peak:
     def __str__(self) -> str:
         return (
             "\nPeak("
-            f"order_i {self.order_i:.0f}, "
+            f"order_i {self.order_i:<2}, "
             f"coarse_wavelength {self.coarse_wavelength:.3f}, "
             f"{self.has('speclet')} speclet, "
             f"{self.has('wavelet')} wavelet, "
@@ -823,11 +926,38 @@ class Order:
     parent_ref = weakref.ReferenceType
 
     orderlet: str  # SCI1, SCI2, SCI3, CAL, SKY
-    spec: ArrayLike
     i: int
-
+    spec: ArrayLike
     wave: ArrayLike = field(default=None)
+
+    spec_file: str = field(default=None)
+    wls_file: str = field(default=None)
+    _wls_source: str = field(default=None)
+
     peaks: list[Peak] = field(default_factory=list)
+
+    @property
+    def wls_source(self) -> str:
+        """
+        This function returns a string that can be used to identify which wavelength
+        calibration source was used to generate the underlying wavelength solution (wls)
+        that the order's `wave` array data is based on.
+
+        The source can be set explicitly by addressing the Order._wls_source property
+        """
+        if self._wls_source is not None:
+            return self._wls_source
+
+        if self.wls_file is None:
+            return "unknown"
+
+        if "lfc" in self.wls_file:
+            return "lfc"
+
+        if "thar" in self.wls_file:
+            return "thorium"
+
+        return "unknown"
 
     @property
     def parent(self) -> Spectrum:
@@ -837,7 +967,7 @@ class Order:
 
         try:
             return self.parent_ref()
-        except NameError:
+        except (NameError, TypeError):
             return None
 
     @property
@@ -856,11 +986,12 @@ class Order:
 
         return np.mean(self.wave)
 
-    def apply_wavelength_solution(self, wls: ArrayLike) -> Order:
+    def apply_wavelength_solution(self, wls: ArrayLike, wls_file: str) -> Order:
         """
         Basically a setter function to apply wavelength values to the `wave` array
         """
 
+        self.wls_file = wls_file
         self.wave = wls
         return self
 
@@ -900,7 +1031,7 @@ class Order:
         """
 
         if self.spec is None or self.wave is None:
-            logger.info(f"{self.pp}Issue with processing order {self}")
+            logger.info(f"Issue with processing order {self}")
             return self
 
         y = self.spec - np.nanmin(self.spec)
@@ -990,15 +1121,28 @@ class Order:
 
         return spec_fit
 
-    @property
-    def spec_residuals(self) -> ArrayLike:
+    def spec_residuals(self, normalised: bool = True) -> ArrayLike:
         """
         Return the full-order residuals between the original `spec' array and the
         stitched `spec_fit' array of all of the peak fits. See `spec_fit' for more
         details.
         """
 
-        return self.spec - self.spec_fit
+        res = np.zeros_like(self.spec)
+        for p in self.peaks:
+            min_wl = min(p.wavelet)
+            max_wl = max(p.wavelet)
+
+            lowmask = min_wl <= self.wave
+            highmask = self.wave <= max_wl
+            mask = lowmask & highmask
+
+            if normalised:
+                res[mask] = p.residuals
+            else:
+                res[mask] = p.speclet - p.evaluate_fit(p.wavelet)
+
+        return res
 
     @property
     def fit_parameters(self) -> dict:
@@ -1045,19 +1189,22 @@ class Order:
 
     def __str__(self) -> str:
         return (
-            f"Order(orderlet={self.orderlet}, i={self.i}, "
+            "Order("
+            f"orderlet={self.orderlet}, i={self.i:<2}, "
             f"{self.has('spec')} spec, {self.has('wave')} wave, "
-            f"{len(self.peaks)} peaks)"
+            f"{len(self.peaks)} peaks, "
+            f"spec_file={self.spec_file}, "
+            f"wls_file={self.wls_file})"
         )
 
     def __repr__(self) -> str:
         return (
             "Order("
-            f"orderlet={self.orderlet}, i={self.i}, "
+            f"orderlet={self.orderlet}, i={self.i:<2}, "
             f"spec={self.spec}, "
-            f"wave={self.wave})\n"
-            f"`spec` from {self.parent.spec_file} "
-            f"`wave` from {self.parent.wls_file}"
+            f"wave={self.wave}, "
+            f"spec_file={self.spec_file}, "
+            f"wls_file={self.wls_file})"
         )
 
     def __contains__(self, wl: float) -> bool:
@@ -1238,6 +1385,7 @@ class Spectrum:
 
     spec_file: Path | str | list[Path] | list[str] = field(default=None)
     wls_file: Path | str = field(default=None)
+    auto_load_wls: bool = True
     orders_to_load: list[int] = field(default=None)
     orderlets_to_load: str | list[str] = field(default=None)
 
@@ -1271,7 +1419,13 @@ class Spectrum:
             self.orderlets_to_load = [self.orderlets_to_load]
 
         if self.orderlets_to_load is None:
-            self.orderlets_to_load = ["SCI1", "SCI2", "SCI3", "CAL", "SKY"]
+            self.orderlets_to_load = ORDERLETS
+
+        if isinstance(self.orders_to_load, int):
+            self.orders_to_load = [self.orders_to_load]
+
+        if self.orders_to_load is None:
+            self.orders_to_load = ALL_ORDER_INDICES
 
         self.filtered_peaks = {ol: None for ol in self.orderlets_to_load}
 
@@ -1283,7 +1437,7 @@ class Spectrum:
                 self.load_spec()
             if self.wls_file:
                 self.load_wls()
-            else:
+            elif self.auto_load_wls:
                 self.find_wls_file()
                 if self.wls_file:
                     self.load_wls()
@@ -1359,7 +1513,7 @@ class Spectrum:
                 logger.info(f"{self.pp}{result}")
                 return result
 
-            logger.info(f"{self.pp}No matching order found!")
+            logger.info(f"{self.pp}No matching order found for {orderlet=} and {i=}")
             return None
 
         if orderlet is not None:
@@ -1590,10 +1744,28 @@ class Spectrum:
                 spec = np.append(spec_green, spec_red, axis=0)
 
                 if self.orders_to_load is not None:
-                    spec = spec[self.orders_to_load]
+                    for i in self.orders_to_load:
+                        _orders.append(
+                            Order(
+                                orderlet=ol,
+                                spec=spec[i],
+                                spec_file=self.spec_file.name,
+                                wave=None,
+                                i=i,
+                            )
+                        )
 
-                for i, s in enumerate(spec):
-                    _orders.append(Order(orderlet=ol, wave=None, spec=s, i=i))
+                else:
+                    for i, s in enumerate(spec):
+                        _orders.append(
+                            Order(
+                                orderlet=ol,
+                                spec=s,
+                                spec_file=self.spec_file.name,
+                                wave=None,
+                                i=i,
+                            )
+                        )
 
             self._orders = _orders
 
@@ -1688,7 +1860,15 @@ class Spectrum:
                     spec = spec[self.orders_to_load]
 
                 for i, s in enumerate(spec):
-                    _orders.append(Order(orderlet=ol, wave=None, spec=s, i=i))
+                    _orders.append(
+                        Order(
+                            orderlet=ol,
+                            spec=s,
+                            spec_file=self.spec_file,
+                            wave=None,
+                            i=i,
+                        )
+                    )
 
             self._orders = _orders
 
@@ -1782,23 +1962,86 @@ class Spectrum:
 
             wave = np.append(wave_green, wave_red, axis=0)
 
-            if self.orders_to_load is not None:
-                wave = wave[self.orders_to_load]
-
             # If there are no orders already (for this orderlet), just populate
-            # a new set of orders only with the wavelength solution
+            # a new set of orders with only the wavelength solution, no flux yet
             if not self.orders(orderlet=ol):
                 for i, w in enumerate(wave):
-                    self._orders.append(Order(wave=w, spec=None, i=i))
+                    self._orders.append(
+                        Order(
+                            spec=None,
+                            wave=w,
+                            wls_file=self.wls_file.name,
+                            i=i,
+                        )
+                    )
+                continue
 
             # Otherwise, apply the wavelength solution to the appropriate orders
-            else:
-                for i, w in enumerate(wave):
-                    try:
-                        self.orders(orderlet=ol, i=i).apply_wavelength_solution(wls=w)
-                    except AttributeError as e:
-                        logger.error(f"{self.pp}{e}")
-                        logger.error(f"{self.pp}No order exists: orderlet={ol}, {i=}")
+            if self.orders_to_load is not None:
+                for i in self.orders_to_load:
+                    self.orders(orderlet=ol, i=i).apply_wavelength_solution(
+                        wls=wave[i], wls_file=self.wls_file.name
+                    )
+                continue
+
+            for i, w in enumerate(wave):
+                try:
+                    self.orders(orderlet=ol, i=i).apply_wavelength_solution(
+                        wls=w, wls_file=self.wls_file.name
+                    )
+                except AttributeError as e:
+                    logger.error(f"{self.pp}{e}")
+                    logger.error(f"{self.pp}No order exists: orderlet={ol}, {i=}")
+
+        return self
+
+    def load_partial_wls(
+        self,
+        wls_file: Path | str,
+        valid_i: int | list[int] | None = None,
+        orderlet: str | list[str] | None = None,
+    ) -> Spectrum:
+        """
+        Load a wavelength solution and apply it only to a subset of orderlets or orders.
+
+        This used to handle files that need multiple wavelength solutions (eg. using the
+        laser frequency comb solution for some orders, and using the thorium-argon
+        solution for others).
+        """
+        if isinstance(wls_file, str):
+            wls_file = Path(wls_file)
+
+        if valid_i is None:
+            valid_i = self.orders_to_load
+
+        if isinstance(valid_i, int):
+            valid_i = [valid_i]
+
+        if orderlet is None:
+            orderlet = self.orderlets
+
+        if isinstance(orderlet, str):
+            orderlet = [orderlet]
+
+        logger.info(f"{self.pp}Loading partial WLS from file: {wls_file.name}...")
+
+        for ol in orderlet:
+            wave_green = fits.getdata(
+                wls_file,
+                f"GREEN_{get_orderlet_name(ol)}_WAVE{get_orderlet_index(ol)}",
+            )
+            wave_red = fits.getdata(
+                wls_file,
+                f"RED_{get_orderlet_name(ol)}_WAVE{get_orderlet_index(ol)}",
+            )
+
+            wave = np.append(wave_green, wave_red, axis=0)
+
+            for i in valid_i:
+                if i in self.orders_to_load:
+                    self.orders(orderlet=ol, i=i).apply_wavelength_solution(
+                        wls=wave[i], wls_file=wls_file.name
+                    )
 
         return self
 
@@ -2110,7 +2353,7 @@ class Spectrum:
                 o.spec[mask],
                 lw=0.5,
                 color=wavelength_to_rgb(o.mean_wave),
-                path_effects=[pe.Stroke(linewidth=1.5, foreground="k"), pe.Normal()],
+                path_effects=[pe.Stroke(linewidth=2, foreground="k"), pe.Normal()],
             )
         # ax.plot(0, 0, color="k", lw=1.5)
 
@@ -2132,6 +2375,7 @@ class Spectrum:
             for p in peaks_to_plot:
                 ax.axvline(x=p.wl, color="k", alpha=0.1)
 
+        ax.set_ylim(0.1 * ax.get_ylim()[0], ax.get_ylim()[1])
         ax.set_xlabel("Wavelength [Angstroms]")
         ax.set_ylabel("Flux")
 
@@ -2142,6 +2386,7 @@ class Spectrum:
         orderlet: str,
         ax: plt.Axes | None = None,
         plot_peaks: bool = True,
+        normalised: bool = True,
     ) -> plt.Axes:
         """
         Plot the residuals between the full spectrum and the peak fits.
@@ -2180,10 +2425,10 @@ class Spectrum:
             mask = (o.wave > xlims[0]) & (o.wave < xlims[1])
             ax.plot(
                 o.wave[mask],
-                o.spec_residuals[mask],
+                o.spec_residuals(normalised=normalised)[mask],
                 lw=0.5,
                 color=wavelength_to_rgb(o.mean_wave),
-                path_effects=[pe.Stroke(linewidth=1.5, foreground="k"), pe.Normal()],
+                path_effects=[pe.Stroke(linewidth=2, foreground="k"), pe.Normal()],
             )
         # ax.plot(0, 0, color="k", lw=1.5)
 
@@ -2354,14 +2599,18 @@ class Spectrum:
 
         # Green arm - orders 0, 17, 34
         for i, order_i in enumerate([0, 17, 34]):
-            o = self.orders(orderlet=orderlet)[order_i]
+            o = self.orders(orderlet=orderlet, i=order_i)
+            if not o:
+                continue
             o.peaks[0].plot_fit(ax=axs[i][0])
             o.peaks[o.num_peaks // 2].plot_fit(ax=axs[i][1])
             o.peaks[o.num_peaks - 1].plot_fit(ax=axs[i][2])
 
         # Red arm - orders 35, 51, 66
         for i, order_i in enumerate([35, 51, 66], start=3):
-            o = self.orders(orderlet=orderlet)[order_i]
+            o = self.orders(orderlet=orderlet, i=order_i)
+            if not o:
+                continue
             o.peaks[0].plot_fit(ax=axs[i][0])
             o.peaks[o.num_peaks // 2].plot_fit(ax=axs[i][1])
             o.peaks[o.num_peaks - 1].plot_fit(ax=axs[i][2])
@@ -2450,6 +2699,12 @@ class Spectrum:
 
         if orderlet not in self.orderlets:
             raise ValueError("Invalid orderlet")
+
+        if data == "spec_residuals":
+            # spec_residuals is a function call, not a property
+            return np.array(
+                [o.spec_residuals() for o in self.orders(orderlet=orderlet)]
+            )
 
         return np.array(
             [ast.literal_eval(f"o.{data}") for o in self.orders(orderlet=orderlet)]
@@ -2601,27 +2856,37 @@ def test() -> None:
     filter peaks.
     """
 
-    DATE = "20240520"
+    DATE: str = "20240520"
 
-    etalon_file = (
+    etalon_file: Path = (
         MASTERS_DIR
         / f"{DATE}"
         / f"kpf_{DATE}_master_WLS_autocal-etalon-all-morn_L1.fits"
     )
-    wls_file = (
+    lfc_wls_file: Path = (
+        MASTERS_DIR / f"{DATE}" / f"kpf_{DATE}_master_WLS_autocal-lfc-all-morn_L1.fits"
+    )
+    thorium_wls_file: Path = (
         MASTERS_DIR / f"{DATE}" / f"kpf_{DATE}_master_WLS_autocal-thar-all-morn_L1.fits"
     )
 
-    s = Spectrum(
+    s: Spectrum = Spectrum(
         spec_file=etalon_file,
-        wls_file=wls_file,
+        # wls_file=wls_file,
+        auto_load_wls=False,
         orderlets_to_load="SCI2",
+        # orders_to_load=TEST_ORDER_INDICES,
     )
 
-    s.locate_peaks()
-    print(f"{s.num_located_peaks() = }")
+    s.load_partial_wls(wls_file=lfc_wls_file, valid_i=LFC_ORDER_INDICES)
+    s.load_partial_wls(wls_file=thorium_wls_file, valid_i=THORIUM_ORDER_INDICES)
 
-    s.fit_peaks(fit_type="conv_gauss_tophat")
+    s.locate_peaks()
+
+    for o in s.orders():
+        print(o)
+
+    s.fit_peaks(fit_type="conv_gauss_tophat", space="pixel")
     print(f"{s.num_successfully_fit_peaks() = }")
 
     s.filter_peaks()
@@ -2631,7 +2896,14 @@ def test() -> None:
         filename=f"/scr/jpember/temp/temp_mask_{DATE}.csv", orderlet="SCI2"
     )
 
-    # s.save_peak_locations(f"./etalon_wavelengths_{orderlet}.csv")
+    s.plot_spectrum(orderlet="SCI2", plot_peaks=False)
+    plt.savefig(f"/scr/jpember/temp/temp_spectrum_{DATE}.png")
+
+    s.plot_residuals(orderlet="SCI2", plot_peaks=False, normalised=True)
+    plt.savefig(f"/scr/jpember/temp/temp_residuals_{DATE}.png")
+
+    s.plot_peak_fits(orderlet="SCI2")
+    plt.savefig(f"/scr/jpember/temp/temp_peak_fits_{DATE}.png")
 
 
 if __name__ == "__main__":
