@@ -9,9 +9,9 @@ plots, as well as functions used to get an RGB colour value for an input wavelen
 
 import colorsys
 
-from pyfonts import load_font
-import numpy as np
 import matplotlib.font_manager as fm
+import numpy as np
+from pyfonts import load_font
 
 # load Quicksand font
 url = (
@@ -34,8 +34,10 @@ plot_style = {
     "axes.titlesize": 14,
     # Axis spine line widths
     "axes.linewidth": lw,
-    # Optional: set the default axis limits to be round numbers
+    # Set the default axis limits to be round numbers
+    # Use plt.rcParams["axes.autolimit_mode"] = "data" to disable
     "axes.autolimit_mode": "round_numbers",
+    "axes.unicode_minus": True,
     # x tick properties
     "xtick.top": True,
     "xtick.bottom": True,
@@ -74,6 +76,7 @@ plot_style = {
     "lines.markersize": 16,
     "lines.solid_capstyle": "round",
     "lines.dash_capstyle": "round",
+    "scatter.marker": ".",
     "scatter.edgecolors": "k",
     "errorbar.capsize": 3,
     "hist.bins": 20,
