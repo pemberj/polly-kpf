@@ -51,9 +51,9 @@ Peak
 
 from __future__ import annotations
 
+import ast
 import logging
 import weakref
-import ast
 from dataclasses import dataclass, field
 from operator import attrgetter
 from pathlib import Path
@@ -64,7 +64,6 @@ from astropy import constants
 from astropy import units as u
 from astropy.io import fits
 from matplotlib import pyplot as plt
-import matplotlib.patheffects as pe
 from scipy.interpolate import BSpline, interp1d, splrep
 from scipy.optimize import curve_fit
 from scipy.signal import find_peaks
@@ -72,19 +71,20 @@ from tqdm import tqdm
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+
     from numpy.typing import ArrayLike
 
 from polly.kpf import (
-    ORDERLETS,
     ALL_ORDER_INDICES,
     LFC_ORDER_INDICES,
-    THORIUM_ORDER_INDICES,
-    TEST_ORDER_INDICES,  # noqa: F401
     MASTERS_DIR,
+    ORDERLETS,
+    TEST_ORDER_INDICES,  # noqa: F401
+    THORIUM_ORDER_INDICES,
 )
 from polly.log import logger
 from polly.parsing import get_orderlet_index, get_orderlet_name
-from polly.plotting import plot_style, wavelength_to_rgb
+from polly.plotting import plot_style, stroke, wavelength_to_rgb
 
 plt.style.use(plot_style)
 
@@ -756,7 +756,7 @@ class Peak:
             where="mid",
             color=wavelength_to_rgb(self.center_wavelength),
             lw=2.5,
-            path_effects=[pe.Stroke(linewidth=4, foreground="k"), pe.Normal()],
+            path_effects=stroke(4),
             label="Peak data",
         )
 
@@ -2415,7 +2415,7 @@ class Spectrum:
                 o.spec[mask],
                 lw=0.5,
                 color=wavelength_to_rgb(o.mean_wave),
-                path_effects=[pe.Stroke(linewidth=2, foreground="k"), pe.Normal()],
+                path_effects=stroke(2),
             )
         # ax.plot(0, 0, color="k", lw=1.5)
 
@@ -2490,7 +2490,7 @@ class Spectrum:
                 o.spec_residuals(normalised=normalised)[mask],
                 lw=0.5,
                 color=wavelength_to_rgb(o.mean_wave),
-                path_effects=[pe.Stroke(linewidth=2, foreground="k"), pe.Normal()],
+                path_effects=stroke(2),
             )
         # ax.plot(0, 0, color="k", lw=1.5)
 

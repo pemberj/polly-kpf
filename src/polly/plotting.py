@@ -10,6 +10,7 @@ plots, as well as functions used to get an RGB colour value for an input wavelen
 import colorsys
 
 import matplotlib.font_manager as fm
+import matplotlib.patheffects as pe
 import numpy as np
 from pyfonts import load_font
 
@@ -31,7 +32,7 @@ plot_style = {
     "mathtext.default": "regular",
     # Set axis text label sizes
     "axes.labelsize": 12,
-    "axes.titlesize": 14,
+    "axes.titlesize": 16,
     # Axis spine line widths
     "axes.linewidth": lw,
     # Set the default axis limits to be round numbers
@@ -66,6 +67,7 @@ plot_style = {
     "legend.fontsize": 14,
     "legend.labelspacing": 0.25,
     "legend.handletextpad": 0.25,
+    "figure.titlesize": 18,
     # Default figure size and constrined_layout (previously plt.tight_layout())
     "figure.figsize": (14 / 2.54, 10 / 2.54),
     "figure.dpi": 96,
@@ -81,6 +83,14 @@ plot_style = {
     "errorbar.capsize": 3,
     "hist.bins": 20,
 }
+
+
+def stroke(thickness: float = 4) -> list:
+    """
+    A cheap and cheerful wrapper around matplotlib.patheffects objects to provide a
+    stroke effect around any line or text object
+    """
+    return [pe.Stroke(linewidth=thickness, foreground="k"), pe.Normal()]
 
 
 def wavelength_to_rgb(
