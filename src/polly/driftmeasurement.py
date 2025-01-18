@@ -27,7 +27,6 @@ from scipy.optimize import curve_fit
 
 if TYPE_CHECKING:
     from collections.abc import Callable
-    from numpy.typing import ArrayLike
     from astropy.units import Quantity
 
 from polly.misc import savitzky_golay
@@ -62,7 +61,7 @@ class PeakDrift:
     # will populate the `wavelengths` list.
     wavelengths: list[float | None] = field(default_factory=list)
     sigmas: list[float] = field(default_factory=list)
-    valid: ArrayLike = field(default=None)
+    valid: list[bool] = field(default=None)
 
     auto_fit: bool = True
 
@@ -335,13 +334,11 @@ class PeakDrift:
 
         deltas_to_use = self.fractional_deltas if fit_fractional else self.deltas
 
-        def linear_model(
-            x: float | list[float], slope: float
-        ) -> float | ArrayLike[float]:
+        def linear_model(x: float | list[float], slope: float) -> float | list[float]:
             if isinstance(x, list):
                 x = np.array(x)
 
-            return slope * x
+            return list(slope * x)
 
         try:
             p, cov = curve_fit(
@@ -551,13 +548,11 @@ class GroupDrift:
             print(f"{self.all_days_since_reference_date}")
             print(f"{self.all_deltas}")
 
-        def linear_model(
-            x: float | list[float], slope: float
-        ) -> float | ArrayLike[float]:
+        def linear_model(x: float | list[float], slope: float) -> float | list[float]:
             if isinstance(x, list):
                 x = np.array(x)
 
-            return slope * x
+            return list(slope * x)
 
         try:
             p, cov = curve_fit(
