@@ -332,10 +332,16 @@ class Peak:
 
         maxy = max(self.speclet)
         y = self.speclet / maxy
+        offset_guess = float((y[0] + y[-1]) / 2)
+        if np.isnan(offset_guess):
+            offset_guess = 0
 
-        # amplitude,     center,       sigma,           offset
-        p0 = [0.5, 0, 2.5 * mean_dx, min(y)]
-        bounds = [[0, -5 * mean_dx, 0, -np.inf], [2, 5 * mean_dx, 10 * mean_dx, np.inf]]
+        #       amplitude,     center,  sigma,       offset
+        p0 = [1 - offset_guess, 0, 2.5 * mean_dx, offset_guess]
+        bounds = [
+            [0, -5 * mean_dx, 0, -np.inf],
+            [2, 5 * mean_dx, 10 * mean_dx, np.inf],
+        ]
 
         try:
             p, cov = curve_fit(
@@ -346,7 +352,7 @@ class Peak:
                 bounds=bounds,
             )
         except ValueError as e:
-            raise ValueError from e
+            raise ValueError(e) from e
         except RuntimeError:
             # logger.warning(e)
             self.remove_fit(fill_with_nan=True)
@@ -466,9 +472,12 @@ class Peak:
         maxy = max(self.speclet)
         # Normalise
         y = self.speclet / maxy
+        offset_guess = float((y[0] + y[-1]) / 2)
+        if np.isnan(offset_guess):
+            offset_guess = 0
 
-        # center,     amp,    sigma,        boxhalfwidth,  offset
-        p0 = [0, 1, 2.5 * mean_dx, 3 * mean_dx, min(y)]
+        # center,     amp,            sigma,     boxhalfwidth,    offset
+        p0 = [0, 1 - offset_guess, 2.5 * mean_dx, 3 * mean_dx, offset_guess]
         bounds = [
             [-5 * mean_dx, 0, 0, 0, -np.inf],
             [5 * mean_dx, 10, 10 * mean_dx, 6 * mean_dx, np.inf],
@@ -482,7 +491,7 @@ class Peak:
                 bounds=bounds,
             )
         except ValueError as e:
-            raise ValueError from e
+            raise ValueError(e) from e
         except RuntimeError:
             # logger.warning(e)
             self.remove_fit(fill_with_nan=True)
@@ -997,9 +1006,15 @@ class Order:
 
     def locate_peaks(
         self,
-        fractional_height: float = 0.01,
-        distance: float = 10,
-        width: float = 3,
+        threshold: float | None = None,
+        height: float | None = 0.01,
+        distance: float | None = 10,
+        prominence: float | None = None,
+        width: float | None = 3,
+        wlen: int | None = None,
+        rel_height: float = 0.5,
+        plateau_size: float | None = None,
+        fractional_heights: bool = True,
         window_to_save: int = 16,
     ) -> Order:
         """
@@ -1010,16 +1025,29 @@ class Order:
         array to populate a list of Peak objects.
 
         Args:
-            fractional_height (float, optional). Defaults to 0.01.
+            threshold (float, optional). Defaults to None. Here simply to expose the
+                underling scipy.signal.find_peaks parameter
+            height (float, optional). Defaults to 0.01.
                 The minimum height of the peak as a fraction of the maxmium value in the
                 flux array. Should account for the expected blaze efficiency curve
             distance (float, optional). Defaults to 10.
                 The minimum distance between peaks (here in pixels)
+            prominence (float, optional). Defaults to None. Here simply to expose the
+                underling scipy.signal.find_peaks parameter
             width (float, optional). Defaults to 3.
                 The minimum width of the peaks themselves. Setting this higher than 1-2
                 will avoid location of single-pixel noise spikes or cosmic rays, but the
                 setting should not exceed the resolution element sampling in the
                 spectrograph.
+            wlen (float, optional). Defaults to None. Here simply to expose the
+                underling scipy.signal.find_peaks parameter
+            rel_height (float, optional). Defaults to None. Here simply to expose the
+                underling scipy.signal.find_peaks parameter
+            plateau_size (float, optional). Defaults to None. Here simply to expose the
+                underling scipy.signal.find_peaks parameter
+            fractional_heights (bool, optional). Defaults to True. If True, the
+                `height', `prominence', and `rel_height' parameters are treated as
+                fractions of the maximum value of the `spec' array.
             window_to_save (int, optional). Defaults to 16.
                 The total number of pixels to save into each Peak object. A slice of
                 both the `wave` and `spec` arrays is stored in each Peak, where an
@@ -1027,22 +1055,36 @@ class Order:
 
         Returns:
             Order: The Order object itself so methods may be chained
-
         """
 
-        if self.spec is None or self.wave is None:
-            logger.info(f"Issue with processing order {self}")
+        if self.spec is None:
+            logger.error(f"No `spec` array for order {self}")
             return self
+
+        if self.wave is None:
+            logger.error(f"No `wave` array for order {self}")
+            return self
+
+        if fractional_heights:
+            if height is not None:
+                height = height * np.nanmax(self.spec)
+            if prominence is not None:
+                prominence = prominence * (np.nanmax(self.spec) - np.nanmin(self.spec))
+            if rel_height is not None:
+                rel_height = rel_height * np.nanmax(self.spec)
 
         y = self.spec - np.nanmin(self.spec)
         y = y[~np.isnan(y)]
         p, _ = find_peaks(
             y,
-            height=fractional_height * np.nanmax(y),
-            # prominence = 0.1 * (np.max(self.spec) - np.min(self.spec)),
-            # wlen = 8, # Window length for prominence calculation
+            threshold=threshold,
+            height=height,
             distance=distance,
+            prominence=prominence,
             width=width,
+            wlen=wlen,
+            rel_height=rel_height,
+            plateau_size=plateau_size,
         )
 
         self.peaks = [
@@ -1143,6 +1185,44 @@ class Order:
                 res[mask] = p.speclet - p.evaluate_fit(p.wavelet)
 
         return res
+
+    def residuals_rms_split(
+        self,
+        threshold: float = 0.05,
+    ) -> tuple[list[Peak], list[Peak]]:
+        """
+        This function splits the peaks into two lists, one containing peaks with RMS
+        residuals below or equal to a certain threshold, and the other containing peaks
+        with RMS residuals above that threshold.
+
+        This is useful for identifying which peaks are well-fit and which are not,
+        particularly in the context of fitting peaks in a thorium-argon spectrum (not
+        the primary intended use for this code, but one of the always-envisaged
+        use-cases).
+        """
+
+        good_peaks = []
+        bad_peaks = []
+
+        for p in self.peaks:
+            if p.rms_residuals <= threshold:
+                good_peaks.append(p)
+            else:
+                bad_peaks.append(p)
+
+        return good_peaks, bad_peaks
+
+    def discard_poorly_fit_peaks(self, threshold: float = 0.05) -> Order:
+        """
+        Discard peaks with RMS residuals above a certain threshold. This wraps and
+        extends the method `residuals_rms_split`, keeping only those peaks that have
+        residuals RMS values below the threshold.
+        """
+
+        good_peaks, _ = self.residuals_rms_split(threshold=threshold)
+        self.peaks = good_peaks
+
+        return self
 
     @property
     def fit_parameters(self) -> dict:
@@ -2110,9 +2190,15 @@ class Spectrum:
     def locate_peaks(
         self,
         orderlet: str | list[str] | None = None,
-        fractional_height: float = 0.1,
+        threshold: float = None,
+        height: float = 0.1,
         distance: float = 10,
+        prominence: float = None,
         width: float = 3,
+        wlen: int = None,
+        rel_height: float = 0.5,
+        plateau_size: float = None,
+        fractional_heights: bool = True,
         window_to_save: int = 16,
     ) -> Spectrum:
         """
@@ -2123,9 +2209,15 @@ class Spectrum:
 
         Args:
             orderlet (str | list[str] | None, optional): Defaults to None.
-            fractional_height (float, optional): Defaults to 0.1.
+            threshold
+            height (float, optional): Defaults to 0.1.
             distance (float, optional): Defaults to 10.
+            prominence
             width (float, optional): Defaults to 3.
+            wlen
+            rel_height
+            plateau_size
+            fractional_heights
             window_to_save (int, optional): Defaults to 16.
 
         Returns:
@@ -2134,8 +2226,7 @@ class Spectrum:
 
         if isinstance(orderlet, str):
             orderlet = [orderlet]
-
-        if orderlet is None:
+        elif orderlet is None:
             orderlet = self.orderlets
 
         if self.reference_mask is None:
@@ -2143,9 +2234,15 @@ class Spectrum:
                 logger.info(f"{self.pp}Locating {ol:<4} peaks...")
                 for o in self.orders(orderlet=ol):
                     o.locate_peaks(
-                        fractional_height=fractional_height,
+                        threshold=threshold,
+                        height=height,
                         distance=distance,
+                        prominence=prominence,
                         width=width,
+                        wlen=wlen,
+                        rel_height=rel_height,
+                        plateau_size=plateau_size,
+                        fractional_heights=fractional_heights,
                         window_to_save=window_to_save,
                     )
 
@@ -2211,6 +2308,17 @@ class Spectrum:
                 o.fit_peaks(fit_type=fit_type, space=space)
 
         return self
+
+    def discard_poorly_fit_peaks(self, threshold: float = 0.05) -> Spectrum:
+        """
+        Filter poorly fit peaks by the RMS value of the residuals of the fit.
+
+        I'm imagining this to be done after the fit but before filtering peaks that
+        appear in multiple orders.
+        """
+
+        for o in self.orders():
+            o.discard_poorly_fit_peaks(threshold=threshold)
 
     def filter_peaks(
         self, orderlet: str | list[str] | None = None, window: float = 0.1
