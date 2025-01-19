@@ -2852,7 +2852,7 @@ class Spectrum:
         self,
         orderlet: str,
         data: str = "spec",  # spec, wave, spec_fit, spec_residuals
-    ) -> ArrayLike | dict[str:ArrayLike]:
+    ) -> ArrayLike:
         """
         A method that returns a full raw data array corresponding to a single orderlet.
 
@@ -2881,9 +2881,7 @@ class Spectrum:
 
         if data == "spec_residuals":
             # spec_residuals is a function call, not a property
-            return np.array(
-                [o.spec_residuals() for o in self.orders(orderlet=orderlet)]
-            )
+            data = "spec_residuals()"
 
         return np.array(
             [ast.literal_eval(f"o.{data}") for o in self.orders(orderlet=orderlet)]
