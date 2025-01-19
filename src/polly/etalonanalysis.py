@@ -257,14 +257,9 @@ class Peak:
     @property
     def wl(self) -> float:
         """
-        Alias for `center_wavelength` if it is defined, otherwise returns the value of
-        `coarse_wavelength`.
+        Alias for `center_wavelength`.
         """
-
-        if self.center_wavelength:
-            return self.center_wavelength
-
-        return self.coarse_wavelength
+        return self.center_wavelength
 
     @property
     def i(self) -> int:
@@ -390,7 +385,7 @@ class Peak:
         stddev = np.sqrt(np.diag(cov))
 
         if space == "wavelength":
-            self.center_wavelength = x0 + center
+            self._center_wavelength = x0 + center
             self.center_wavelength_stddev = float(stddev[0])
 
             # Also interpolate to pixel space
@@ -403,9 +398,9 @@ class Peak:
                 return float(mapping(wavelength_value)[()])
 
             try:
-                self.center_pixel = wavelength_to_pixel(self.center_wavelength)
+                self._center_pixel = wavelength_to_pixel(self.center_wavelength)
             except ValueError:
-                self.center_pixel = np.nan
+                self._center_pixel = np.nan
             try:
                 self.center_pixel_stddev = abs(
                     wavelength_to_pixel(
@@ -420,7 +415,7 @@ class Peak:
             self.sigma_stddev = stddev[2]
 
         elif space == "pixel":
-            self.center_pixel = x0 + center
+            self._center_pixel = x0 + center
             self.center_pixel_stddev = stddev[0]
 
             # Also interpolate to wavelength space
@@ -433,9 +428,9 @@ class Peak:
                 return float(mapping(pixel_value)[()])
 
             try:
-                self.center_wavelength = pixel_to_wavelength(self.center_pixel)
+                self._center_wavelength = pixel_to_wavelength(self.center_pixel)
             except ValueError:
-                self.center_wavelength = np.nan
+                self._center_wavelength = np.nan
 
             try:
                 self.center_wavelength_stddev = abs(
@@ -526,7 +521,7 @@ class Peak:
         stddev = np.sqrt(np.diag(cov))
 
         if space == "wavelength":
-            self.center_wavelength = x0 + center
+            self._center_wavelength = x0 + center
             self.center_wavelength_stddev = float(stddev[0])
 
             # Also interpolate to pixel space
@@ -539,9 +534,9 @@ class Peak:
                 return float(mapping(wavelength_value)[()])
 
             try:
-                self.center_pixel = wavelength_to_pixel(self.center_wavelength)
+                self._center_pixel = wavelength_to_pixel(self.center_wavelength)
             except ValueError:
-                self.center_pixel = np.nan
+                self._center_pixel = np.nan
             try:
                 self.center_pixel_stddev = abs(
                     wavelength_to_pixel(
@@ -558,7 +553,7 @@ class Peak:
             self.boxhalfwidth_stddev = stddev[3]
 
         elif space == "pixel":
-            self.center_pixel = float(x0 + center)
+            self._center_pixel = float(x0 + center)
             self.center_pixel_stddev = float(stddev[0])
 
             # Also interpolate to wavelength space
@@ -571,9 +566,9 @@ class Peak:
                 return float(mapping(pixel_value)[()])
 
             try:
-                self.center_wavelength = pixel_to_wavelength(self.center_pixel)
+                self._center_wavelength = pixel_to_wavelength(self.center_pixel)
             except ValueError:
-                self.center_wavelength = np.nan
+                self._center_wavelength = np.nan
 
             try:
                 self.center_wavelength_stddev = abs(
@@ -628,8 +623,8 @@ class Peak:
 
         ___ = np.nan if fill_with_nan else None
 
-        self.center_wavelength = ___
-        self.center_pixel = ___
+        self._center_wavelength = ___
+        self._center_pixel = ___
         self.amplitude = ___
         self.sigma = ___
         self.boxhalfwidth = ___
