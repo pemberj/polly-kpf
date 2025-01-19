@@ -184,29 +184,29 @@ class Peak:
     speclet: ArrayLike | list
     wavelet: ArrayLike | list
 
-    starting_pixel: int = field(default=None)
+    starting_pixel: int | None = None
 
-    orderlet: str = field(default=None)
-    order_i: int = field(default=None)
-    distance_from_order_center: float = field(default=None)
+    orderlet: str | None = None
+    order_i: int | None = None
+    distance_from_order_center: float | None = None
 
     # Fitting results
-    fit_space: str = field(default=None)
-    fit_type: str = field(default=None)
+    fit_space: str | None = None
+    fit_type: str | None = None
     # Fit parameters
-    _center_wavelength: float = field(default=None)
-    _center_pixel: float = field(default=None)
-    amplitude: float = field(default=None)
-    sigma: float = field(default=None)
-    boxhalfwidth: float = field(default=None)
-    offset: float = field(default=None)
+    _center_wavelength: float | None = None
+    _center_pixel: float | None = None
+    amplitude: float | None = None
+    sigma: float | None = None
+    boxhalfwidth: float | None = None
+    offset: float | None = None
     # Fit errors
-    center_wavelength_stddev: float = field(default=None)
-    center_pixel_stddev: float = field(default=None)
-    amplitude_stddev: float = field(default=None)
-    sigma_stddev: float = field(default=None)
-    boxhalfwidth_stddev: float = field(default=None)
-    offset_stddev: float = field(default=None)
+    center_wavelength_stddev: float | None = None
+    center_pixel_stddev: float | None = None
+    amplitude_stddev: float | None = None
+    sigma_stddev: float | None = None
+    boxhalfwidth_stddev: float | None = None
+    offset_stddev: float | None = None
 
     def __post_init__(self) -> None:
         # Set order_i and orderlet from parent Order
@@ -945,12 +945,12 @@ class Order:
 
     orderlet: str  # SCI1, SCI2, SCI3, CAL, SKY
     i: int
-    spec: ArrayLike
-    wave: ArrayLike = field(default=None)
+    spec: ArrayLike | None = None
+    wave: ArrayLike | None = None
 
-    spec_file: str = field(default=None)
-    wls_file: str = field(default=None)
-    _wls_source: str = field(default=None)
+    spec_file: str | None = None
+    wls_file: str | None = None
+    _wls_source: str | None = None
 
     peaks: list[Peak] = field(default_factory=list)
 
@@ -1472,25 +1472,25 @@ class Spectrum:
          * ???
     """
 
-    spec_file: Path | str | list[Path] | list[str] = field(default=None)
-    wls_file: Path | str | dict[str, Path] = field(default=None)
+    spec_file: Path | str | list[Path] | list[str] | None = None
+    wls_file: Path | str | dict[str, Path] | None = None
     auto_load_wls: bool = True
-    orders_to_load: list[int] = field(default=None)
-    orderlets_to_load: str | list[str] = field(default=None)
+    orders_to_load: list[int] | None = None
+    orderlets_to_load: str | list[str] = None
 
-    reference_mask: str = field(default=None)
-    reference_peaks: list[float] = field(default=None)
+    reference_mask: Path | str | None = None
+    reference_peaks: list[float] | None = None
 
     _orders: list[Order] = field(default_factory=list)
 
     # Hold basic metadata from the FITS file
-    date: str = field(default=None)
+    date: str | None = None
     # DATE-OBS in FITS header (without dashes), eg. 20240131
-    sci_obj: str = field(default=None)  # SCI-OBJ in FITS header
-    cal_obj: str = field(default=None)  # CAL-OBJ in FITS header
-    object: str = field(default=None)  # OBJECT in FITS header
+    sci_obj: str | None = None  # SCI-OBJ in FITS header
+    cal_obj: str | None = None  # CAL-OBJ in FITS header
+    object: str | None = None  # OBJECT in FITS header
 
-    filtered_peaks: dict[str, list[Peak]] = field(default=None)
+    filtered_peaks: dict[str, list[Peak]] | None = None
 
     pp: str = ""  # Print prefix
 
