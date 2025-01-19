@@ -57,7 +57,7 @@ import weakref
 from dataclasses import dataclass, field
 from operator import attrgetter
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypeVar
 
 import numpy as np
 from astropy import constants
@@ -87,6 +87,7 @@ from polly.parsing import get_orderlet_index, get_orderlet_name
 from polly.plotting import plot_style, stroke, wavelength_to_rgb
 
 plt.style.use(plot_style)
+T = TypeVar("T", float, list[float])
 
 
 @dataclass
@@ -333,8 +334,6 @@ class Peak:
         maxy = max(self.speclet)
         y = self.speclet / maxy
         offset_guess = float((y[0] + y[-1]) / 2)
-        if np.isnan(offset_guess):
-            offset_guess = 0
 
         #       amplitude,     center,  sigma,       offset
         p0 = [1 - offset_guess, 0, 2.5 * mean_dx, offset_guess]
@@ -351,8 +350,11 @@ class Peak:
                 p0=p0,
                 bounds=bounds,
             )
-        except ValueError as e:
-            raise ValueError(e) from e
+        except ValueError:
+            # Initial guess is outside of provided bounds
+            # logger.warning(e)
+            self.remove_fit(fill_with_nan=True)
+            return
         except RuntimeError:
             # logger.warning(e)
             self.remove_fit(fill_with_nan=True)
@@ -370,9 +372,7 @@ class Peak:
             self.center_wavelength_stddev = float(stddev[0])
 
             # Also interpolate to pixel space
-            def wavelength_to_pixel(
-                wavelength_value: float | list[float],
-            ) -> float | list[float]:
+            def wavelength_to_pixel(wavelength_value: T) -> T:
                 mapping = interp1d(self.wavelet, self.pixlet)
 
                 if isinstance(wavelength_value, list):
@@ -402,9 +402,7 @@ class Peak:
             self.center_pixel_stddev = stddev[0]
 
             # Also interpolate to wavelength space
-            def pixel_to_wavelength(
-                pixel_value: float | list[float],
-            ) -> float | list[float]:
+            def pixel_to_wavelength(pixel_value: T) -> T:
                 mapping = interp1d(self.pixlet, self.wavelet)
 
                 if isinstance(pixel_value, list):
@@ -473,8 +471,6 @@ class Peak:
         # Normalise
         y = self.speclet / maxy
         offset_guess = float((y[0] + y[-1]) / 2)
-        if np.isnan(offset_guess):
-            offset_guess = 0
 
         # center,     amp,            sigma,     boxhalfwidth,    offset
         p0 = [0, 1 - offset_guess, 2.5 * mean_dx, 3 * mean_dx, offset_guess]
@@ -490,8 +486,11 @@ class Peak:
                 p0=p0,
                 bounds=bounds,
             )
-        except ValueError as e:
-            raise ValueError(e) from e
+        except ValueError:
+            # Initial guess is outside of provided bounds
+            # logger.warning(e)
+            self.remove_fit(fill_with_nan=True)
+            return
         except RuntimeError:
             # logger.warning(e)
             self.remove_fit(fill_with_nan=True)
@@ -509,9 +508,7 @@ class Peak:
             self.center_wavelength_stddev = float(stddev[0])
 
             # Also interpolate to pixel space
-            def wavelength_to_pixel(
-                wavelength_value: float | list[float],
-            ) -> float | list[float]:
+            def wavelength_to_pixel(wavelength_value: T) -> T:
                 mapping = interp1d(self.wavelet, self.pixlet)
 
                 if isinstance(wavelength_value, list):
@@ -543,9 +540,7 @@ class Peak:
             self.center_pixel_stddev = float(stddev[0])
 
             # Also interpolate to wavelength space
-            def pixel_to_wavelength(
-                pixel_value: float | list[float],
-            ) -> float | list[float]:
+            def pixel_to_wavelength(pixel_value: T) -> T:
                 mapping = interp1d(self.pixlet, self.wavelet)
 
                 if isinstance(pixel_value, list):
@@ -659,9 +654,9 @@ class Peak:
 
     def evaluate_fit(
         self,
-        x: ArrayLike,
+        x: list[float],
         about_zero: bool = False,
-    ) -> ArrayLike | None:
+    ) -> list[float] | None:
         """
         A function to evaluate the function fit to the peak across a wavelength array.
         Used for computing residuals, and for plotting the fit across a finer wavelength
@@ -700,14 +695,14 @@ class Peak:
         return yfit
 
     @property
-    def residuals(self) -> ArrayLike | None:
+    def residuals(self) -> ArrayLike:
         """
         If a fit exists, return the residuals between the raw data and the fit, after
         normalising to the max value of the fit.
         """
 
         if self.fit_type is None:
-            return None
+            return [np.nan]
 
         xfit = np.linspace(min(self.wavelet), max(self.wavelet), 100)
         yfit = self.evaluate_fit(x=xfit)
@@ -717,13 +712,10 @@ class Peak:
         return (self.speclet - coarse_yfit) / maxy
 
     @property
-    def rms_residuals(self) -> float | None:
+    def rms_residuals(self) -> float:
         """
         If a fit exists, return the RMS of the residuals.
         """
-
-        if self.residuals is None:
-            return None
 
         return np.std(self.residuals)
 
