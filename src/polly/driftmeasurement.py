@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from functools import cached_property, partial
+from functools import cached_property, partial, singledispatchmethod
 from operator import attrgetter
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -28,6 +28,7 @@ from scipy.optimize import curve_fit
 if TYPE_CHECKING:
     from collections.abc import Callable
     from astropy.units import Quantity
+    from numpy.typing import ArrayLike
 
 from polly.misc import savitzky_golay
 from polly.parsing import parse_filename, parse_yyyymmdd
@@ -54,23 +55,23 @@ class PeakDrift:
     local_spacing: float  # Local distance between wavelengths in reference mask
 
     masks: list[str]  # List of filenames to search
-    dates: list[datetime] = field(default=None)
+    dates: list[datetime] | None = None
 
     # After initialisation, the single peak will be tracked as it appears in
     # each successive mask. The corresponding wavelengths at which it is found
     # will populate the `wavelengths` list.
     wavelengths: list[float | None] = field(default_factory=list)
     sigmas: list[float] = field(default_factory=list)
-    valid: list[bool] = field(default=None)
+    valid: list[bool] | None = None
 
     auto_fit: bool = True
 
-    fit: Callable = field(default=None)
-    fit_err: list[float] = field(default=None)
-    fit_slope: Quantity = field(default=None)
-    fit_slope_err: Quantity = field(default=None)
+    fit: Callable[[ArrayLike], ArrayLike] | None = None
+    fit_err: list[float] | None = None
+    fit_slope: Quantity | None = None
+    fit_slope_err: Quantity | None = None
 
-    drift_file: str | Path = field(default=None)
+    drift_file: str | Path | None = None
     force_recalculate: bool = False
     recalculated: bool = False
 
@@ -207,6 +208,7 @@ class PeakDrift:
         """
         return self.valid_wavelengths - self.reference_wavelength
 
+    @singledispatchmethod
     def get_delta_at_date(
         self,
         date: datetime | list[datetime],
@@ -229,6 +231,12 @@ class PeakDrift:
                 return self.deltas[i]
         return np.nan
 
+    @get_delta_at_date.register
+    def _(self, date: datetime) -> float: ...
+
+    @get_delta_at_date.register
+    def _(self, date: list[datetime]) -> list[float]: ...
+
     @cached_property
     def fractional_deltas(self) -> list[float]:
         """
@@ -239,6 +247,7 @@ class PeakDrift:
         """
         return self.deltas / self.reference_wavelength
 
+    @singledispatchmethod
     def get_fractional_delta_at_date(
         self,
         date: datetime | list[datetime],
@@ -254,6 +263,12 @@ class PeakDrift:
             float | list[float]: the fractional delta value(s) for the requested date(s)
         """
         return self.get_delta_at_date(date) / self.reference_wavelength
+
+    @get_fractional_delta_at_date.register
+    def _(self, date: datetime) -> float: ...
+
+    @get_fractional_delta_at_date.register
+    def _(self, date: list[datetime]) -> list[float]: ...
 
     @cached_property
     def smoothed_deltas(self) -> list[float]:
@@ -425,10 +440,10 @@ class GroupDrift:
 
     peakDrifts: list[PeakDrift]
 
-    group_fit: Callable = field(default=None)
-    group_fit_err: list[float] = field(default=None)
-    group_fit_slope: float = field(default=None)
-    group_fit_slope_err: float = field(default=None)
+    group_fit: Callable | None = None
+    group_fit_err: list[float] | None = None
+    group_fit_slope: float | None = None
+    group_fit_slope_err: float | None = None
 
     def __post_init__(self) -> None:
         self.peakDrifts = sorted(
