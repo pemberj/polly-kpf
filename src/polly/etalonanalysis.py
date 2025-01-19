@@ -194,8 +194,8 @@ class Peak:
     fit_space: str = field(default=None)
     fit_type: str = field(default=None)
     # Fit parameters
-    center_wavelength: float = field(default=None)
-    center_pixel: float = field(default=None)
+    _center_wavelength: float = field(default=None)
+    _center_pixel: float = field(default=None)
     amplitude: float = field(default=None)
     sigma: float = field(default=None)
     boxhalfwidth: float = field(default=None)
@@ -212,6 +212,28 @@ class Peak:
         # Set order_i and orderlet from parent Order
         self.order_i = self.parent.i
         self.orderlet = self.parent.orderlet
+
+    @property
+    def center_wavelength(self) -> float:
+        """
+        The central wavelength of the peak. If a fit has already been done (and the
+        _center_wavelength defined), this is returned. Otherwise, the coarse_wavelength
+        is returned.
+        """
+        if self._center_wavelength is None:
+            return self.coarse_wavelength
+        return self._center_wavelength
+
+    @property
+    def center_pixel(self) -> float:
+        """
+        The central pixel of the peak. If a fit has already been done (and the
+        _center_pixel defined), this is returned. Otherwise, the rough central pixel
+        value (starting_pixel + len(wavelet) // 2) is returned.
+        """
+        if self._center_pixel is None:
+            return self.starting_pixel + len(self.wavelet) // 2
+        return self._center_pixel
 
     @property
     def pixlet(self) -> list[int]:
