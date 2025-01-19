@@ -8,6 +8,7 @@ plots, as well as functions used to get an RGB colour value for an input wavelen
 """
 
 import colorsys
+from functools import singledispatch
 
 import matplotlib.font_manager as fm
 import matplotlib.patheffects as pe
@@ -93,11 +94,12 @@ def stroke(thickness: float = 4) -> list:
     return [pe.Stroke(linewidth=thickness, foreground="k"), pe.Normal()]
 
 
+@singledispatch
 def wavelength_to_rgb(
-    wavelength: float,
+    wavelength: float | list[float],
     gamma: float = 3,
     fade_factor: float = 0.5,
-) -> tuple[float, float, float]:
+) -> tuple[float, float, float] | list[tuple[float, float, float]]:
     """
     Compute the RGB colour values corresponding to a given wavelength of light.
 
@@ -149,6 +151,22 @@ def wavelength_to_rgb(
         b = 0.0
 
     return fade((r, g, b), fade_factor=fade_factor)
+
+
+@wavelength_to_rgb.register
+def _(
+    wavelength: float | list[float],
+    gamma: float = 3,
+    fade_factor: float = 0.5,
+) -> list[tuple[float, float, float]]: ...
+
+
+@wavelength_to_rgb.register
+def _(
+    wavelength: float,
+    gamma: float = 3,
+    fade_factor: float = 0.5,
+) -> tuple[float, float, float]: ...
 
 
 def fade(
