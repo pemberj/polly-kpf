@@ -15,10 +15,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from functools import cached_property, partial, singledispatchmethod
+from functools import cached_property, partial
 from operator import attrgetter
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, overload
 
 import numpy as np
 from astropy import units as u
@@ -208,7 +208,12 @@ class PeakDrift:
         """
         return self.valid_wavelengths - self.reference_wavelength
 
-    @singledispatchmethod
+    @overload
+    def get_delta_at_date(self, date: datetime) -> float: ...
+
+    @overload
+    def get_delta_at_date(self, date: list[datetime]) -> list[float]: ...
+
     def get_delta_at_date(
         self,
         date: datetime | list[datetime],
@@ -231,12 +236,6 @@ class PeakDrift:
                 return self.deltas[i]
         return np.nan
 
-    @get_delta_at_date.register
-    def _(self, date: datetime) -> float: ...
-
-    @get_delta_at_date.register
-    def _(self, date: list[datetime]) -> list[float]: ...
-
     @cached_property
     def fractional_deltas(self) -> list[float]:
         """
@@ -247,7 +246,12 @@ class PeakDrift:
         """
         return self.deltas / self.reference_wavelength
 
-    @singledispatchmethod
+    @overload
+    def get_fractional_delta_at_date(self, date: datetime) -> float: ...
+
+    @overload
+    def get_fractional_delta_at_date(self, date: list[datetime]) -> list[float]: ...
+
     def get_fractional_delta_at_date(
         self,
         date: datetime | list[datetime],
@@ -263,12 +267,6 @@ class PeakDrift:
             float | list[float]: the fractional delta value(s) for the requested date(s)
         """
         return self.get_delta_at_date(date) / self.reference_wavelength
-
-    @get_fractional_delta_at_date.register
-    def _(self, date: datetime) -> float: ...
-
-    @get_fractional_delta_at_date.register
-    def _(self, date: list[datetime]) -> list[float]: ...
 
     @cached_property
     def smoothed_deltas(self) -> list[float]:
