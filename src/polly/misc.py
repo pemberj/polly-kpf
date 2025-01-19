@@ -14,7 +14,11 @@ from numpy.typing import ArrayLike
 
 
 def savitzky_golay(
-    y: ArrayLike, window_size: int, order: int, deriv: int = 0, rate: float = 1
+    y: ArrayLike,
+    window_size: int,
+    order: int,
+    deriv: int = 0,
+    rate: float = 1,
 ) -> ArrayLike:
     # FROM: https://scipy.github.io/old-wiki/pages/Cookbook/SavitzkyGolay
     """
