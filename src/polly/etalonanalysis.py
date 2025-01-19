@@ -70,8 +70,6 @@ from scipy.signal import find_peaks
 from tqdm import tqdm
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
-
     from numpy.typing import ArrayLike
 
 from polly.kpf import (
@@ -2917,11 +2915,7 @@ class Spectrum:
         )
 
 
-def _fit_spline(
-    x: ArrayLike,
-    y: ArrayLike,
-    knots: int = 21,
-) -> Callable:
+def _fit_spline(x: ArrayLike, y: ArrayLike, knots: int = 21) -> BSpline:
     """
     Fit a B-spline to the input data with a given number of knots
 
@@ -2935,7 +2929,7 @@ def _fit_spline(
         knots (int, optional): The number of knots to use. Defaults to 21.
 
     Returns:
-        Callable: The fitted B-spline function, which can then be evaluated at any
+        BSpline: The fitted B-spline function, which can then be evaluated at any
             point.
     """
 
