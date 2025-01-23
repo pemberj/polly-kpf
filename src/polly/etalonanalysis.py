@@ -750,6 +750,8 @@ class Peak:
             show = False
 
         x = self.wavelet - self.center_wavelength
+        if np.any(np.isnan(x)) or np.any(np.isinf(x)):
+            return
 
         if ax.get_xlim() == (0.0, 1.0):
             ax.set_xlim(min(x), max(x))
