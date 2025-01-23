@@ -122,7 +122,10 @@ def wavelength_to_rgb(
     """
 
     if isinstance(wavelength, list | np.ndarray):
-        return [wavelength_to_rgb(wl) for wl in wavelength]
+        return [
+            wavelength_to_rgb(wavelength=wl, gamma=gamma, face_factor=fade_factor)
+            for wl in wavelength
+        ]
 
     if wavelength >= 3800 and wavelength <= 4400:  # noqa: PLR2004
         attenuation = 0.3 + 0.7 * (wavelength - 3800) / (4400 - 3800)
@@ -157,9 +160,10 @@ def wavelength_to_rgb(
         b = 0.0
 
     else:
-        r = 0.0
-        g = 0.0
-        b = 0.0
+        attenuation = 0.3
+        r = 1.0 * attenuation
+        g = 1.0 * attenuation
+        b = 1.0 * attenuation
 
     return fade((r, g, b), fade_factor=fade_factor)
 
