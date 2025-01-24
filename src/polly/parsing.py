@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import re
 import argparse
+from pathlib import Path
 from datetime import datetime
 from typing import NamedTuple
 
@@ -27,13 +28,15 @@ class Mask(NamedTuple):
     orderlet: str
 
 
-def parse_filename(filename: str | list[str]) -> tuple[datetime, str, str]:
+def parse_filename(
+    filename: Path | str | list[Path] | list[str],
+) -> tuple[datetime, str, str]:
     """
     Parse a filename that is supposed to contain a date, time of day, and orderlet, and
     return a tuple of these three elements.
 
     Args:
-        filename (str | list[str]): The input filename(s)
+        filename (Path | str | list[Path] | list[str]): The input file(name)(s)
 
     Returns:
         tuple[datetime, str, str]: A tuple containing the date, time of day, and
@@ -43,7 +46,10 @@ def parse_filename(filename: str | list[str]) -> tuple[datetime, str, str]:
     if isinstance(filename, list):
         return [parse_filename(f) for f in filename]
 
-    filename = filename.split("/")[-1]
+    if isinstance(filename, str):
+        filename = Path(filename)
+
+    filename = filename.name
     datestr, timeofday, orderlet, *_ = filename.split("_")[:3]
     date = parse_yyyymmdd(datestr)
 
