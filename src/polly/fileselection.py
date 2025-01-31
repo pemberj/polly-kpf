@@ -41,8 +41,8 @@ def find_L1_etalon_files(
     if masters:
         p = MASTERS_DIR / f"{date}"
 
-        files = p.glob(
-            f"kpf_{date}_master_arclamp_autocal-etalon-all-{timeofday}_L1.fits"
+        files: list[Path] = list(
+            p.glob(f"kpf_{date}_master_arclamp_autocal-etalon-all-{timeofday}_L1.fits")
         )
         try:
             assert len(files) == 1
@@ -63,9 +63,9 @@ def find_L1_etalon_files(
 
     p: Path = L1_DIR / f"{date}"
 
-    all_files: list[str] = p.glob("*.fits")
+    all_files: list[Path] = list(p.glob("*.fits"))
 
-    out_files: list[str] = []
+    out_files: list[Path] = []
 
     for f in all_files:
         try:
