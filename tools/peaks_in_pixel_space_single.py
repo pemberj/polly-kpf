@@ -50,7 +50,7 @@ def main(
     if isinstance(orderlets, str):
         orderlets = [orderlets]
 
-    Path(f"{OUTDIR}/masks/").mkdir(parents=True, exist_ok=True)
+    (OUTDIR / "masks").mkdir(parents=True, exist_ok=True)
 
     date = "".join(fits.getval(filename, "DATE-OBS").split("-"))
     timeofday = fits.getval(filename, "OBJECT").split("-")[-1]
@@ -84,8 +84,9 @@ def main(
     for ol in s.orderlets:
         try:
             s.save_peak_locations(
-                filename=f"{OUTDIR}/masks/"
-                + f"{date}_{timeofday}_{ol}_etalon_wavelengths.csv",
+                filename=OUTDIR
+                / "masks"
+                / f"{date}_{timeofday}_{ol}_etalon_wavelengths.csv",
                 orderlet=ol,
                 locations="pixel",
                 filtered=False,
@@ -95,9 +96,11 @@ def main(
             continue
 
         if fit_plot:
-            Path(f"{OUTDIR}/fit_plots").mkdir(parents=True, exist_ok=True)
+            (OUTDIR / "fit_plots").mkdir(parents=True, exist_ok=True)
             s.plot_peak_fits(orderlet=ol)
-            plt.savefig(f"{OUTDIR}/fit_plots/{date}_{timeofday}_{ol}_etalon_fits.png")
+            plt.savefig(
+                OUTDIR / "fit_plots" / f"{date}_{timeofday}_{ol}_etalon_fits.png"
+            )
             plt.close()
 
 
@@ -123,7 +126,7 @@ if __name__ == "__main__":
     logger.setLevel(logging.INFO)
 
     args = parser.parse_args()
-    OUTDIR = args.outdir
+    OUTDIR: Path = args.outdir
 
     main(
         filename=args.filename,
