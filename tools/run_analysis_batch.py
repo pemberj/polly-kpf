@@ -28,29 +28,23 @@ TODO: Requires also implementing argparse to take .cfg filename from command lin
 TODO: Move generation of FSR plot from here into another module (or at least the calculation of FSR as a function of wavelength)
 """
 
-from __future__ import annotations
-
-import logging
 import argparse
-from pathlib import Path
+import logging
 from datetime import datetime, timedelta
+from pathlib import Path
 
 import numpy as np
-
 from matplotlib import pyplot as plt
-from typing import TYPE_CHECKING
+from numpy.typing import ArrayLike
 
-if TYPE_CHECKING:
-    from numpy.typing import ArrayLike
-
-from polly.log import logger
 from polly.etalonanalysis import Spectrum
 from polly.fileselection import find_L1_etalon_files
+from polly.log import logger
 from polly.parsing import (
-    parse_timesofday,
-    parse_orderlets,
     parse_bool,
+    parse_orderlets,
     parse_orders,
+    parse_timesofday,
     parse_yyyymmdd,
 )
 from polly.plotting import plot_style

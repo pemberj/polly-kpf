@@ -12,13 +12,15 @@
 Single file analysis command-line utility. Can be passed a filename as argument.
 """
 
-from __future__ import annotations
-from pathlib import Path
 import argparse
+import logging
+from pathlib import Path
+
 from astropy.io import fits
 from matplotlib import pyplot as plt
 
 from polly.etalonanalysis import Spectrum
+from polly.log import logger
 from polly.parsing import parse_bool, parse_orderlets
 from polly.plotting import plot_style
 
@@ -103,6 +105,8 @@ parser.add_argument("--fit_plot", type=parse_bool, default=True)
 
 
 if __name__ == "__main__":
+    logger.setLevel(logging.INFO)
+
     args = parser.parse_args()
     OUTDIR = args.outdir
 

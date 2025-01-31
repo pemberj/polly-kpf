@@ -15,20 +15,18 @@ identified and fit peaks.
 Takes a single filename as argument.
 """
 
-import logging
 import argparse
+import logging
 from pathlib import Path
 
 import numpy as np
-
 from astropy.io import fits
-
 from matplotlib import pyplot as plt
 
-from polly.log import logger
-from polly.kpf import TIMESOFDAY
-from polly.parsing import parse_bool, parse_orderlets
 from polly.etalonanalysis import Spectrum
+from polly.kpf import TIMESOFDAY
+from polly.log import logger
+from polly.parsing import parse_bool, parse_orderlets
 from polly.plotting import plot_style
 
 plt.style.use(plot_style)
