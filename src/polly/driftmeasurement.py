@@ -27,6 +27,7 @@ from scipy.optimize import curve_fit
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+
     from astropy.units import Quantity
     from numpy.typing import ArrayLike
 

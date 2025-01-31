@@ -9,6 +9,7 @@ of the Savitzky-Golay filter.
 """
 
 from math import factorial
+
 import numpy as np
 from numpy.typing import ArrayLike
 

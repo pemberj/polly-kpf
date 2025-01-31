@@ -7,15 +7,13 @@ Contains functions to parse various types of input, such as dates, filenames, nu
 ranges, etc.
 """
 
-from __future__ import annotations
-
-import re
 import argparse
-from pathlib import Path
+import re
 from datetime import datetime
+from pathlib import Path
 from typing import NamedTuple
 
-from polly.kpf import ORDERLETS, TIMESOFDAY, LFC_ORDER_INDICES, THORIUM_ORDER_INDICES
+from polly.kpf import LFC_ORDER_INDICES, ORDERLETS, THORIUM_ORDER_INDICES, TIMESOFDAY
 
 
 class Mask(NamedTuple):
