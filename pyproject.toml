@@ -11,12 +11,10 @@ keywords = [
     "data analysis",
     "etalon",
     "chromatic drift",
-    ]
-authors = [
-    { name = "Jake Pember", email = "jake.pember@kuleuven.be" }
-    ]
+]
+authors = [{ name = "Jake Pember", email = "jake.pember@kuleuven.be" }]
 readme = "README.md"
-license = {file = "LICENSE"}
+license = { file = "LICENSE" }
 classifiers = [
     "Development Status :: 4 - Beta",
     "Programming Language :: Python",
@@ -24,7 +22,7 @@ classifiers = [
     "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
     "Topic :: Scientific/Engineering :: Astronomy",
-    ]
+]
 requires-python = ">=3.10"
 dependencies = [
     "numpy>=2.2.0",
@@ -48,9 +46,7 @@ dev = [
 Repository = "https://github.com/pemberj/polly"
 
 [build-system]
-requires = [
-    "hatchling",
-    ]
+requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
@@ -63,53 +59,54 @@ indent-width = 4
 
 [tool.ruff.lint]
 select = [
-    "F", # Pyflakes
-    "E4", "E7", "E9", # pycodestyle errors
-    "W", # pycodestyle warnings
+    "F",  # Pyflakes
+    "E4",
+    "E7",
+    "E9", # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "I",
 
-    "UP",   # pyupgrade
+    "UP", # pyupgrade
 
-    "ANN",  # flake8-annotations
-    "S",    # flake8-bandit (security)
-    "B",    # flake8-bugbear, security warnings
-    "A",    # flake8-builtins
-    "C4",   # flake8-comprehensions
-    "DTZ",  # flake8-datetimez
-    "ICN",  # flake8-import-conventions
-    "LOG",  # flake8-logging
-    "G",    # flake8-logging-format
-    "PIE",  # flake8-pie
-    "PYI",  # flake8-pyi
-    "RET",  # flake8-return
-    "SIM",  # flake8-simplify
-    "TC",   # flake8-type-checking
-    "ARG",  # flake8-unused-arguments
-    "PTH",  # flake8-use-pathlib
+    "ANN", # flake8-annotations
+    "S",   # flake8-bandit (security)
+    "B",   # flake8-bugbear, security warnings
+    "A",   # flake8-builtins
+    "C4",  # flake8-comprehensions
+    "DTZ", # flake8-datetimez
+    "ICN", # flake8-import-conventions
+    "LOG", # flake8-logging
+    "G",   # flake8-logging-format
+    "PIE", # flake8-pie
+    "PYI", # flake8-pyi
+    "RET", # flake8-return
+    "SIM", # flake8-simplify
+    "TC",  # flake8-type-checking
+    "ARG", # flake8-unused-arguments
+    "PTH", # flake8-use-pathlib
 
-    "PLC",      # pylint-convention
-    "PLE",      # pylint-error
-    "PLR2004",  # pylint magic values
-    "PLW",      # pylint-warning
+    "PLC",     # pylint-convention
+    "PLE",     # pylint-error
+    "PLR2004", # pylint magic values
+    "PLW",     # pylint-warning
 ]
 
 ignore = [
-    "E722",     # do not use bare 'except'
-    "W605",     # invalid escape sequence
-    "S101",     # use of assert
-    "DTZ001",   # datetime.datetime used without explicit tzinfo=
-    "DTZ005",   # datetime.now() used without explicit tzinfo=
-    "SIM105",   # recommends contextlib.suppress instead of try / except / pass
+    "E722",   # do not use bare 'except'
+    "W605",   # invalid escape sequence
+    "S101",   # use of assert
+    "DTZ001", # datetime.datetime used without explicit tzinfo=
+    "DTZ005", # datetime.now() used without explicit tzinfo=
+    "SIM105", # recommends contextlib.suppress instead of try / except / pass
 ]
 
 [tool.ruff.lint.per-file-ignores]
 "*.ipynb" = [
     "E501", # line too long
-    ]
+]
 
 [tool.ruff.format]
-exclude = [
-    "*.ipynb",
-    ]
+exclude = ["*.ipynb"]
 quote-style = "double"
 indent-style = "space"
 skip-magic-trailing-comma = false
