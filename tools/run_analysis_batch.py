@@ -154,10 +154,10 @@ parser = argparse.ArgumentParser(
 # parser.add_argument("--files")
 file_selection = parser.add_argument_group("File Selection")
 file_selection.add_argument(
-    "--min_date", type=parse_yyyymmdd, required=False, default="20240501"
+    "--min_date", "--min-date", type=parse_yyyymmdd, required=False, default="20240501"
 )
 file_selection.add_argument(
-    "--max_date", type=parse_yyyymmdd, required=False, default="now"
+    "--max_date", "--max-date", type=parse_yyyymmdd, required=False, default="now"
 )
 file_selection.add_argument(
     "-t", "--timesofday", type=parse_timesofday, required=False, default="all"
@@ -174,11 +174,13 @@ parser.add_argument(
 )
 
 plots = parser.add_argument_group("Plots")
-plots.add_argument("--spectrum_plot", type=parse_bool, default=False)
-plots.add_argument("--fsr_plot", type=parse_bool, default=True)
-plots.add_argument("--fit_plot", type=parse_bool, default=True)
+plots.add_argument("--spectrum_plot", "--spectrum-plot", type=parse_bool, default=False)
+plots.add_argument("--fsr_plot", "--fsr-plot", type=parse_bool, default=False)
+plots.add_argument("--fit_plot", "--fit-plot", type=parse_bool, default=False)
 
-parser.add_argument("--save_weights", action="store_true", default=False)
+parser.add_argument(
+    "--save_weights", "--save-weights", action="store_true", default=False
+)
 parser.add_argument("--masters", action="store_true", default=False)
 parser.add_argument("-v", "--verbose", action="store_true", default=False)
 
@@ -188,7 +190,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    dates: ArrayLike[datetime] = np.arange(
+    dates: ArrayLike = np.arange(
         start=args.min_date,
         stop=args.max_date,
         step=timedelta(days=1),
