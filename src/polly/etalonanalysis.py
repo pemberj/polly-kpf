@@ -2375,6 +2375,7 @@ class Spectrum:
             peaks = sorted(peaks, key=attrgetter("wl"))
 
             to_keep = []
+            # TODO: Use itertools pairwise?
             for i, _ in enumerate(peaks):
                 p1: Peak = peaks[i]
                 p2: Peak | None = peaks[i + 1] if i + 1 < len(peaks) else None
