@@ -76,7 +76,7 @@ def parse_yyyymmdd(yyyymmdd: str | float) -> datetime:
         yyyymmdd = str(yyyymmdd)
 
     # Handle dates like "2024-12-31"
-    elif not isinstance(yyyymmdd, str) and "-" in yyyymmdd:
+    elif isinstance(yyyymmdd, str) and "-" in yyyymmdd:
         yyyymmdd = "".join(yyyymmdd.split("-"))
         # Now it should be "20241231"
 
