@@ -1,24 +1,30 @@
 #!/usr/bin/env python
 
+# /// script
+# dependencies = [
+#     "polly-kpf>=0.2.0",
+# ]
+# [tool.uv.sources]
+# polly-kpf = { path = "../", editable = true }
+# ///
+
 """
 Single file analysis command-line utility. Can be passed a filename as argument.
 """
 
-from __future__ import annotations
-from pathlib import Path
 import argparse
+import logging
+from pathlib import Path
+
 from astropy.io import fits
 from matplotlib import pyplot as plt
 
-try:
-    from polly.etalonanalysis import Spectrum
-    from polly.parsing import parse_bool, parse_orderlets
-    from polly.plotStyle import plotStyle
-except ImportError:
-    from etalonanalysis import Spectrum
-    from parsing import parse_bool, parse_orderlets
-    from plotStyle import plotStyle
-plt.style.use(plotStyle)
+from polly.etalonanalysis import Spectrum
+from polly.log import logger
+from polly.parsing import parse_bool, parse_orderlets
+from polly.plotting import plot_style
+
+plt.style.use(plot_style)
 
 
 def main(
@@ -99,6 +105,8 @@ parser.add_argument("--fit_plot", type=parse_bool, default=True)
 
 
 if __name__ == "__main__":
+    logger.setLevel(logging.INFO)
+
     args = parser.parse_args()
     OUTDIR = args.outdir
 

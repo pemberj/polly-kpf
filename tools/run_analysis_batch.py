@@ -1,5 +1,13 @@
 #!/usr/bin/env python
 
+# /// script
+# dependencies = [
+#     "polly-kpf>=0.2.0",
+# ]
+# [tool.uv.sources]
+# polly-kpf = { path = "../", editable = true }
+# ///
+
 """
 A script to run the etalon analysis for a single date or range of dates. See the
 section at the bottom for how it's currently set up.
@@ -20,45 +28,26 @@ TODO: Requires also implementing argparse to take .cfg filename from command lin
 TODO: Move generation of FSR plot from here into another module (or at least the calculation of FSR as a function of wavelength)
 """
 
-from __future__ import annotations
-
-import logging
 import argparse
-from pathlib import Path
+import logging
 from datetime import datetime, timedelta
+from pathlib import Path
 
 import numpy as np
-
 from matplotlib import pyplot as plt
-from typing import TYPE_CHECKING
+from numpy.typing import ArrayLike
 
-if TYPE_CHECKING:
-    from numpy.typing import ArrayLike
-
-try:
-    from polly.log import logger
-    from polly.etalonanalysis import Spectrum
-    from polly.fileselection import find_L1_etalon_files
-    from polly.parsing import (
-        parse_timesofday,
-        parse_orderlets,
-        parse_bool,
-        parse_orders,
-        parse_yyyymmdd,
-    )
-    from polly.plotting import plot_style
-except ImportError:
-    from log import logger
-    from etalonanalysis import Spectrum
-    from fileselection import find_L1_etalon_files
-    from parsing import (
-        parse_timesofday,
-        parse_orderlets,
-        parse_bool,
-        parse_orders,
-        parse_yyyymmdd,
-    )
-    from plotting import plot_style
+from polly.etalonanalysis import Spectrum
+from polly.fileselection import find_L1_etalon_files
+from polly.log import logger
+from polly.parsing import (
+    parse_bool,
+    parse_orderlets,
+    parse_orders,
+    parse_timesofday,
+    parse_yyyymmdd,
+)
+from polly.plotting import plot_style
 
 plt.style.use(plot_style)
 
@@ -165,10 +154,10 @@ parser = argparse.ArgumentParser(
 # parser.add_argument("--files")
 file_selection = parser.add_argument_group("File Selection")
 file_selection.add_argument(
-    "--min_date", type=parse_yyyymmdd, required=False, default="20240501"
+    "--min_date", "--min-date", type=parse_yyyymmdd, required=False, default="20240501"
 )
 file_selection.add_argument(
-    "--max_date", type=parse_yyyymmdd, required=False, default="now"
+    "--max_date", "--max-date", type=parse_yyyymmdd, required=False, default="now"
 )
 file_selection.add_argument(
     "-t", "--timesofday", type=parse_timesofday, required=False, default="all"
@@ -185,11 +174,13 @@ parser.add_argument(
 )
 
 plots = parser.add_argument_group("Plots")
-plots.add_argument("--spectrum_plot", type=parse_bool, default=False)
-plots.add_argument("--fsr_plot", type=parse_bool, default=True)
-plots.add_argument("--fit_plot", type=parse_bool, default=True)
+plots.add_argument("--spectrum_plot", "--spectrum-plot", type=parse_bool, default=False)
+plots.add_argument("--fsr_plot", "--fsr-plot", type=parse_bool, default=False)
+plots.add_argument("--fit_plot", "--fit-plot", type=parse_bool, default=False)
 
-parser.add_argument("--save_weights", action="store_true", default=False)
+parser.add_argument(
+    "--save_weights", "--save-weights", action="store_true", default=False
+)
 parser.add_argument("--masters", action="store_true", default=False)
 parser.add_argument("-v", "--verbose", action="store_true", default=False)
 
@@ -199,7 +190,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    dates: ArrayLike[datetime] = np.arange(
+    dates: ArrayLike = np.arange(
         start=args.min_date,
         stop=args.max_date,
         step=timedelta(days=1),

@@ -1,4 +1,4 @@
-# polly
+# polly-kpf
 Analysis code for KPF etalon data
 
-![](Spectrum-Order-Peak-diagram.png)
+![](assets/Spectrum-Order-Peak-diagram.png)

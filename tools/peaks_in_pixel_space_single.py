@@ -1,5 +1,13 @@
 #!/usr/bin/env python
 
+# /// script
+# dependencies = [
+#     "polly-kpf>=0.2.0",
+# ]
+# [tool.uv.sources]
+# polly-kpf = { path = "../", editable = true }
+# ///
+
 """
 Single file analysis command-line utility that outputs a CSV with the pixel location of
 identified and fit peaks.
@@ -7,30 +15,20 @@ identified and fit peaks.
 Takes a single filename as argument.
 """
 
-from __future__ import annotations
-
-import logging
 import argparse
+import logging
 from pathlib import Path
 
 import numpy as np
-
 from astropy.io import fits
-
 from matplotlib import pyplot as plt
 
-try:
-    from polly.log import logger
-    from polly.kpf import TIMESOFDAY
-    from polly.parsing import parse_bool, parse_orderlets
-    from polly.etalonanalysis import Spectrum
-    from polly.plotting import plot_style
-except ImportError:
-    from log import logger
-    from kpf import TIMESOFDAY
-    from parsing import parse_bool, parse_orderlets
-    from etalonanalysis import Spectrum
-    from plotting import plot_style
+from polly.etalonanalysis import Spectrum
+from polly.kpf import TIMESOFDAY
+from polly.log import logger
+from polly.parsing import parse_bool, parse_orderlets
+from polly.plotting import plot_style
+
 plt.style.use(plot_style)
 
 
@@ -52,7 +50,7 @@ def main(
     if isinstance(orderlets, str):
         orderlets = [orderlets]
 
-    Path(f"{OUTDIR}/masks/").mkdir(parents=True, exist_ok=True)
+    (OUTDIR / "masks").mkdir(parents=True, exist_ok=True)
 
     date = "".join(fits.getval(filename, "DATE-OBS").split("-"))
     timeofday = fits.getval(filename, "OBJECT").split("-")[-1]
@@ -60,14 +58,14 @@ def main(
 
     pp = f"{f'[{date} {timeofday:>5}]':<20}"  # Print/logging line prefix
 
-    print(filename)
-
     s = Spectrum(
         spec_file=filename,
-        wls_file=None,  # It will try to find the corresponding WLS file
+        wls_file=None,  # It will try to find the corresponding WLS file(s)
+        auto_load_wls=True,
         orderlets_to_load=orderlets,
         pp=pp,
     )
+
     s.locate_peaks()
     s.fit_peaks(space="pixel")
 
@@ -79,17 +77,18 @@ def main(
         [(p.i, p.center_pixel, p.center_pixel_stddev) for p in s.peaks()]
     )
 
-    for i, pix, dpix in zip(order_is, center_pixels, pixel_std_devs, strict=True):
-        print(f"{pp}Order i={i:<3.0f}| {pix:.3f} +/- {dpix:.4f}")
+    # for i, pix, dpix in zip(order_is, center_pixels, pixel_std_devs, strict=True):
+    #     print(f"{pp}Order i={i:<3.0f}| {pix:.3f} +/- {dpix:.4f}")
 
     # And save the output to a CSV with built-in methods like so:
     for ol in s.orderlets:
         try:
             s.save_peak_locations(
-                filename=f"{OUTDIR}/masks/"
-                + f"{date}_{timeofday}_{ol}_etalon_wavelengths.csv",
+                filename=OUTDIR
+                / "masks"
+                / f"{date}_{timeofday}_{ol}_etalon_wavelengths.csv",
                 orderlet=ol,
-                space="pixel",
+                locations="pixel",
                 filtered=False,
             )
         except Exception as e:
@@ -97,9 +96,11 @@ def main(
             continue
 
         if fit_plot:
-            Path(f"{OUTDIR}/fit_plots").mkdir(parents=True, exist_ok=True)
+            (OUTDIR / "fit_plots").mkdir(parents=True, exist_ok=True)
             s.plot_peak_fits(orderlet=ol)
-            plt.savefig(f"{OUTDIR}/fit_plots/{date}_{timeofday}_{ol}_etalon_fits.png")
+            plt.savefig(
+                OUTDIR / "fit_plots" / f"{date}_{timeofday}_{ol}_etalon_fits.png"
+            )
             plt.close()
 
 
@@ -113,7 +114,7 @@ parser = argparse.ArgumentParser(
 
 parser.add_argument("-f", "--filename", default=DEFAULT_FILENAME)
 
-parser.add_argument("-o", "--orderlets", type=parse_orderlets, default="all")
+parser.add_argument("-o", "--orderlets", type=parse_orderlets, default="SCI2")
 parser.add_argument("--fit_plot", type=parse_bool, default=False)
 
 parser.add_argument(
@@ -125,7 +126,7 @@ if __name__ == "__main__":
     logger.setLevel(logging.INFO)
 
     args = parser.parse_args()
-    OUTDIR = args.outdir
+    OUTDIR: Path = args.outdir
 
     main(
         filename=args.filename,

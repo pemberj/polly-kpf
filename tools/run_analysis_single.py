@@ -1,31 +1,30 @@
 #!/usr/bin/env python
 
+# /// script
+# dependencies = [
+#     "polly-kpf>=0.2.0",
+# ]
+# [tool.uv.sources]
+# polly-kpf = { path = "../", editable = true }
+# ///
+
 """
 Single file analysis command-line utility. Can be passed a filename as argument.
 """
 
-from __future__ import annotations
-
-import logging
 import argparse
+import logging
 from pathlib import Path
 
 from astropy.io import fits
-
 from matplotlib import pyplot as plt
 
-try:
-    from polly.log import logger
-    from polly.kpf import TIMESOFDAY
-    from polly.parsing import parse_bool, parse_orderlets
-    from polly.etalonanalysis import Spectrum
-    from polly.plotting import plot_style
-except ImportError:
-    from log import logger
-    from kpf import TIMESOFDAY
-    from parsing import parse_bool, parse_orderlets
-    from etalonanalysis import Spectrum
-    from plotting import plot_style
+from polly.etalonanalysis import Spectrum
+from polly.kpf import TIMESOFDAY
+from polly.log import logger
+from polly.parsing import parse_bool, parse_orderlets
+from polly.plotting import plot_style
+
 plt.style.use(plot_style)
 
 
@@ -111,10 +110,16 @@ parser = argparse.ArgumentParser(
 
 parser.add_argument("-f", "--filename", default=default_filename)
 parser.add_argument("-o", "--orderlets", type=parse_orderlets, default=None)
-parser.add_argument("--outdir", default="/scr/jpember/polly_outputs")
-parser.add_argument("--spectrum_plot", type=parse_bool, default=False)
-parser.add_argument("--fsr_plot", type=parse_bool, default=True)
-parser.add_argument("--fit_plot", type=parse_bool, default=True)
+parser.add_argument(
+    "--outdir",
+    type=lambda p: Path(p).absolute(),
+    default=Path("/scr/jpember/polly_outputs"),
+)
+parser.add_argument(
+    "--spectrum_plot", "--spectrum-plot", type=parse_bool, default=False
+)
+parser.add_argument("--fsr_plot", "--fsr-plot", type=parse_bool, default=False)
+parser.add_argument("--fit_plot", "--fit-plot", type=parse_bool, default=False)
 
 
 if __name__ == "__main__":

@@ -7,28 +7,13 @@ Contains functions to parse various types of input, such as dates, filenames, nu
 ranges, etc.
 """
 
-from __future__ import annotations
-
-import re
 import argparse
+import re
 from datetime import datetime
+from pathlib import Path
 from typing import NamedTuple
 
-
-try:
-    from polly.kpf import (
-        ORDERLETS,
-        TIMESOFDAY,
-        LFC_ORDER_INDICES,
-        THORIUM_ORDER_INDICES,
-    )
-except ImportError:
-    from kpf import (
-        ORDERLETS,
-        TIMESOFDAY,
-        LFC_ORDER_INDICES,
-        THORIUM_ORDER_INDICES,
-    )
+from polly.kpf import LFC_ORDER_INDICES, ORDERLETS, THORIUM_ORDER_INDICES, TIMESOFDAY
 
 
 class Mask(NamedTuple):
@@ -41,13 +26,15 @@ class Mask(NamedTuple):
     orderlet: str
 
 
-def parse_filename(filename: str | list[str]) -> tuple[datetime, str, str]:
+def parse_filename(
+    filename: Path | str | list[Path] | list[str],
+) -> tuple[datetime, str, str]:
     """
     Parse a filename that is supposed to contain a date, time of day, and orderlet, and
     return a tuple of these three elements.
 
     Args:
-        filename (str | list[str]): The input filename(s)
+        filename (Path | str | list[Path] | list[str]): The input file(name)(s)
 
     Returns:
         tuple[datetime, str, str]: A tuple containing the date, time of day, and
@@ -57,7 +44,10 @@ def parse_filename(filename: str | list[str]) -> tuple[datetime, str, str]:
     if isinstance(filename, list):
         return [parse_filename(f) for f in filename]
 
-    filename = filename.split("/")[-1]
+    if isinstance(filename, str):
+        filename = Path(filename)
+
+    filename = filename.name
     datestr, timeofday, orderlet, *_ = filename.split("_")[:3]
     date = parse_yyyymmdd(datestr)
 
@@ -86,7 +76,7 @@ def parse_yyyymmdd(yyyymmdd: str | float) -> datetime:
         yyyymmdd = str(yyyymmdd)
 
     # Handle dates like "2024-12-31"
-    elif not isinstance(yyyymmdd, str) and "-" in yyyymmdd:
+    elif isinstance(yyyymmdd, str) and "-" in yyyymmdd:
         yyyymmdd = "".join(yyyymmdd.split("-"))
         # Now it should be "20241231"
 
