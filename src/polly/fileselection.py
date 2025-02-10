@@ -143,11 +143,15 @@ def select_masks(
 
     if isinstance(orderlet, str):
         orderlet = [orderlet]
+    if orderlet is None:
+        orderlet = ORDERLETS
     for ol in orderlet:
         assert ol in [*ORDERLETS, None]
 
     if isinstance(timeofday, str):
         timeofday = [timeofday]
+    if timeofday is None:
+        timeofday = TIMESOFDAY
     for tod in timeofday:
         assert tod in [*TIMESOFDAY, None]
 
