@@ -123,7 +123,7 @@ def wavelength_to_rgb(
 
     if isinstance(wavelength, list | np.ndarray):
         return [
-            wavelength_to_rgb(wavelength=wl, gamma=gamma, face_factor=fade_factor)
+            wavelength_to_rgb(wavelength=wl, gamma=gamma, fade_factor=fade_factor)
             for wl in wavelength
         ]
 
