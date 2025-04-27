@@ -94,6 +94,7 @@ select = [
 
 ignore = [
     "E722",   # do not use bare 'except'
+    "F841",   # unused variable
     "W605",   # invalid escape sequence
     "S101",   # use of assert
     "DTZ001", # datetime.datetime used without explicit tzinfo=
