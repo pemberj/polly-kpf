@@ -790,10 +790,10 @@ class Peak:
             color="r",
             ls="--",
             alpha=0.5,
-            label=f"{self.center_wavelength:.2f}$\AA$",
+            label=f"{self.center_wavelength:.2f}$\\AA$",
         )
 
-        ax.set_xlabel("$\lambda$ [$\AA$]")
+        ax.set_xlabel("$\\lambda$ [$\\AA$]")
         ax.set_ylabel("")
         ax.legend(loc="upper center", fontsize="small", frameon=True)
 
@@ -1521,7 +1521,7 @@ class Spectrum:
         if self.orders_to_load is None:
             self.orders_to_load = ALL_ORDER_INDICES
 
-        self.filtered_peaks = {ol: None for ol in self.orderlets_to_load}
+        self.filtered_peaks = dict.fromkeys(self.orderlets_to_load)
 
         if self._orders:
             ...
@@ -2755,7 +2755,7 @@ class Spectrum:
 
         ax.legend(loc="lower right")
         ax.set_xlabel("Wavelength [Angstroms]", size=16)
-        ax.set_ylabel("Etalon $\Delta\\nu_{FSR}$ [GHz]", size=16)
+        ax.set_ylabel("Etalon $\\Delta\\nu_{FSR}$ [GHz]", size=16)
 
         return self
 
