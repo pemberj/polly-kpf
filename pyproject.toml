@@ -1,6 +1,6 @@
 [project]
 name = "polly-kpf"
-version = "0.2"
+version = "0.2.1"
 description = "Analysis code for KPF etalon data"
 keywords = [
     "KPF",
