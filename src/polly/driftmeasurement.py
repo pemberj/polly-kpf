@@ -61,6 +61,7 @@ class PeakDrift:
     # After initialisation, the single peak will be tracked as it appears in
     # each successive mask. The corresponding wavelengths at which it is found
     # will populate the `wavelengths` list.
+    _reference_date: datetime | None = None
     wavelengths: list[float | None] = field(default_factory=list)
     sigmas: list[float] = field(default_factory=list)
     valid: list[bool] | None = None
@@ -77,26 +78,35 @@ class PeakDrift:
     recalculated: bool = False
 
     def __post_init__(self) -> None:
-        if isinstance(self.drift_file, str):
-            self.drift_file = Path(self.drift_file)
+        if self.drift_file is not None:
+            if isinstance(self.drift_file, str):
+                self.drift_file = Path(self.drift_file)
 
-        if self.drift_file.exists():
-            # print(f"File exists for λ={self.reference_wavelength:.2f}")
+            if self.drift_file.exists():
+                # print(f"File exists for λ={self.reference_wavelength:.2f}")
 
-            # First check if there is an existing file. If so, check its length.
-            # If this is within 10% of the length of self.masks, don't recalculate
-            # unless self.force_recalculate == True?
+                # First check if there is an existing file. If so, check its length.
+                # If this is within 10% of the length of self.masks, don't recalculate
+                # unless self.force_recalculate == True?
 
-            if self.force_recalculate:
-                # Then proceed as normal, track the drift from the masks
-                self.track_drift()
+                if self.force_recalculate:
+                    # Then proceed as normal, track the drift from the masks
+                    self.track_drift()
 
-            else:
-                self.load_from_file()
+                else:
+                    self.load_from_file()
 
-        else:
-            # No file exists, proceed as normal
-            self.track_drift()
+        nanwavelength = np.where(~np.isnan(self.wavelengths), True, False)
+        nansigma = np.where(~np.isnan(self.sigmas), True, False)
+        self.valid = np.logical_and(nanwavelength, nansigma)
+
+        if sum(self.valid) <= 3:  # noqa: PLR2004
+            print(
+                "Too few located peaks for λ="
+                + f"{self.reference_wavelength:.2f} ({len(self.valid)})"
+            )
+
+        # self.track_drift()
 
         if self.auto_fit:
             self.linear_fit()
@@ -117,16 +127,6 @@ class PeakDrift:
         self.wavelengths = np.array(file_wls)
         self.sigmas = np.array(file_sigmas)
         self.sigmas[self.sigmas == 0] = np.nan
-
-        nanwavelength = np.where(~np.isnan(self.wavelengths), True, False)
-        nansigma = np.where(~np.isnan(self.sigmas), True, False)
-        self.valid = np.logical_and(nanwavelength, nansigma)
-
-        if sum(self.valid) <= 3:  # noqa: PLR2004
-            print(
-                "Too few located peaks for λ="
-                + f"{self.reference_wavelength:.2f} ({len(self.valid)})"
-            )
 
     @cached_property
     def valid_wavelengths(self) -> list[float]:
@@ -167,6 +167,9 @@ class PeakDrift:
         Simply parses the date from the reference mask filename and returns it in a
         datetime object
         """
+        if self._reference_date is not None:
+            return self._reference_date
+
         return parse_filename(self.reference_mask).date
 
     @cached_property
@@ -207,7 +210,7 @@ class PeakDrift:
         Returns the difference between the valid wavelengths and the reference
         wavelength -- this is the drift of the peak over time.
         """
-        return self.valid_wavelengths - self.reference_wavelength
+        return [wl - self.reference_wavelength for wl in self.valid_wavelengths]
 
     @overload
     def get_delta_at_date(self, date: datetime) -> float: ...
@@ -245,7 +248,7 @@ class PeakDrift:
         as a function of wavelength. Also used to compute the radial velocity-space
         shift over time (multiplying by the speed of light in the desired units).
         """
-        return self.deltas / self.reference_wavelength
+        return [d / self.reference_wavelength for d in self.deltas]
 
     @overload
     def get_fractional_delta_at_date(self, date: datetime) -> float: ...
@@ -290,34 +293,35 @@ class PeakDrift:
 
         last_wavelength: float = None
 
-        for m in self.masks:
-            self.dates.append(parse_filename(m).date)
-            peaks, sigmas = np.transpose(np.loadtxt(m))
+        if self.masks is not None:
+            for m in self.masks:
+                self.dates.append(parse_filename(m).date)
+                peaks, sigmas = np.transpose(np.loadtxt(m))
 
-            if last_wavelength is None:
-                # First mask
-                last_wavelength = self.reference_wavelength
+                if last_wavelength is None:
+                    # First mask
+                    last_wavelength = self.reference_wavelength
 
-            try:  # Find the closest peak in the mask
-                closest_index = np.nanargmin(np.abs(peaks - last_wavelength))
-            except ValueError:  # What would give us a ValueError here?
-                self.wavelengths.append(None)
-                self.sigmas.append(None)
-                continue
+                try:  # Find the closest peak in the mask
+                    closest_index = np.nanargmin(np.abs(peaks - last_wavelength))
+                except ValueError:  # What would give us a ValueError here?
+                    self.wavelengths.append(None)
+                    self.sigmas.append(None)
+                    continue
 
-            wavelength = peaks[closest_index]
-            sigma = sigmas[closest_index]
+                wavelength = peaks[closest_index]
+                sigma = sigmas[closest_index]
 
-            # Check if the new peak is within a search window around the last
-            if abs(last_wavelength - wavelength) <= self.local_spacing / 50:
-                self.wavelengths.append(wavelength)
-                last_wavelength = wavelength
-                self.sigmas.append(sigma)
-            else:  # No peak found within the window!
-                self.wavelengths.append(None)
-                self.sigmas.append(None)
-                # Don't update last_wavelength: we will keep searching at the
-                # same wavelength as previously.
+                # Check if the new peak is within a search window around the last
+                if abs(last_wavelength - wavelength) <= self.local_spacing / 50:
+                    self.wavelengths.append(wavelength)
+                    last_wavelength = wavelength
+                    self.sigmas.append(sigma)
+                else:  # No peak found within the window!
+                    self.wavelengths.append(None)
+                    self.sigmas.append(None)
+                    # Don't update last_wavelength: we will keep searching at the
+                    # same wavelength as previously.
 
         # Assign self.valid as a mask where wavelengths were successfully found
         self.valid = np.where(self.wavelengths, True, False)
